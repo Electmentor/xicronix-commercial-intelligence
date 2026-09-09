@@ -277,9 +277,9 @@ function renderRecords(){
  $('importBtn').hidden=isUsers||isGoals;$('importHelp').hidden=isUsers||isGoals;
  $('sellerSummary').hidden=canViewDashboard()||page!=='leads';$('sellerSummary').innerHTML=renderSellerWorkspaceSummary();
  const rows=filtered();const max=Math.max(1,Math.ceil(rows.length/size));pageIndex=Math.min(pageIndex,max-1);
- $('recordCount').textContent=failures[page]?'Información no disponible':${rows.length+' registros'};
+ $('recordCount').textContent=failures[page]?'Información no disponible':rows.length+' registros';
  $('exportBtn').disabled=!!failures[page]||!rows.length;
- $('pageNumber').textContent=${`Página ${pageIndex+1} de ${max}`};$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
+ $('pageNumber').textContent='Página '+(pageIndex+1)+' de '+max;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
  const config=modules[page],canEdit=isUsers||isGoals?canManageUsers():writable();
  const secondHeader=isUsers?'Rol':isGoals?'Responsable':page==='institutions'?'Ciudad':'Institución';
  const detailHeader=isGoals?'Meta de margen':(['leads','opportunities'].includes(page)?'Valor estimado':'Detalle');
