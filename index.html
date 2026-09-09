@@ -21,8 +21,15 @@
   <p class="auth-note">Una cuenta nueva necesita ser vinculada a tu organización por un administrador.</p></main>
 </section>
 <section id="appView" class="app" hidden>
-  <aside class="sidebar"><div class="brand">XICRONIX<span>INTELIGENCIA COMERCIAL</span></div><p class="nav-label">ESPACIO COMERCIAL</p><nav id="navigation" aria-label="Navegación principal"></nav><div class="sidebar-bottom"><span id="userRole"></span><button id="logoutBtn">Cerrar sesión</button></div></aside>
+  <aside class="sidebar"><div class="brand">XICRONIX<span>INTELIGENCIA COMERCIAL</span></div><p id="workspaceLabel" class="nav-label">ESPACIO COMERCIAL</p><nav id="navigation" aria-label="Navegación principal"></nav><div class="sidebar-bottom"><span id="userRole"></span><button id="logoutBtn">Cerrar sesión</button></div></aside>
   <main class="main"><header class="top"><div><p class="eyebrow">XICRONIX / <span id="dateLabel"></span></p><h1 id="pageTitle">Resumen comercial</h1><p id="welcome"></p></div><div class="header-actions"><button id="themeToggle" type="button" aria-pressed="false" title="Cambiar contraste de la interfaz">🌙 Modo nocturno</button><button id="refreshBtn">Actualizar</button><button id="newBtn" class="primary">+ Nueva institución</button></div></header>
+  <section id="workspaceControls" class="workspace-controls" aria-label="Experiencia de trabajo" hidden>
+    <div class="workspace-switch" role="group" aria-label="Seleccionar modo de trabajo" aria-describedby="workspaceHint">
+      <button id="adminModeBtn" type="button" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10h4v10M10 20V4h4v16M16 20V7h4v13"/></svg>Modo administrador</button>
+      <button id="sellerModeBtn" type="button" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="3"/><path d="M5 21v-4a7 7 0 0 1 14 0v4M8 21v-4M16 21v-4"/></svg>Modo vendedor</button>
+    </div>
+    <p id="workspaceHint" role="status" aria-live="polite"></p>
+  </section>
   <p id="status" class="notice" role="status" aria-live="polite" hidden></p>
   <section id="dashboard"></section>
   <section id="records" hidden><div id="sellerSummary" hidden></div><div class="toolbar"><input id="search" type="search" aria-label="Buscar registros" placeholder="Buscar por nombre, institución o contacto…"><select id="filter" aria-label="Filtrar por estado o tipo"></select><div class="toolbar-actions"><button id="importBtn">Importar CSV</button><button id="exportBtn">Exportar CSV</button><input id="importInput" type="file" accept=".csv,text/csv" hidden></div></div><p id="importHelp" class="muted">Importa un CSV con los encabezados de la exportación de este módulo. La carga se valida antes de guardarse.</p><div id="recordCount" class="muted"></div><div id="recordList"></div><div class="pagination"><button id="previous">Anterior</button><span id="pageNumber"></span><button id="next">Siguiente</button></div></section>

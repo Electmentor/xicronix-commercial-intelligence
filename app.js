@@ -1,5 +1,7 @@
 import {escapeHTML as esc, filterRecords, money, metrics, priorities, csv, parseCsv, normalize} from './domain.mjs';
 
+import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWriteModule, assignedUserId, scopeWorkspaceData} from './workspace.mjs';
+
 const $ = id => document.getElementById(id);
 const enums = {
  type:{UNIVERSITY:'Universidad',SCHOOL:'Colegio',INSTITUTE:'Instituto',CLINIC:'Clínica',HOSPITAL:'Hospital',COMPANY:'Empresa',GOVERNMENT:'Gobierno',RESEARCH_CENTER:'Centro de investigación',OTHER:'Otro'},
@@ -16,13 +18,17 @@ const f=(key,label,type='text',required=false,options=null)=>({key,label,type,re
 const institution=f('institution_id','Institución','relation');
 const contact=f('contact_id','Contacto','relation');
 const followUp=[f('next_action','Próxima acción'),f('next_action_date','Fecha de seguimiento','datetime-local')];
+const owner=f('owner_user_id','Responsable','relation');owner.adminOnly=true;
+const assignee=f('assigned_to','Responsable','relation');assignee.adminOnly=true;
+const cost=f('estimated_cost','Costo estimado (S/)','number');cost.adminOnly=true;
 const modules={
  institutions:{label:'Instituciones',singular:'institución',filter:'type',options:enums.type,fields:[f('name','Nombre','text',true),f('type','Tipo','select',true,enums.type),f('ruc','RUC'),f('city','Ciudad'),f('country','País','text',true),f('address','Dirección'),f('email','Correo','email'),f('phone','Teléfono','tel'),f('website','Sitio web','url'),f('notes','Notas','textarea')]},
  contacts:{label:'Contactos',singular:'contacto',filter:'decision_level',options:enums.decision_level,fields:[f('first_name','Nombres','text',true),f('last_name','Apellidos'),institution,f('job_title','Cargo'),f('decision_level','Nivel de decisión','select',true,enums.decision_level),f('email','Correo','email'),f('phone','Teléfono','tel'),f('notes','Notas','textarea')]},
- leads:{label:'Prospectos',singular:'prospecto',filter:'status',options:enums.status,fields:[f('title','Título','text',true),institution,contact,f('source','Fuente'),f('status','Estado','select',true,enums.status),f('estimated_value','Valor estimado (S/)','number'),f('score','Calificación manual (0–100)','number'),...followUp]},
- opportunities:{label:'Oportunidades',singular:'oportunidad',filter:'stage',options:enums.stage,fields:[f('name','Nombre','text',true),institution,contact,f('stage','Etapa','select',true,enums.stage),f('value','Valor (S/)','number'),f('probability','Probabilidad manual (%)','number'),f('expected_close_date','Cierre esperado','date'),...followUp]},
- tasks:{label:'Tareas',singular:'tarea',filter:'status',options:enums.taskStatus,fields:[f('title','Título','text',true),institution,f('status','Estado','select',true,enums.taskStatus),f('priority','Prioridad','select',true,enums.priority),f('due_at','Fecha límite','datetime-local')]},
+ leads:{label:'Prospectos',singular:'prospecto',filter:'status',options:enums.status,fields:[f('title','Título','text',true),institution,contact,f('source','Fuente'),f('status','Estado','select',true,enums.status),f('estimated_value','Valor estimado (S/)','number'),f('score','Calificación manual (0–100)','number'),owner,...followUp]},
+ opportunities:{label:'Oportunidades',singular:'oportunidad',filter:'stage',options:enums.stage,fields:[f('name','Nombre','text',true),institution,contact,f('stage','Etapa','select',true,enums.stage),f('value','Valor (S/)','number'),cost,owner,f('probability','Probabilidad manual (%)','number'),f('expected_close_date','Cierre esperado','date'),...followUp]},
+ tasks:{label:'Tareas',singular:'tarea',filter:'status',options:enums.taskStatus,fields:[f('title','Título','text',true),institution,f('status','Estado','select',true,enums.taskStatus),f('priority','Prioridad','select',true,enums.priority),f('due_at','Fecha límite','datetime-local'),assignee]},
  activities:{label:'Interacciones',singular:'interacción',filter:'type',options:enums.activityType,fields:[f('lead_id','Prospecto','relation',true),institution,contact,f('type','Canal','select',true,enums.activityType),f('subject','Asunto','text',true),f('outcome','Resultado','select',false,enums.activityOutcome),f('need_summary','Necesidad detectada','textarea'),f('decision_timeline','Horizonte de decisión'),f('budget_signal','Señal de presupuesto'),f('notes','Notas','textarea'),f('occurred_at','Fecha y hora','datetime-local',true),f('next_action','Próxima acción'),f('next_action_date','Fecha de seguimiento','datetime-local')]},
+ goals:{label:'Metas',singular:'meta',fields:[owner,f('period_start','Inicio del periodo','date',true),f('period_end','Fin del periodo','date',true),f('target_margin','Meta de margen (S/)','number',true),f('target_won_value','Meta de ventas ganadas (S/)','number',true),f('notes','Notas','textarea')]},
  users:{label:'Usuarios',singular:'usuario',filter:'role',options:enums.role,fields:[f('full_name','Nombre completo','text',true),f('role','Rol','select',true,enums.role)]}
 };
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
@@ -30,14 +36,53 @@ const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence-git-improvemen-2952f5-xicronix.vercel.app/';
 const emptyData=()=>Object.fromEntries([...Object.keys(modules),'scores'].map(k=>[k,[]]));
 const writable=()=>profile && ['ADMIN','MANAGER','SALES'].includes(profile.role);
-const canDelete=()=>profile?.role==='ADMIN';
-const canManageUsers=()=>profile?.role==='ADMIN';
-const canViewDashboard=()=>profile?.role==='ADMIN';
+let workspace=SELLER, workspaceIdentity=null, loading=false;
+const isAdminAccount=()=>profile?.role==='ADMIN';
+const canViewDashboard=()=>!!profile && effectiveWorkspace(profile,workspace)===ADMIN;
+const canManageUsers=canViewDashboard;
+const canManageGoals=canViewDashboard;
+const canDelete=canViewDashboard;
+const accessible=table=>canAccessPage(profile,workspace,table);
+const writableFor=table=>canWriteModule(profile,workspace,table);
+const fieldsFor=table=>(modules[table]?.fields||[]).filter(field=>!field.adminOnly||canViewDashboard());
+const databaseTable=table=>({users:'profiles',goals:'commercial_goals'})[table]||table;
+function restoreWorkspace(){
+ const identity=workspaceKey(session.user.id,profile.organization_id);
+ if(workspaceIdentity!==identity){
+  let saved=ADMIN;try{saved=localStorage.getItem(identity)||ADMIN;}catch(_error){}
+  workspace=effectiveWorkspace(profile,saved);workspaceIdentity=identity;
+ }else workspace=effectiveWorkspace(profile,workspace);
+}
+function renderWorkspaceControls(){
+ const admin=canViewDashboard();
+ $('workspaceControls').hidden=!profile;
+ $('adminModeBtn').hidden=!isAdminAccount();
+ $('adminModeBtn').setAttribute('aria-pressed',String(admin));
+ $('sellerModeBtn').setAttribute('aria-pressed',String(!admin));
+ $('adminModeBtn').disabled=$('sellerModeBtn').disabled=loading||busy;
+ $('workspaceHint').textContent=admin?'Visión global: resultados, margen, metas y equipo.':'Mi cartera: prospectos, potencial, interacciones y próximas acciones.';
+ $('workspaceLabel').textContent=admin?'DIRECCIÓN COMERCIAL':'MI ESPACIO DE VENTAS';
+ $('appView').dataset.workspace=admin?ADMIN:SELLER;
+ const labels=admin?{}:{leads:'Mi cartera',opportunities:'Mis oportunidades',tasks:'Mis tareas',activities:'Mis interacciones',institutions:'Mis instituciones',contacts:'Mis contactos'};
+ const keys=admin?['dashboard',...Object.keys(modules)]:['leads','tasks','activities','opportunities','institutions','contacts'];
+ $('navigation').innerHTML=keys.filter(accessible).map((key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen ejecutivo')+'</button>').join('');
+}
+async function setWorkspace(next){
+ if(![ADMIN,SELLER].includes(next)||!profile||busy||loading)return;
+ if(next===ADMIN&&!isAdminAccount()){notice('El modo administrador requiere una cuenta con ese rol.',true);return;}
+ if($('editor').open){notice('Guarda o cancela el formulario antes de cambiar de modo.',true);return;}
+ if(next===workspace)return;
+ workspace=effectiveWorkspace(profile,next);
+ try{localStorage.setItem(workspaceIdentity,workspace);}catch(_error){}
+ data=emptyData();failures={};$('dashboard').replaceChildren();$('recordList').replaceChildren();$('sellerSummary').replaceChildren();
+ navigate(workspace===ADMIN?'dashboard':'leads');
+ await reload();
+}
 const THEME_STORAGE_KEY='xicronix-theme';
 const authRedirectUrl=()=>/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?PUBLIC_APP_URL:location.origin+location.pathname;
 const nameOf=row=>row.name || row.title || row.full_name || [row.first_name,row.last_name].filter(Boolean).join(' ');
 const relatedName=row=>data.institutions?.find(i=>i.id===row.institution_id)?.name || '';
-const relationTable=key=>({institution_id:'institutions',contact_id:'contacts',lead_id:'leads',opportunity_id:'opportunities'})[key];
+const relationTable=key=>({institution_id:'institutions',contact_id:'contacts',lead_id:'leads',opportunity_id:'opportunities',owner_user_id:'users',assigned_to:'users'})[key];
 const relationName=(key,row)=>{const table=relationTable(key);return table?nameOf((data[table]||[]).find(item=>item.id===row[key])||{}):'';};
 const date=value=>value?new Date(value).toLocaleString('es-PE',{dateStyle:'medium',timeStyle:'short'}):'Sin fecha';
 const notice=(message,error=false)=>{ $('status').hidden=!message;$('status').textContent=message;$('status').className='notice'+(error?' error':''); };
@@ -83,33 +128,44 @@ function resetPasswordVisibility(){
  });
 }
 function clearSession(){
- loadVersion++;session=null;profile=null;data=emptyData();failures={};page='dashboard';pageIndex=0;
+ loadVersion++;session=null;profile=null;data=emptyData();failures={};page='dashboard';pageIndex=0;workspace=SELLER;workspaceIdentity=null;loading=false;editTable=null;editId=null;editingVersion=null;
+ $('fields').replaceChildren();$('sellerSummary').replaceChildren();$('navigation').replaceChildren();$('workspaceControls').hidden=true;
  if($('editor').open)$('editor').close();$('appView').hidden=true;$('authView').hidden=false;$('dashboard').replaceChildren();$('recordList').replaceChildren();
+}
+function rowQuery(table,org){
+ let query=sb.from(databaseTable(table)).select('*').eq('organization_id',org);
+ if(!canViewDashboard()&&['leads','opportunities','tasks'].includes(table)){
+  const ownerColumn=table==='tasks'?'assigned_to':'owner_user_id';
+  query=query.or(ownerColumn+'.eq.'+session.user.id+',and('+ownerColumn+'.is.null,created_by.eq.'+session.user.id+')');
+ }
+ return query;
 }
 async function allRows(table,org){
  const rows=[];const orderColumn=table==='scores'?'calculated_at':'created_at';for(let offset=0;;offset+=500){
- const {data:batch,error}=await sb.from(table).select('*').eq('organization_id',org).order(orderColumn,{ascending:false}).order('id').range(offset,offset+499);
+ const {data:batch,error}=await rowQuery(table,org).order(orderColumn,{ascending:false}).order('id').range(offset,offset+499);
  if(error)throw error;rows.push(...batch);if(batch.length<500)return rows;
  }
 }
 async function reload(){
- if(!session||recovery)return;
- const version=++loadVersion;const userId=session.user.id;
+ if(!session||recovery||busy)return;
+ const version=++loadVersion;const userId=session.user.id;loading=true;renderWorkspaceControls();
  $('refreshBtn').disabled=true;$('newBtn').disabled=true;notice('Cargando información…');
  try{
  const result=await sb.from('profiles').select('id,organization_id,full_name,role').eq('id',userId).maybeSingle();
  if(version!==loadVersion)return;
  if(result.error)throw result.error;
  profile=result.data;
- if(!profile){data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice('Tu cuenta está autenticada, pero aún no está vinculada a Xicronix. Un administrador debe asignarte una organización y un rol.',true);return;}
+ if(!profile?.organization_id){profile=null;data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice('Tu cuenta está autenticada, pero aún no está vinculada a Xicronix. Un administrador debe asignarte una organización y un rol.',true);return;}
+ restoreWorkspace();
  $('userRole').textContent=enums.role[profile.role]||'Sin rol';$('welcome').textContent=profile.full_name||session.user.email;
- const tables=[...Object.keys(modules).filter(k=>k!=='users'||canManageUsers()),'scores'];
+ const tables=[...Object.keys(modules).filter(accessible),'scores'];
  const results=await Promise.allSettled(tables.map(k=>allRows(k,profile.organization_id)));
  if(version!==loadVersion)return;
  data=emptyData();failures={};tables.forEach((k,i)=>{if(results[i].status==='fulfilled')data[k]=results[i].value;else failures[k]=true;});
+ data=scopeWorkspaceData(data,profile,userId,workspace);
  render();const bad=Object.keys(failures);notice(bad.length?'No se pudo cargar: '+bad.map(k=>modules[k]?.label||k).join(', ')+'. Pulsa Actualizar para reintentar.':'',!!bad.length);
  }catch(error){if(version===loadVersion){profile=null;data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice(errorText(error),true);}}
- finally{if(version===loadVersion){$('refreshBtn').disabled=false;$('newBtn').disabled=!writable()||!!failures[page==='dashboard'?'institutions':page];}}
+ finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;render();}}
 }
 function applyTheme(theme,persist=false){
  const night=theme==='night';document.documentElement.dataset.theme=night?'night':'day';
@@ -117,20 +173,37 @@ function applyTheme(theme,persist=false){
  if(persist){try{localStorage.setItem(THEME_STORAGE_KEY,night?'night':'day');}catch(_error){}}
 }
 function initTheme(){let stored='';try{stored=localStorage.getItem(THEME_STORAGE_KEY)||'';}catch(_error){}applyTheme(stored==='night'?'night':'day');}
-function navigate(next){if(next==='dashboard'&&!canViewDashboard())next='leads';page=next;pageIndex=0;$('search').value='';const config=modules[page];$('filter').innerHTML='<option value="">Todos los estados / tipos</option>'+Object.entries(config?.options||{}).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');render();}
-function badge(value,table){return `<span class="badge ${['WON','COMPLETED'].includes(value)?'success':['OVERDUE','CRITICAL'].includes(value)?'warn':''}">${esc(modules[table]?.options[value]||enums.priority[value]||value||'—')}</span>`;}
+function navigate(next){
+ if(busy||$('editor').open)return;
+ if(!accessible(next))next=canViewDashboard()?'dashboard':'leads';
+ page=next;pageIndex=0;$('search').value='';
+ const config=modules[page];$('filter').dataset.page=page;
+ $('filter').innerHTML='<option value="">Todos los estados / tipos</option>'+Object.entries(config?.options||{}).map(([key,value])=>'<option value="'+key+'">'+value+'</option>').join('');
+ render();
+}
+function badge(value,table){return `<span class="badge ${['WON','COMPLETED'].includes(value)?'success':['OVERDUE','CRITICAL'].includes(value)?'warn':''}">${esc(modules[table]?.options?.[value]||enums.priority[value]||value||'—')}</span>`;}
 function render(){
- if(profile&&page==='dashboard'&&!canViewDashboard()){page='leads';pageIndex=0;const config=modules[page];$('filter').innerHTML='<option value="">Todos los estados / tipos</option>'+Object.entries(config.options||{}).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');}
- $('dashboard').hidden=page!=='dashboard';$('records').hidden=page==='dashboard';$('pageTitle').textContent=page==='dashboard'?'Resumen comercial':modules[page].label;
- const target=page==='dashboard'?'institutions':page,managingUsers=target==='users';
- const dashboardNav=document.querySelector('[data-page="dashboard"]');if(dashboardNav)dashboardNav.hidden=!canViewDashboard();
- const usersNav=document.querySelector('[data-page="users"]');if(usersNav)usersNav.hidden=!canManageUsers();
- if(managingUsers&&!canManageUsers()){page='leads';return render();}
- $('newBtn').hidden=managingUsers;$('newBtn').textContent='+ Crear '+modules[target].singular;$('newBtn').disabled=managingUsers||!writable()||!!failures[target];
- document.querySelectorAll('[data-page]').forEach(b=>{b.classList.toggle('active',b.dataset.page===page);if(b.dataset.page===page)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
+ renderWorkspaceControls();
+ if(!accessible(page)){page=canViewDashboard()?'dashboard':'leads';pageIndex=0;$('search').value='';$('filter').value='';}
+ if($('filter').dataset.page!==page){
+  $('filter').dataset.page=page;
+  $('filter').innerHTML='<option value="">Todos los estados / tipos</option>'+Object.entries(modules[page]?.options||{}).map(([key,value])=>'<option value="'+key+'">'+value+'</option>').join('');
+ }
+ const admin=canViewDashboard();
+ $('dashboard').hidden=page!=='dashboard';$('records').hidden=page==='dashboard';
+ $('pageTitle').textContent=page==='dashboard'?'Resumen ejecutivo':!admin&&page==='leads'?'Mi cartera de prospectos':modules[page].label;
+ const target=page==='dashboard'?'institutions':page;
+ $('newBtn').hidden=target==='users'||!writableFor(target);
+ $('newBtn').textContent='+ Crear '+modules[target].singular;
+ $('newBtn').disabled=loading||busy||!writableFor(target)||!!failures[target];
+ $('refreshBtn').disabled=loading||busy;
+ document.querySelectorAll('[data-page]').forEach(button=>{
+  button.classList.toggle('active',button.dataset.page===page);
+  if(button.dataset.page===page)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');
+ });
+ if(!admin)$('dashboard').replaceChildren();
  if(page==='dashboard')renderDashboard();else renderRecords();
 }
-function assignedUserId(row){return row.owner_user_id||row.assigned_to||row.user_id||row.created_by||null;}
 function opportunityMargin(row){
  const value=Number(row.value);
  const cost=row.estimated_cost;
@@ -206,6 +279,7 @@ function renderCollaboratorPerformance(){
  return '<article class="panel team-performance"><div class="panel-head"><div><h2>Desempeño del equipo</h2><p class="muted">Seguimiento administrativo; el bono es referencial y no constituye una orden de pago.</p></div></div><div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Leads</th><th>Oportunidades</th><th>Margen</th><th>Tareas</th><th>Desempeño</th><th>Bono referencial</th></tr></thead><tbody>'+markup+'</tbody></table></div><p class="muted">La evaluación combina resultado 40%, avance 20%, calidad de datos 15%, seguimiento 15% y colaboración 10%. Si una oportunidad ganada no tiene costo estimado, su margen y bono permanecen pendientes.</p></article>';
 }
 function renderDashboard(){
+ if(!canViewDashboard()){$('dashboard').replaceChildren();return;}
  const m=metrics(data),failed=Object.keys(failures),opportunities=data.opportunities||[];
  const cards=[
   ['Leads activos',failures.leads?'—':m.leads,'En investigación o contacto'],
@@ -243,17 +317,10 @@ function renderDashboard(){
  const adminHighLevel=renderAdminHighLevel();
  $('dashboard').innerHTML=`${adminHighLevel}<div class="cards">${cards.map(([label,value,hint])=>`<article class="card"><small>${label}</small><strong>${value}</strong><small>${hint}</small></article>`).join('')}</div><div class="grid"><article class="panel"><div class="panel-head"><h2>Prioridades comerciales</h2><button data-page="opportunities">Ver oportunidades</button></div>${priorityMarkup||'<div class="empty">No hay seguimientos con fecha. Agrega una próxima acción para priorizarla.</div>'}</article><article class="panel"><div class="panel-head"><h2>Pipeline por etapa</h2><button data-page="opportunities">Ver todo</button></div>${failures.opportunities?'<p class="error">No disponible</p>':stageMarkup}</article></div><article class="panel task-summary"><div class="panel-head"><h2>Próximas tareas</h2><button data-page="tasks">Ver tareas</button></div><div class="task-summary-grid"><div><small>Hoy</small><strong>${failures.tasks?'—':taskCount(start,tomorrow)}</strong></div><div><small>Mañana</small><strong>${failures.tasks?'—':taskCount(tomorrow,dayAfter)}</strong></div><div class="task-summary-overdue"><small>Vencidas</small><strong>${failures.tasks?'—':overdueTasks}</strong></div></div></article><article class="panel alerts-panel"><div class="panel-head"><h2>Alertas</h2><button data-page="tasks">Ver seguimientos</button></div>${alertMarkup||'<div class="empty">No hay alertas activas.</div>'}</article>${failed.length?'<p class="error">Algunos módulos no están disponibles. Pulsa Actualizar para reintentar.</p>':''}${renderCollaboratorPerformance()}`;
 }
-function rowVisibleToUser(table,row){
- if(canViewDashboard())return true;
- if(['leads','opportunities','tasks'].includes(table))return assignedUserId(row)===session?.user?.id;
- if(table==='activities'){
-  if(row.created_by===session?.user?.id)return true;
-  const lead=(data.leads||[]).find(item=>item.id===row.lead_id);
-  return !!lead&&assignedUserId(lead)===session?.user?.id;
- }
- return true;
+function scopedRows(table){
+ if(!accessible(table)&&table!=='scores')return [];
+ return scopeWorkspaceData(data,profile,session?.user?.id,workspace)[table]||[];
 }
-function scopedRows(table){return (data[table]||[]).filter(row=>rowVisibleToUser(table,row));}
 function renderSellerWorkspaceSummary(){
  if(canViewDashboard()||page!=='leads')return '';
  const rows=scopedRows('leads'),scores=data.scores||[],now=Date.now();
@@ -269,18 +336,18 @@ function scoreCell(row){
  return '<div class="score-cell" aria-label="Potencial '+(score?value+'%':'pendiente')+'"><div class="score-track"><i style="width:'+value+'%"></i></div><strong>'+(score?value+'%':'—')+'</strong><small>'+esc(score?.recommendation||'Pendiente de interacción')+'</small></div>';
 }
 function openActivityForLead(leadId){
- const lead=(data.leads||[]).find(row=>row.id===leadId);if(!lead)return;
+ const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
  openEditor('activities',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',type:'CALL',subject:'Primer contacto',outcome:'FOLLOW_UP',occurred_at:localDateTime(new Date().toISOString())});
 }
 function renderRecords(){
  const isUsers=page==='users',isGoals=page==='goals';
- $('importBtn').hidden=isUsers||isGoals;$('importHelp').hidden=isUsers||isGoals;
+ $('importBtn').hidden=isUsers||isGoals||!writableFor(page);$('importBtn').disabled=loading||busy||!!failures[page];$('importHelp').hidden=isUsers||isGoals;
  $('sellerSummary').hidden=canViewDashboard()||page!=='leads';$('sellerSummary').innerHTML=renderSellerWorkspaceSummary();
  const rows=filtered();const max=Math.max(1,Math.ceil(rows.length/size));pageIndex=Math.min(pageIndex,max-1);
  $('recordCount').textContent=failures[page]?'Información no disponible':rows.length+' registros';
  $('exportBtn').disabled=!!failures[page]||!rows.length;
  $('pageNumber').textContent='Página '+(pageIndex+1)+' de '+max;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
- const config=modules[page],canEdit=isUsers||isGoals?canManageUsers():writable();
+ const config=modules[page],canEdit=writableFor(page);
  const secondHeader=isUsers?'Rol':isGoals?'Responsable':page==='institutions'?'Ciudad':'Institución';
  const detailHeader=isGoals?'Meta de margen':(['leads','opportunities'].includes(page)?'Valor estimado':'Detalle');
  const rowsMarkup=rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>{
@@ -304,7 +371,7 @@ function importValue(source,field){
  }
  if(field.type==='relation'){
   const table=relationTable(field.key);
-  const found=(data[table]||[]).find(row=>row.id===raw||normalize(nameOf(row))===normalize(raw));
+  const found=scopedRows(table).find(row=>row.id===raw||normalize(nameOf(row))===normalize(raw));
   return found?.id||'__missing__:'+raw;
  }
  if(field.type==='number'){
@@ -321,7 +388,7 @@ function buildImport(table,rows){
  const errors=[],payloads=[];
  rows.forEach((source,index)=>{
   const payload={},prefix='Fila '+(index+2)+': ';
-  for(const field of modules[table].fields){
+  for(const field of fieldsFor(table)){
    const value=importValue(source,field);
    if(String(value).startsWith('__missing__:'))errors.push(prefix+'no se encontró '+field.label+' “'+String(value).slice(12)+'”.');
    if(field.required&&!String(value).trim())errors.push(prefix+'falta '+field.label+'.');
@@ -333,42 +400,46 @@ function buildImport(table,rows){
 }
 async function importCsvFile(event){
  const file=event.target.files?.[0];event.target.value='';if(!file)return;
- if(!profile||!writable()){notice('Solo un usuario con permisos de escritura puede importar registros.',true);return;}
- const text=await file.text(),rows=parseCsv(text);
+ const table=page,version=loadVersion,userId=session?.user?.id,org=profile?.organization_id;
+ if(busy||loading||!writableFor(table)||['users','goals'].includes(table)||failures[table])return;
+ const text=await file.text();
+ if(version!==loadVersion||page!==table||userId!==session?.user?.id||!writableFor(table))return;
+ const rows=parseCsv(text);
  if(!rows.length){notice('El CSV está vacío o no tiene encabezados.',true);return;}
- const result=buildImport(page,rows);
- if(result.errors.length){notice(result.errors.slice(0,3).join(' ')+(result.errors.length>3?' Se encontraron más errores. Corrige el archivo y vuelve a intentarlo.':''),true);return;}
- if(!window.confirm('Se importarán '+result.payloads.length+' registros en '+modules[page].label+'. ¿Continuar?'))return;
- $('importBtn').disabled=true;notice('Importando '+result.payloads.length+' registros…');
+ const result=buildImport(table,rows);
+ if(result.errors.length){notice(result.errors.slice(0,3).join(' '),true);return;}
+ if(!window.confirm('Se importarán '+result.payloads.length+' registros en '+modules[table].label+'. ¿Continuar?'))return;
+ busy=true;render();notice('Importando '+result.payloads.length+' registros…');
  try{
-  const {error}=await sb.from(page).insert(result.payloads.map(row=>({...row,organization_id:profile.organization_id,created_by:session.user.id})));
+  const {error}=await sb.from(databaseTable(table)).insert(result.payloads.map(row=>({...row,organization_id:org,created_by:userId})));
   if(error)throw error;
-  await reload();notice('Se importaron '+result.payloads.length+' registros correctamente.');
- }catch(error){notice(errorText(error),true);}
- finally{$('importBtn').disabled=false;}
+  if(version!==loadVersion||userId!==session?.user?.id)return;
+  busy=false;await reload();notice('Se importaron '+result.payloads.length+' registros correctamente.');
+ }catch(error){if(version===loadVersion)notice(errorText(error),true);}
+ finally{busy=false;render();}
 }
 async function removeRecord(table,id){
- if(table==='users'||!canDelete()||busy)return;
- const row=data[table]?.find(item=>item.id===id);if(!row)return;
+ if(table==='users'||!accessible(table)||!canDelete()||busy||loading)return;
+ const row=scopedRows(table).find(item=>item.id===id);if(!row)return;
  if(!window.confirm('¿Eliminar '+nameOf(row)+'? Esta acción no se puede deshacer.'))return;
  busy=true;notice('Eliminando…');
  try{
-  const {error}=await sb.from(table).delete().eq('id',id).eq('organization_id',profile.organization_id);
+  const {error}=await sb.from(databaseTable(table)).delete().eq('id',id).eq('organization_id',profile.organization_id);
   if(error)throw error;
-  await reload();notice('Registro eliminado correctamente.');
+  busy=false;await reload();notice('Registro eliminado correctamente.');
  }catch(error){notice(errorText(error),true);}
- finally{busy=false;}
+ finally{busy=false;render();}
 }
 function openEditor(table,id=null,initialValues={}){
- if(!profile||failures[table])return; if(table==='users'&&(!id||!canManageUsers()))return; if(table==='goals'&&!canManageGoals())return; if(!id&&!writableFor(table))return;
- const dependencies=modules[table].fields.filter(f=>f.type==='relation').map(f=>relationTable(f.key));
+ if(!accessible(table)||loading||busy||failures[table])return; if(table==='users'&&(!id||!canManageUsers()))return; if(table==='goals'&&!canManageGoals())return; if(!id&&!writableFor(table))return;
+ const dependencies=fieldsFor(table).filter(f=>f.type==='relation').map(f=>relationTable(f.key));
  if(dependencies.some(k=>failures[k])){notice('Actualiza los módulos vinculados antes de abrir este formulario para conservar las relaciones del registro.',true);return;}
- const row=id?data[table].find(r=>r.id===id):{...initialValues};if(!row)return;
+ const row=id?scopedRows(table).find(r=>r.id===id):{owner_user_id:table==='goals'?null:session.user.id,assigned_to:session.user.id,...initialValues};if(!row)return;
  editTable=table;editId=id;editingVersion=row.updated_at||null;
  $('editorTitle').textContent=`${id?(writableFor(table)?'Editar':'Ver'):'Crear'} ${modules[table].singular}`;$('formMsg').textContent='';
- $('fields').innerHTML=modules[table].fields.map(field=>{
+ $('fields').innerHTML=fieldsFor(table).map(field=>{
  let value=row[field.key]??({country:'Peru',type:'OTHER',priority:'MEDIUM',score:0,value:0,estimated_value:0,estimated_cost:'',probability:10,target_margin:0,target_won_value:0}[field.key]??'');if(field.type==='datetime-local')value=localDateTime(value);
- let options=field.options;if(field.type==='relation'){const source=relationTable(field.key);options=Object.fromEntries((data[source]||[]).map(r=>[r.id,nameOf(r)]));}
+ let options=field.options;if(field.type==='relation'){const source=relationTable(field.key);options=Object.fromEntries(scopedRows(source).map(r=>[r.id,nameOf(r)]));}
  let input;
  const attrs=`id="field-${field.key}" name="${field.key}" ${field.required?'required':''} ${!writableFor(editTable)?'disabled':''}`;
  if(options)input=`<select ${attrs}>${field.type==='relation'?'<option value="">Sin vincular</option>':''}${Object.entries(options).map(([k,v])=>`<option value="${esc(k)}" ${value===k?'selected':''}>${esc(v)}</option>`).join('')}</select>`;
@@ -384,25 +455,36 @@ function openEditor(table,id=null,initialValues={}){
  $('saveBtn').hidden=!writableFor(table);$('saveBtn').disabled=false;$('editor').showModal();
 }
 async function saveRecord(event){
- event.preventDefault();const canEdit=writableFor(editTable);if(busy||!canEdit)return;
+ event.preventDefault();const canEdit=writableFor(editTable);if(busy||loading||!canEdit)return;
+ if(editId&&!scopedRows(editTable).some(row=>row.id===editId))return;
  const payload={}, form=new FormData($('recordForm'));
- for(const field of modules[editTable].fields){let value=String(form.get(field.key)??'').trim();
+ for(const field of fieldsFor(editTable)){let value=String(form.get(field.key)??'').trim();
  if(field.required&&!value){$('formMsg').textContent='Completa los campos obligatorios.';return;}
  if(field.type==='number')value=value===''?(field.key==='estimated_cost'?null:0):Number(value);
  else if(field.type==='datetime-local')value=value?new Date(value).toISOString():null;
  else value=value||null;payload[field.key]=value;
  }
+ for(const field of fieldsFor(editTable)){
+  const value=payload[field.key];
+  if(field.type==='number'&&value!==null&&(!Number.isFinite(value)||value<0||(['score','probability'].includes(field.key)&&value>100))){
+   $('formMsg').textContent='Revisa el valor de '+field.label+'.';return;
+  }
+  if(field.type==='relation'&&value&&!scopedRows(relationTable(field.key)).some(row=>row.id===value)){
+   $('formMsg').textContent='Selecciona un registro disponible para '+field.label+'.';return;
+  }
+ }
+ if(editTable==='goals'&&payload.period_start>payload.period_end){$('formMsg').textContent='El fin del periodo debe ser posterior o igual al inicio.';return;}
  if(payload.contact_id){const selected=data.contacts.find(c=>c.id===payload.contact_id);if(!selected||selected.institution_id&&selected.institution_id!==payload.institution_id){$('formMsg').textContent='El contacto debe pertenecer a la institución seleccionada.';return;}}
  busy=true;$('saveBtn').disabled=true;$('formMsg').textContent='Guardando…';
  const table=editTable,id=editId,org=profile.organization_id,userId=session.user.id,version=loadVersion;
  try{
- let query;if(id){if(table!=='users'&&table!=='activities'){payload.updated_at=new Date().toISOString();}query=sb.from(table).update(payload).eq('id',id).eq('organization_id',org);if(table!=='users'&&table!=='activities'&&editingVersion)query=query.eq('updated_at',editingVersion);}
- else if(table!=='users')query=sb.from(table).insert({...payload,organization_id:org,created_by:userId});else throw {code:'42501'};
+ let query;if(id){if(table!=='users'&&table!=='activities'){payload.updated_at=new Date().toISOString();}query=sb.from(databaseTable(table)).update(payload).eq('id',id).eq('organization_id',org);if(table!=='users'&&table!=='activities'&&editingVersion)query=query.eq('updated_at',editingVersion);}
+ else if(table!=='users')query=sb.from(databaseTable(table)).insert({...payload,organization_id:org,created_by:userId});else throw {code:'42501'};
  const {error}=await query.select('id').single();if(error)throw error;
  if(!session||session.user.id!==userId||version!==loadVersion)return;
- $('editor').close();await reload();if(!failures[table])notice('Registro guardado correctamente.');
+ $('editor').close();busy=false;await reload();if(!failures[table])notice('Registro guardado correctamente.');
  }catch(error){$('formMsg').textContent=errorText(error);$('formMsg').className='error';}
- finally{busy=false;$('saveBtn').disabled=false;}
+ finally{busy=false;$('saveBtn').disabled=false;renderWorkspaceControls();}
 }
 async function authenticate(event){
  event.preventDefault();if(!sb)return;$('authBtn').disabled=true;$('authMsg').className='';$('authMsg').textContent='Procesando…';
@@ -440,7 +522,7 @@ function handleAuth(event,current){
 }
 function init(){
  initTheme();
- $('navigation').innerHTML=[['dashboard','Resumen'],...Object.entries(modules).map(([k,v])=>[k,v.label])].map(([k,v],i)=>`<button data-page="${k}"><span class="nav-index">0${i+1}</span>${v}</button>`).join('');
+ $('adminModeBtn').onclick=()=>setWorkspace(ADMIN);$('sellerModeBtn').onclick=()=>setWorkspace(SELLER);renderWorkspaceControls();
  $('dateLabel').textContent=new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long'});
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.activityLead){openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
@@ -451,7 +533,7 @@ function init(){
  $('previous').onclick=()=>{pageIndex--;renderRecords();};$('next').onclick=()=>{pageIndex++;renderRecords();};
  const close=()=>{if(!busy)$('editor').close();};$('closeEditor').onclick=$('cancelEditor').onclick=close;$('editor').addEventListener('cancel',e=>{if(busy)e.preventDefault();});
  $('logoutBtn').onclick=async()=>{const {error}=await sb.auth.signOut();if(error){notice(errorText(error),true);return;}clearSession();setMode('login');};
- $('exportBtn').onclick=()=>{const columns=modules[page].fields.map(field=>({key:field.key,label:field.label}));const rows=filtered().map(row=>Object.fromEntries(columns.map(c=>{const field=modules[page].fields.find(f=>f.key===c.key);return [c.key,field.type==='relation'?relationName(c.key,row):field.options?.[row[c.key]]||row[c.key]];})));const url=URL.createObjectURL(new Blob([csv(rows,columns)],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`xicronix-${page}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+ $('exportBtn').onclick=()=>{if(!accessible(page)||loading||busy||failures[page])return;const columns=fieldsFor(page).map(field=>({key:field.key,label:field.label}));const rows=filtered().map(row=>Object.fromEntries(columns.map(c=>{const field=modules[page].fields.find(f=>f.key===c.key);return [c.key,field.type==='relation'?relationName(c.key,row):field.options?.[row[c.key]]||row[c.key]];})));const url=URL.createObjectURL(new Blob([csv(rows,columns)],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`xicronix-${page}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
  if(!window.supabase){$('authMsg').textContent='No se pudo cargar el servicio de acceso. Comprueba tu conexión y recarga la página.';$('authBtn').disabled=true;return;}
  sb=window.supabase.createClient('https://qzfprdhmcaucqcdqgqiz.supabase.co','sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK');
  sb.auth.onAuthStateChange(handleAuth);

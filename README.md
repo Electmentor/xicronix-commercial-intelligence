@@ -1,5 +1,22 @@
 # Xicronix · Inteligencia comercial
 
+## Selector de experiencia comercial
+
+- El selector «Modo administrador / Modo vendedor» aparece bajo la cabecera. Solo una cuenta ADMIN puede alternar entre ambos.
+- Modo administrador: resumen ejecutivo, cartera de la organización, metas, responsables y gestión del equipo.
+- Modo vendedor: cartera propia, potencial, interacciones, oportunidades y tareas. No muestra metas generales, usuarios, costos administrativos ni eliminación de registros.
+- La selección se recuerda por cuenta y organización en este navegador. Es independiente del modo nocturno. No modifica el rol real ni suplanta a otro vendedor.
+- Un formulario abierto debe guardarse o cancelarse antes de cambiar de experiencia. Los datos anteriores se limpian y vuelven a cargar al alternar.
+- Se corrigió la correspondencia de módulos con tablas: Usuarios usa `profiles`; Metas usa `commercial_goals`. Los campos de responsable y costo se reservan a la experiencia administrativa.
+
+### Alcance de permisos y verificación
+
+El selector es una separación de experiencia, no una nueva frontera de seguridad del servidor. Se mantienen las políticas RLS existentes por rol y organización. La cartera propia se filtra por responsable (o creador cuando no hay responsable); las políticas actuales de lectura de tablas comerciales pueden permitir datos de toda la organización. Un aislamiento estricto por vendedor en la API requiere una revisión separada de esas políticas.
+
+Pruebas sin servicios externos: `node --test tests/domain.test.mjs tests/workspace.test.mjs tests/app-workspace.test.mjs`. Cubren ambas experiencias, restricciones de rol, preferencias, formularios, guardado, tablas de destino, errores de carga y cierre de sesión durante una solicitud. Las pruebas de interfaz usan dobles de DOM y Data API; no sustituyen una revisión visual en navegador ni una prueba con cuentas reales.
+
+Este cambio no modifica la política ni el cálculo referencial de bonos, y no autoriza pagos.
+
 Aplicación estática conectada al proyecto Supabase existente. No requiere compilación.
 
 ## Cambios V2
