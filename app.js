@@ -96,9 +96,10 @@ async function reload(){
  profile=result.data;
  if(!profile){data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice('Tu cuenta está autenticada, pero aún no está vinculada a Xicronix. Un administrador debe asignarte una organización y un rol.',true);return;}
  $('userRole').textContent=enums.role[profile.role]||'Sin rol';$('welcome').textContent=profile.full_name||session.user.email;
- const results=await Promise.allSettled(Object.keys(modules).map(k=>allRows(k,profile.organization_id)));
+ const tables=Object.keys(modules).filter(k=>k!=='users'||canManageUsers());
+ const results=await Promise.allSettled(tables.map(k=>allRows(k,profile.organization_id)));
  if(version!==loadVersion)return;
- data=emptyData();failures={};Object.keys(modules).forEach((k,i)=>{if(results[i].status==='fulfilled')data[k]=results[i].value;else failures[k]=true;});
+ data=emptyData();failures={};tables.forEach((k,i)=>{if(results[i].status==='fulfilled')data[k]=results[i].value;else failures[k]=true;});
  render();const bad=Object.keys(failures);notice(bad.length?'No se pudo cargar: '+bad.map(k=>modules[k].label).join(', ')+'. Pulsa Actualizar para reintentar.':'',!!bad.length);
  }catch(error){if(version===loadVersion){profile=null;data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice(errorText(error),true);}}
  finally{if(version===loadVersion){$('refreshBtn').disabled=false;$('newBtn').disabled=!writable()||!!failures[page==='dashboard'?'institutions':page];}}
