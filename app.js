@@ -367,7 +367,7 @@ function openEditor(table,id=null,initialValues={}){
  editTable=table;editId=id;editingVersion=row.updated_at||null;
  $('editorTitle').textContent=`${id?(writableFor(table)?'Editar':'Ver'):'Crear'} ${modules[table].singular}`;$('formMsg').textContent='';
  $('fields').innerHTML=modules[table].fields.map(field=>{
- let value=row[field.key]??({country:'Peru',type:'OTHER',priority:'MEDIUM',score:0,value:0,estimated_value:0,estimated_cost:0,probability:10,target_margin:0,target_won_value:0}[field.key]??'');if(field.type==='datetime-local')value=localDateTime(value);
+ let value=row[field.key]??({country:'Peru',type:'OTHER',priority:'MEDIUM',score:0,value:0,estimated_value:0,estimated_cost:'',probability:10,target_margin:0,target_won_value:0}[field.key]??'');if(field.type==='datetime-local')value=localDateTime(value);
  let options=field.options;if(field.type==='relation'){const source=relationTable(field.key);options=Object.fromEntries((data[source]||[]).map(r=>[r.id,nameOf(r)]));}
  let input;
  const attrs=`id="field-${field.key}" name="${field.key}" ${field.required?'required':''} ${!writableFor(editTable)?'disabled':''}`;
@@ -388,7 +388,7 @@ async function saveRecord(event){
  const payload={}, form=new FormData($('recordForm'));
  for(const field of modules[editTable].fields){let value=String(form.get(field.key)??'').trim();
  if(field.required&&!value){$('formMsg').textContent='Completa los campos obligatorios.';return;}
- if(field.type==='number')value=value===''?0:Number(value);
+ if(field.type==='number')value=value===''?(field.key==='estimated_cost'?null:0):Number(value);
  else if(field.type==='datetime-local')value=value?new Date(value).toISOString():null;
  else value=value||null;payload[field.key]=value;
  }
