@@ -10,13 +10,15 @@ Aplicación estática conectada al proyecto Supabase existente. No requiere comp
 - Administración de perfiles de usuarios por parte de ADMIN, limitada a la organización.
 - Búsqueda con acentos, filtros, paginación visual, importación validada y exportación CSV protegida contra fórmulas.
 - Resumen comercial con KPI de leads, pipeline, forecast ponderado, prioridades, pipeline por etapa, próximas tareas y alertas calculados desde los registros.
+- Modo nocturno persistente por navegador, con botón accesible de cambio de contraste para trabajar con menor fatiga visual.
+- Resumen general restringido a ADMIN; el administrador dispone de un panel de seguimiento del equipo con leads, oportunidades, tareas, potencial promedio y vencimientos. Es una vista de control, no un cálculo de bonos.
 - Registro de interacciones desde el primer contacto, con canal, resultado, necesidad, horizonte de decisión, señal de presupuesto y próxima acción.
 - Barra de potencial por lead y recomendación contextual individual, calculadas con un motor explicable y actualizadas al cambiar el lead o registrar una interacción, incluyendo la próxima acción capturada en el contacto.
 - Errores visibles por módulo; un fallo no se presenta como un cero real.
 - Lectura paginada de Supabase, limpieza de datos al salir y protección contra respuestas tardías de otra sesión.
 - Edición con comparación de `updated_at` para detectar cambios concurrentes desde esta versión.
 - Eliminación controlada exclusivamente para ADMIN, con confirmación y aislamiento por organización.
-- Sin automatización, envío automático de mensajes ni supuesta IA. Las calificaciones son manuales. El entorno de demostración contiene 10 casos marcados `[SIMULADO]` para validar el flujo.
+- Sin automatización, envío automático de mensajes ni supuesta IA. Las calificaciones son manuales. El entorno de demostración contiene 10 casos marcados `[SIMULADO]` para validar el flujo. La política de bonos se mantiene como propuesta institucional pendiente de aprobación; no hay pagos ni cálculos económicos activos.
 
 ## Estructura
 
