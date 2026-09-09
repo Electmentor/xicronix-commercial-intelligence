@@ -1,4 +1,4 @@
-import {escapeHTML as esc, filterRecords, money, metrics, priorities, csv} from './domain.mjs';
+import {escapeHTML as esc, filterRecords, money, metrics, priorities, csv, parseCsv, normalize} from './domain.mjs';
 
 const $ = id => document.getElementById(id);
 const enums = {
@@ -21,10 +21,13 @@ const modules={
  opportunities:{label:'Oportunidades',singular:'oportunidad',filter:'stage',options:enums.stage,fields:[f('name','Nombre','text',true),institution,contact,f('stage','Etapa','select',true,enums.stage),f('value','Valor (S/)','number'),f('probability','Probabilidad manual (%)','number'),f('expected_close_date','Cierre esperado','date'),...followUp]},
  tasks:{label:'Tareas',singular:'tarea',filter:'status',options:enums.taskStatus,fields:[f('title','Título','text',true),institution,f('status','Estado','select',true,enums.taskStatus),f('priority','Prioridad','select',true,enums.priority),f('due_at','Fecha límite','datetime-local')]}
 };
-let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false;
+let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
+const PUBLIC_APP_URL='https://xicronix-commercial-intelligence-git-improvemen-2952f5-xicronix.vercel.app/';
 const emptyData=()=>Object.fromEntries(Object.keys(modules).map(k=>[k,[]]));
 const writable=()=>profile && ['ADMIN','MANAGER','SALES'].includes(profile.role);
+const canDelete=()=>profile?.role==='ADMIN';
+const authRedirectUrl=()=>/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?PUBLIC_APP_URL:location.origin+location.pathname;
 const nameOf=row=>row.name || row.title || [row.first_name,row.last_name].filter(Boolean).join(' ');
 const relatedName=row=>data.institutions?.find(i=>i.id===row.institution_id)?.name || '';
 const date=value=>value?new Date(value).toLocaleString('es-PE',{dateStyle:'medium',timeStyle:'short'}):'Sin fecha';
@@ -32,6 +35,7 @@ const notice=(message,error=false)=>{ $('status').hidden=!message;$('status').te
 function errorText(error){
  const code=error?.code;
  if(code==='invalid_credentials')return 'Correo o contraseña incorrectos.';
+ if(['otp_expired','invalid_token','bad_jwt'].includes(code))return 'El enlace de recuperación venció o ya fue utilizado. Solicita uno nuevo y ábrelo una sola vez.';
  if(code==='email_not_confirmed')return 'Confirma tu correo antes de ingresar.';
  if(code==='over_email_send_rate_limit'||error?.status===429)return 'Se alcanzó el límite de intentos. Espera unos minutos y vuelve a intentar.';
  if(code==='weak_password')return 'Usa una contraseña más larga y combina letras, números y símbolos.';
@@ -103,9 +107,75 @@ function renderRecords(){
  $('exportBtn').disabled=!!failures[page]||!rows.length;
  $('pageNumber').textContent=`Página ${pageIndex+1} de ${max}`;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
  const config=modules[page];
- $('recordList').innerHTML=failures[page]?'<div class="panel empty">No pudimos cargar estos registros. Pulsa Actualizar.</div>':!rows.length?`<div class="panel empty">${$('search').value||$('filter').value?'No hay coincidencias. Cambia la búsqueda o el filtro.':'Aún no hay registros. Crea el primero con el botón superior.'}</div>`:`<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>${page==='institutions'?'Ciudad':'Institución'}</th><th>Estado / tipo</th><th>${['leads','opportunities'].includes(page)?'Valor estimado':'Detalle'}</th><th>Acción</th></tr></thead><tbody>${rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>`<tr><td><strong>${esc(nameOf(row))}</strong><small>${esc(row.email||row.next_action||row.job_title||'')}</small></td><td>${esc(page==='institutions'?row.city||'—':relatedName(row)||'Sin vincular')}</td><td>${badge(row[config.filter],page)}</td><td>${page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='tasks'?esc(date(row.due_at)):esc(row.phone||'—')}</td><td><button data-edit="${row.id}" data-table="${page}">${writable()?'Editar':'Ver'}</button></td></tr>`).join('')}</tbody></table></div>`;
+ $('recordList').innerHTML=failures[page]?'<div class="panel empty">No pudimos cargar estos registros. Pulsa Actualizar.</div>':!rows.length?`<div class="panel empty">${$('search').value||$('filter').value?'No hay coincidencias. Cambia la búsqueda o el filtro.':'Aún no hay registros. Crea el primero con el botón superior.'}</div>`:`<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>${page==='institutions'?'Ciudad':'Institución'}</th><th>Estado / tipo</th><th>${['leads','opportunities'].includes(page)?'Valor estimado':'Detalle'}</th><th>Acción</th></tr></thead><tbody>${rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>`<tr><td><strong>${esc(nameOf(row))}</strong><small>${esc(row.email||row.next_action||row.job_title||'')}</small></td><td>${esc(page==='institutions'?row.city||'—':relatedName(row)||'Sin vincular')}</td><td>${badge(row[config.filter],page)}</td><td>${page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='tasks'?esc(date(row.due_at)):esc(row.phone||'—')}</td><td><div class="row-actions"><button data-edit="${row.id}" data-table="${page}">${writable()?'Editar':'Ver'}</button>${canDelete()?`<button class="danger-text" data-delete="${row.id}" data-table="${page}">Eliminar</button>`:''}</div></td></tr>`).join('')}</tbody></table></div>`;
 }
 function localDateTime(value){if(!value)return '';const d=new Date(value);if(!Number.isFinite(d.getTime()))return '';return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);}
+function importValue(source,field){
+ const keys=[normalize(field.key),normalize(field.label)];
+ const key=keys.find(candidate=>Object.hasOwn(source,candidate));
+ const raw=String(key?source[key]??'':'').trim();
+ if(!raw)return '';
+ if(field.options){
+  const found=Object.entries(field.options).find(([option,label])=>normalize(option)===normalize(raw)||normalize(label)===normalize(raw));
+  return found?found[0]:raw;
+ }
+ if(field.type==='relation'){
+  const table=field.key==='institution_id'?'institutions':'contacts';
+  const found=(data[table]||[]).find(row=>row.id===raw||normalize(nameOf(row))===normalize(raw));
+  return found?.id||'__missing__:'+raw;
+ }
+ if(field.type==='number'){
+  const normalized=raw.replace(/[^0-9,.-]/g,'').replace(/,(?=.*[,])/g,'').replace(',','.');
+  return normalized===''?0:Number(normalized);
+ }
+ if(field.type==='datetime-local'||field.type==='date'){
+  const parsed=new Date(raw);
+  return Number.isFinite(parsed.getTime())?(field.type==='date'?parsed.toISOString().slice(0,10):parsed.toISOString()):raw;
+ }
+ return raw;
+}
+function buildImport(table,rows){
+ const errors=[],payloads=[];
+ rows.forEach((source,index)=>{
+  const payload={},prefix='Fila '+(index+2)+': ';
+  for(const field of modules[table].fields){
+   const value=importValue(source,field);
+   if(String(value).startsWith('__missing__:'))errors.push(prefix+'no se encontró '+field.label+' “'+String(value).slice(12)+'”.');
+   if(field.required&&!String(value).trim())errors.push(prefix+'falta '+field.label+'.');
+   payload[field.key]=value===''?null:value;
+  }
+  if(!errors.some(error=>error.startsWith(prefix)))payloads.push(payload);
+ });
+ return {errors,payloads};
+}
+async function importCsvFile(event){
+ const file=event.target.files?.[0];event.target.value='';if(!file)return;
+ if(!profile||!writable()){notice('Solo un usuario con permisos de escritura puede importar registros.',true);return;}
+ const text=await file.text(),rows=parseCsv(text);
+ if(!rows.length){notice('El CSV está vacío o no tiene encabezados.',true);return;}
+ const result=buildImport(page,rows);
+ if(result.errors.length){notice(result.errors.slice(0,3).join(' ')+(result.errors.length>3?' Se encontraron más errores. Corrige el archivo y vuelve a intentarlo.':''),true);return;}
+ if(!window.confirm('Se importarán '+result.payloads.length+' registros en '+modules[page].label+'. ¿Continuar?'))return;
+ $('importBtn').disabled=true;notice('Importando '+result.payloads.length+' registros…');
+ try{
+  const {error}=await sb.from(page).insert(result.payloads.map(row=>({...row,organization_id:profile.organization_id,created_by:session.user.id})));
+  if(error)throw error;
+  await reload();notice('Se importaron '+result.payloads.length+' registros correctamente.');
+ }catch(error){notice(errorText(error),true);}
+ finally{$('importBtn').disabled=false;}
+}
+async function removeRecord(table,id){
+ if(!canDelete()||busy)return;
+ const row=data[table]?.find(item=>item.id===id);if(!row)return;
+ if(!window.confirm('¿Eliminar '+nameOf(row)+'? Esta acción no se puede deshacer.'))return;
+ busy=true;notice('Eliminando…');
+ try{
+  const {error}=await sb.from(table).delete().eq('id',id).eq('organization_id',profile.organization_id);
+  if(error)throw error;
+  await reload();notice('Registro eliminado correctamente.');
+ }catch(error){notice(errorText(error),true);}
+ finally{busy=false;}
+}
 function openEditor(table,id=null){
  if(!profile||failures[table])return; if(!id&&!writable())return;
  const dependencies=modules[table].fields.filter(f=>f.type==='relation').map(f=>f.key==='institution_id'?'institutions':'contacts');
@@ -150,19 +220,25 @@ async function authenticate(event){
  const email=$('email').value.trim(),password=$('password').value;
  try{let result;
  if(mode==='reset'){
- result=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});if(result.error)throw result.error;
- $('authMsg').textContent='Si el correo tiene una cuenta, recibirás un enlace. Revisa también la carpeta de spam.';return;
+ if(Date.now()<resetCooldownUntil){$('authMsg').textContent='Espera unos segundos antes de solicitar otro enlace.';return;}
+ result=await sb.auth.resetPasswordForEmail(email,{redirectTo:authRedirectUrl()});if(result.error)throw result.error;
+ startResetCooldown(60);$('authMsg').textContent='Si el correo tiene una cuenta, recibirás un enlace. Revisa también la carpeta de spam.';return;
  }
  if(mode==='update'){
  if(password!==$('confirmPassword').value){$('authMsg').textContent='Las contraseñas no coinciden.';return;}
  result=await sb.auth.updateUser({password});if(result.error)throw result.error;
  recovery=false;history.replaceState(null,'',location.pathname);$('authForm').reset();await sb.auth.signOut();clearSession();setMode('login');$('authMsg').textContent='Contraseña actualizada. Ya puedes ingresar.';return;
  }
- result=mode==='login'?await sb.auth.signInWithPassword({email,password}):await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});
+ result=mode==='login'?await sb.auth.signInWithPassword({email,password}):await sb.auth.signUp({email,password,options:{emailRedirectTo:authRedirectUrl()}});
  if(result.error)throw result.error;
  $('authMsg').textContent=mode==='signup'?'Si el registro procede, recibirás un correo de confirmación. Después, un administrador debe vincular tu cuenta.':'';
- }catch(error){$('authMsg').className='error';$('authMsg').textContent=errorText(error);}
- finally{$('authBtn').disabled=false;}
+ }catch(error){if(mode==='reset'&&(error?.status===429||error?.code==='over_email_send_rate_limit'))startResetCooldown(60);$('authMsg').className='error';$('authMsg').textContent=errorText(error);}
+ finally{$('authBtn').disabled=mode==='reset'&&Date.now()<resetCooldownUntil;}
+}
+function startResetCooldown(seconds){
+ resetCooldownUntil=Date.now()+seconds*1000;clearInterval(resetCooldownTimer);
+ const update=()=>{const remaining=Math.max(0,Math.ceil((resetCooldownUntil-Date.now())/1000));if(mode==='reset')$('authBtn').textContent=remaining?'Espera '+remaining+' s':'Enviar enlace de recuperación';if(!remaining){clearInterval(resetCooldownTimer);$('authBtn').disabled=false;}};
+ update();resetCooldownTimer=setInterval(update,1000);
 }
 function handleAuth(event,current){
  if(event==='PASSWORD_RECOVERY'){clearSession();session=current;recovery=true;setMode('update');return;}
@@ -176,9 +252,9 @@ function handleAuth(event,current){
 function init(){
  $('navigation').innerHTML=[['dashboard','Resumen'],...Object.entries(modules).map(([k,v])=>[k,v.label])].map(([k,v],i)=>`<button data-page="${k}"><span class="nav-index">0${i+1}</span>${v}</button>`).join('');
  $('dateLabel').textContent=new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long'});
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.mode)setMode(b.dataset.mode);});
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();recovery=false;}setMode('login');};
- $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;
+ $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
  $('search').oninput=$('filter').onchange=()=>{pageIndex=0;renderRecords();};
  $('previous').onclick=()=>{pageIndex--;renderRecords();};$('next').onclick=()=>{pageIndex++;renderRecords();};
