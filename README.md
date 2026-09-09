@@ -14,7 +14,7 @@ Aplicación estática conectada al proyecto Supabase existente. No requiere comp
 - Lectura paginada de Supabase, limpieza de datos al salir y protección contra respuestas tardías de otra sesión.
 - Edición con comparación de `updated_at` para detectar cambios concurrentes desde esta versión.
 - Eliminación controlada exclusivamente para ADMIN, con confirmación y aislamiento por organización.
-- Sin datos ficticios, envío automático de mensajes ni supuesta IA. Las calificaciones son manuales.
+- Sin automatización, envío automático de mensajes ni supuesta IA. Las calificaciones son manuales. El entorno de demostración contiene 10 casos marcados `[SIMULADO]` para validar el flujo.
 
 ## Estructura
 
@@ -32,7 +32,7 @@ Servir los archivos por HTTP para usar módulos ES; no abrir mediante `file://`.
 
 ## Activación
 
-1. Aplicadas en Supabase las migraciones `commercial_access_hardening_v2` y `admin_profile_management` mediante una conexión administrativa. Las políticas restrictivas se combinan con el aislamiento por organización existente; las eliminaciones siguen limitadas a ADMIN y solo ADMIN puede consultar o actualizar perfiles de su organización.
+1. Aplicadas en Supabase las migraciones `commercial_access_hardening_v2`, `admin_profile_management`, `commercial_query_indexes_v1`, `secure_admin_helper_private_v1` y `performance_policy_cleanup_v1` mediante una conexión administrativa. El helper de administración vive en el esquema privado, fuera de la API pública; las políticas restrictivas se combinan con el aislamiento por organización existente, las eliminaciones siguen limitadas a ADMIN y solo ADMIN puede consultar o actualizar perfiles de su organización.
 2. En Supabase Auth, verificar Site URL y Redirect URLs para el dominio de producción. Agregar explícitamente `https://xicronix-commercial-intelligence-git-improvemen-2952f5-xicronix.vercel.app/` para recuperación en Preview. La aplicación evita generar enlaces `localhost` cuando se usa una copia local; el límite de correo gratuito puede requerir esperar entre intentos.
 3. Probar con cuentas de ensayo los flujos de acceso, recuperación, creación, edición, importación y eliminación para ADMIN, SALES y VIEWER. Probar rechazo entre organizaciones. No usar la contraseña del propietario ni crear cuentas privilegiadas automáticamente.
 4. Integrar la rama en `main` para que el proyecto Vercel conectado publique la versión. La vinculación Vercel de este repositorio no pudo confirmarse desde el conector disponible; revisar el deployment antes de dar la versión por publicada.
