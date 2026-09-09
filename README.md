@@ -9,7 +9,7 @@ Aplicación estática conectada al proyecto Supabase existente. No requiere comp
 - Instituciones, contactos, prospectos, oportunidades y tareas: consulta, creación y edición.
 - Administración de perfiles de usuarios por parte de ADMIN, limitada a la organización.
 - Búsqueda con acentos, filtros, paginación visual, importación validada y exportación CSV protegida contra fórmulas.
-- Cartera abierta, estimación ponderada y agenda calculadas a partir de registros recuperados.
+- Resumen comercial con KPI de leads, pipeline, forecast ponderado, prioridades, pipeline por etapa y próximas tareas calculados desde los registros.
 - Errores visibles por módulo; un fallo no se presenta como un cero real.
 - Lectura paginada de Supabase, limpieza de datos al salir y protección contra respuestas tardías de otra sesión.
 - Edición con comparación de `updated_at` para detectar cambios concurrentes desde esta versión.
