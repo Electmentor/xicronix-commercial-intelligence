@@ -280,7 +280,7 @@ async function saveRecord(event){
  busy=true;$('saveBtn').disabled=true;$('formMsg').textContent='Guardando…';
  const table=editTable,id=editId,org=profile.organization_id,userId=session.user.id,version=loadVersion;
  try{
- let query;if(id){if(table!=='users'){payload.updated_at=new Date().toISOString();}query=sb.from(table).update(payload).eq('id',id).eq('organization_id',org);if(table!=='users'&&editingVersion)query=query.eq('updated_at',editingVersion);}
+ let query;if(id){if(table!=='users'&&table!=='activities'){payload.updated_at=new Date().toISOString();}query=sb.from(table).update(payload).eq('id',id).eq('organization_id',org);if(table!=='users'&&table!=='activities'&&editingVersion)query=query.eq('updated_at',editingVersion);}
  else if(table!=='users')query=sb.from(table).insert({...payload,organization_id:org,created_by:userId});else throw {code:'42501'};
  const {error}=await query.select('id').single();if(error)throw error;
  if(!session||session.user.id!==userId||version!==loadVersion)return;
