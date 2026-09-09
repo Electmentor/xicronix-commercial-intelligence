@@ -115,10 +115,34 @@ function render(){
  if(page==='dashboard')renderDashboard();else renderRecords();
 }
 function renderDashboard(){
- const m=metrics(data), broken=Object.keys(failures).length>0;
- const cards=[['Instituciones',failures.institutions?'—':m.institutions,'En tu organización'],['Prospectos activos',failures.leads?'—':m.leads,'Por investigar o contactar'],['Cartera abierta',failures.opportunities?'—':money(m.pipeline),'Estimación ponderada: '+(failures.opportunities?'—':money(m.weighted))],['Seguimientos vencidos',broken?'—':m.overdue,'Tareas y próximas acciones']];
- const agenda=priorities(data).slice(0,8), opportunities=data.opportunities||[];
- $('dashboard').innerHTML=`<div class="cards">${cards.map(([label,value,hint])=>`<article class="card"><small>${label}</small><strong>${value}</strong><small>${hint}</small></article>`).join('')}</div><div class="grid"><article class="panel"><div class="panel-head"><h2>Próximos seguimientos</h2><button data-page="tasks">Ver tareas</button></div>${broken?'<p class="error">Información incompleta. Actualiza para recuperar los módulos pendientes.</p>':''}${agenda.map(row=>`<div class="task-row"><div><strong>${esc(nameOf(row))}</strong><small>${esc(row.next_action||modules[row.table].label)} · ${esc(date(row.due))}</small>${Date.parse(row.due)<Date.now()?'<span class="badge warn">Vencido</span>':''}</div><button data-edit="${row.id}" data-table="${row.table}">Ver</button></div>`).join('')||'<div class="empty">No tienes seguimientos programados.<br>Agrega una fecha a tus tareas o próximas acciones.</div>'}</article><article class="panel"><h2>Oportunidades por etapa</h2>${failures.opportunities?'<p class="error">No disponible</p>':Object.entries(enums.stage).map(([key,label])=>{const n=opportunities.filter(o=>o.stage===key).length;return `<div class="stage-row"><span>${label}</span><div class="bar"><i style="width:${opportunities.length?n/opportunities.length*100:0}%"></i></div><b>${n}</b></div>`;}).join('')}</article></div>`;
+ const m=metrics(data),failed=Object.keys(failures),opportunities=data.opportunities||[];
+ const cards=[
+  ['Leads activos',failures.leads?'—':m.leads,'En investigación o contacto'],
+  ['Pipeline abierto',failures.opportunities?'—':money(m.pipeline),'Oportunidades abiertas'],
+  ['Forecast ponderado',failures.opportunities?'—':money(m.weighted),'Según probabilidad manual'],
+  ['Acciones vencidas',failed.some(key=>['tasks','leads','opportunities'].includes(key))?'—':m.overdue,'Requieren atención']
+ ];
+ const agenda=priorities(data).slice(0,5);
+ const stages=Object.entries(enums.stage).map(([key,label])=>{
+  const rows=opportunities.filter(row=>row.stage===key);
+  return {label,count:rows.length,value:rows.reduce((sum,row)=>sum+Number(row.value||0),0)};
+ });
+ const maxStage=Math.max(1,...stages.map(stage=>stage.count));
+ const now=new Date(),start=new Date(now.getFullYear(),now.getMonth(),now.getDate()),tomorrow=new Date(start),dayAfter=new Date(start);
+ tomorrow.setDate(tomorrow.getDate()+1);dayAfter.setDate(dayAfter.getDate()+2);
+ const tasks=(data.tasks||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&row.due_at);
+ const taskCount=(from,to)=>tasks.filter(row=>{const due=Date.parse(row.due_at);return due>=from.getTime()&&due<to.getTime();}).length;
+ const overdueTasks=tasks.filter(row=>Date.parse(row.due_at)<now.getTime()).length;
+ const unavailable=failures.tasks||failures.leads||failures.opportunities;
+ const priorityMarkup=agenda.map((row,index)=>{
+  const value=row.value??row.estimated_value;
+  const score=row.score??row.probability;
+  const overdue=Date.parse(row.due)<now.getTime();
+  const action=row.next_action||row.title||row.name||modules[row.table].label;
+  return \`<div class="priority-row"><div class="priority-rank">\${index+1}</div><div class="priority-main"><strong>\${esc(nameOf(row))}</strong><small>\${esc(relatedName(row)||modules[row.table].label)}\${value!==undefined&&value!==null?\` · \${money(value)}\`:''}\${score!==undefined&&score!==null?\` · Score \${esc(score)}\`:''}</small><span class="priority-action">\${esc(action)}</span></div><div class="priority-side"><span class="badge \${overdue?'warn':''}">\${overdue?'Vencida':esc(date(row.due))}</span><button data-edit="\${row.id}" data-table="\${row.table}">Ver</button></div></div>\`;
+ }).join('');
+ const stageMarkup=stages.map(stage=>\`<div class="stage-row"><span>\${stage.label}</span><div class="bar"><i style="width:\${stage.count/maxStage*100}%"></i></div><b>\${stage.count}</b><small>\${money(stage.value)}</small></div>\`).join('');
+ $('dashboard').innerHTML=\`<div class="cards">\${cards.map(([label,value,hint])=>\`<article class="card"><small>\${label}</small><strong>\${value}</strong><small>\${hint}</small></article>\`).join('')}</div><div class="grid"><article class="panel"><div class="panel-head"><h2>Prioridades comerciales</h2><button data-page="opportunities">Ver oportunidades</button></div>\${priorityMarkup||'<div class="empty">No hay seguimientos con fecha. Agrega una próxima acción para priorizarla.</div>'}</article><article class="panel"><div class="panel-head"><h2>Pipeline por etapa</h2><button data-page="opportunities">Ver todo</button></div>\${failures.opportunities?'<p class="error">No disponible</p>':stageMarkup}</article></div><article class="panel task-summary"><div class="panel-head"><h2>Próximas tareas</h2><button data-page="tasks">Ver tareas</button></div><div class="task-summary-grid"><div><small>Hoy</small><strong>\${failures.tasks?'—':taskCount(start,tomorrow)}</strong></div><div><small>Mañana</small><strong>\${failures.tasks?'—':taskCount(tomorrow,dayAfter)}</strong></div><div class="task-summary-overdue"><small>Vencidas</small><strong>\${failures.tasks?'—':overdueTasks}</strong></div></div></article>\${failed.length?'<p class="error">Algunos módulos no están disponibles. Pulsa Actualizar para reintentar.</p>':''}\`;
 }
 function filtered(){const config=modules[page];return filterRecords(data[page]||[],$('search').value,config.filter,$('filter').value,relatedName);}
 function renderRecords(){
