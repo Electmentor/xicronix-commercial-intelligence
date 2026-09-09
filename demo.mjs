@@ -1,5 +1,6 @@
 // Entirely fictional sandbox. No auth accounts, network requests or production writes.
-export const DEMO_VERSION = 1;
+import {DEMO_CATALOG_PRODUCTS, DEMO_COST_PROFILES} from './catalog.mjs';
+export const DEMO_VERSION = 2;
 export const DEMO_SELLERS = [
  {id:'demo-seller-1',full_name:'Valeria Torres',role:'SALES'},
  {id:'demo-seller-2',full_name:'Diego Salazar',role:'SALES'},
@@ -17,7 +18,7 @@ export function createDemoData(org,now=new Date()){
  const base=(id,owner='demo-seller-1')=>({id,organization_id:org,created_by:owner,created_at:day(-25),updated_at:stamp,is_simulated:true,notes:'[SIMULADO] Caso ficticio para explorar el sistema. No representa ventas, personas ni pagos reales.'});
  const sectors=['Universidad Aurora','Colegio Horizonte','Instituto Nova','Centro Andino de Investigación','Clínica Boreal','Universidad del Pacífico Sur','Colegio Arquímedes','Instituto TecnoSur','Laboratorio Prisma','Hospital Nueva Vida','Universidad Altamira','Colegio Robótica','Instituto Vector','Centro Científico Delta','Clínica Meridiano','Universidad Lumen','Colegio Galileo','Instituto Futura','Centro de Innovación Quasar','Hospital Horizonte'];
  const offerings=['Laboratorio de física','Aula STEM','Analítica e IA','Laboratorio de química','Equipamiento de investigación','Automatización de procesos'];
- const data={institutions:[],contacts:[],leads:[],opportunities:[],tasks:[],activities:[],scores:[],users:[],goals:[]};
+ const data={institutions:[],contacts:[],leads:[],opportunities:[],tasks:[],activities:[],catalog_products:[],cost_profiles:[],scores:[],users:[],goals:[]};
  data.users=DEMO_SELLERS.map(user=>({...base(user.id,user.id),...user}));
  data.institutions=sectors.map((name,index)=>({...base('demo-institution-'+index,DEMO_SELLERS[index%5].id),name:name+' [SIMULADO]',type:['UNIVERSITY','SCHOOL','INSTITUTE','RESEARCH_CENTER','CLINIC'][index%5],city:['Lima','Arequipa','Trujillo','Cusco'][index%4],country:'Perú',email:'institucion'+index+'@example.invalid',website:'https://example.invalid'}));
  data.contacts=Array.from({length:30},(_,index)=>({...base('demo-contact-'+index,DEMO_SELLERS[index%5].id),first_name:['Marina','Álvaro','Sofía','Nicolás','Elena'][index%5],last_name:'Contacto demo '+(index+1),institution_id:data.institutions[index%20].id,job_title:['Dirección académica','Jefatura de laboratorio','Gerencia de innovación'][index%3],decision_level:index%3?'DECISION_MAKER':'INFLUENCER',email:'contacto'+index+'@example.invalid'}));
@@ -30,7 +31,7 @@ export function createDemoData(org,now=new Date()){
   const lead=data.leads[index],value=[185000,124000,76000,96000,142000,54000,82000,45000,116000,69000][index%10];
   const stage=stages[index%12],cost=index===22?null:Math.round(value*(index===3?1.06:index===11?.92:.56+(index%5)*.035));
   const close=stage==='WON'?localDay(new Date(now.getFullYear(),now.getMonth(),Math.max(1,now.getDate()-(index%5)))):localDay(new Date(now.getFullYear(),now.getMonth(),Math.min(28,now.getDate()+index%18)));
-  return {...base('demo-opportunity-'+index,lead.owner_user_id),owner_user_id:lead.owner_user_id,lead_id:lead.id,institution_id:lead.institution_id,contact_id:lead.contact_id,name:lead.title,stage,value,estimated_cost:cost,probability:stage==='WON'?100:stage==='LOST'?0:stage==='NEGOTIATION'?85:stage==='PROPOSAL'?60:30,expected_close_date:close,next_action:['Revisar alcance con compras','Confirmar aprobación del decisor','Negociar sin erosionar margen'][index%3],next_action_date:day(index%9-4)};
+  return {...base('demo-opportunity-'+index,lead.owner_user_id),owner_user_id:lead.owner_user_id,lead_id:lead.id,institution_id:lead.institution_id,contact_id:lead.contact_id,catalog_product_id:'demo-catalog-'+(index%5),cost_profile_id:'demo-cost-profile-0',quantity:1+index%3,discount_pct:index%4===0?5:0,negotiated_unit_price:Math.round(value/([1.05,1.2,1.1,1.35,1.45][index%5])),name:lead.title,stage,value,estimated_cost:cost,probability:stage==='WON'?100:stage==='LOST'?0:stage==='NEGOTIATION'?85:stage==='PROPOSAL'?60:30,expected_close_date:close,next_action:['Revisar alcance con compras','Confirmar aprobación del decisor','Negociar sin erosionar margen'][index%3],next_action_date:day(index%9-4)};
  });
  data.tasks=Array.from({length:50},(_,index)=>{
   const lead=data.leads[index%40];
@@ -42,6 +43,8 @@ export function createDemoData(org,now=new Date()){
  });
  data.goals=[{...base('demo-goal-org'),owner_user_id:null,period_start:period.start,period_end:period.end,target_won_value:1000000,target_margin:380000},
  ...DEMO_SELLERS.map((user,index)=>({...base('demo-goal-'+index,user.id),owner_user_id:user.id,period_start:period.start,period_end:period.end,target_won_value:[260000,220000,160000,200000,160000][index],target_margin:[100000,80000,60000,80000,60000][index]}))];
+ data.catalog_products=DEMO_CATALOG_PRODUCTS.map((product,index)=>({...base('demo-catalog-'+index),...product,name:'[SIMULADO] '+product.name,is_simulated:true}));
+ data.cost_profiles=DEMO_COST_PROFILES.map((profile,index)=>({...base('demo-cost-profile-'+index),...profile,is_simulated:true}));
  refreshDemoScores(data,now);
  return data;
 }

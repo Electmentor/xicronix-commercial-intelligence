@@ -2,7 +2,7 @@
 // The database remains responsible for enforcing the authenticated account's permissions.
 export const ADMIN = 'admin';
 export const SELLER = 'seller';
-const operational = ['institutions', 'contacts', 'leads', 'opportunities', 'tasks', 'activities'];
+const operational = ['institutions', 'contacts', 'leads', 'opportunities', 'tasks', 'activities', 'catalog_products'];
 export function effectiveWorkspace(profile, requested = ADMIN) {
   return profile?.role === 'ADMIN' && requested === ADMIN ? ADMIN : SELLER;
 }
@@ -11,10 +11,12 @@ export function workspaceKey(userId, organizationId) {
 }
 export function canAccessPage(profile, workspace, page) {
   if (!profile?.organization_id || !['ADMIN','MANAGER','SALES','VIEWER'].includes(profile.role)) return false;
-  return operational.includes(page) || (effectiveWorkspace(profile, workspace) === ADMIN && ['dashboard','users','goals'].includes(page));
+  return operational.includes(page) || (effectiveWorkspace(profile, workspace) === ADMIN && ['dashboard','users','goals','cost_profiles'].includes(page));
 }
 export function canWriteModule(profile, workspace, table) {
-  return canAccessPage(profile, workspace, table) && table !== 'dashboard' && ['ADMIN','MANAGER','SALES'].includes(profile.role);
+  if (!canAccessPage(profile, workspace, table) || table === 'dashboard' || !['ADMIN','MANAGER','SALES'].includes(profile.role)) return false;
+  if (['catalog_products','cost_profiles'].includes(table) && effectiveWorkspace(profile, workspace) !== ADMIN) return false;
+  return table !== 'cost_profiles' ? table !== 'catalog_products' || profile.role === 'ADMIN' : profile.role === 'ADMIN';
 }
 export function assignedUserId(row) {
   return row.owner_user_id || row.assigned_to || row.user_id || row.created_by || null;
@@ -36,6 +38,8 @@ export function scopeWorkspaceData(source, profile, userId, workspace) {
     leadIds.has(row.lead_id) || opportunityIds.has(row.opportunity_id) ||
     (!row.lead_id && !row.opportunity_id && row.created_by === userId));
   result.scores = (organization.scores || []).filter(row => leadIds.has(row.lead_id) || opportunityIds.has(row.opportunity_id));
+  result.catalog_products = organization.catalog_products || [];
+  result.cost_profiles = [];
   const linked = [...result.leads, ...result.opportunities, ...result.tasks, ...result.activities];
   const contactIds = new Set(linked.map(row => row.contact_id).filter(Boolean));
   result.contacts = (organization.contacts || []).filter(row => row.created_by === userId || contactIds.has(row.id));

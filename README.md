@@ -1,5 +1,11 @@
 # Xicronix · Inteligencia comercial
 
+## Catálogo del proveedor, septiembre de 2026
+
+Se importaron en la organización Xicronix 730 códigos únicos de la tabla de precios suministrada de agosto de 2026, todos en USD y conservando dos decimales. Los precios reales residen en Supabase, no en el código público. Cada registro conserva archivo, hoja, fila y NCM del proveedor en sus notas. No se asignaron vencimientos, Incoterms ni subpartidas peruanas no confirmados. Para verlos, seleccionar «Ver datos reales» y «Catálogo».
+
+El escenario por oportunidad separa costo de compra y precio de venta; calcula costos totales por cantidad y aplica el descuento únicamente a la venta. Se actualiza al editar el formulario. El escenario todavía no reemplaza el campo de valor de la oportunidad ni implementa aprobaciones de margen. Los costos reales, alquileres y tratamiento de impuestos requieren completar el perfil correspondiente. Verificación: 39 pruebas automatizadas.
+
 ## Selector de experiencia comercial
 
 - El selector «Modo administrador / Modo vendedor» aparece bajo la cabecera. Solo una cuenta ADMIN puede alternar entre ambos.
@@ -31,6 +37,10 @@ Aplicación estática conectada al proyecto Supabase existente. No requiere comp
 - Resumen general restringido a ADMIN; el administrador dispone de un panel de seguimiento del equipo con leads, oportunidades, tareas, potencial promedio y vencimientos. Es una vista de control, no un cálculo de bonos.
 - Dos visiones operativas: colaboradores/vendedores trabajan sus leads asignados, interacciones y próximas acciones; ADMIN visualiza resultados de alto nivel, prioridades, metas, margen estimado y ranking del equipo.
 - La propuesta aprobada de bonos se refleja como evaluación referencial y auditable: desempeño ponderado, base de margen conocido, tasa por nivel y monto pendiente de cierre; nunca como orden de pago.
+- Catálogo por organización con SKU, proveedor, moneda, precio base, vigencia, origen, peso, volumen y referencia oficial. El modo vendedor puede consultar el catálogo; únicamente ADMIN puede modificarlo.
+- Perfiles de costos de importación para ADMIN: flete, seguro, ad valorem, IGV, percepción, agente, terminal, almacenaje, transporte interno, instalación y contingencia. El cálculo separa costo económico de salida de caja y prorratea gastos por cantidad.
+- Los productos y costos iniciales de la demostración son ficticios y se identifican como `[SIMULADO]`; no son precios oficiales de CIDEPE. La carga real requiere una lista o cotización vigente, moneda, validez y validación de subpartida/origen.
+- Botón de navegación superior izquierdo para colapsar o mostrar la barra lateral; la preferencia se conserva por navegador.
 - Registro de interacciones desde el primer contacto, con canal, resultado, necesidad, horizonte de decisión, señal de presupuesto y próxima acción.
 - Barra de potencial por lead y recomendación contextual individual, calculadas con un motor explicable y actualizadas al cambiar el lead o registrar una interacción, incluyendo la próxima acción capturada en el contacto.
 - Errores visibles por módulo; un fallo no se presenta como un cero real.
@@ -41,7 +51,7 @@ Aplicación estática conectada al proyecto Supabase existente. No requiere comp
 
 ## Estructura
 
-`index.html`: estructura accesible. `styles.css`: presentación. `app.js`: formularios, acceso y operaciones. `domain.mjs`: búsqueda, métricas, agenda y CSV. `tests/domain.test.mjs`: regresiones.
+`index.html`: estructura accesible. `styles.css`: presentación. `app.js`: formularios, acceso y operaciones. `domain.mjs`: búsqueda, métricas, agenda y CSV. `catalog.mjs`: catálogo demo y cálculo de costo puesto. `database/catalog-pricing-v1.sql`: tablas y RLS del catálogo y perfiles de costos. `tests/domain.test.mjs`: regresiones.
 
 ## Verificación local
 
@@ -73,3 +83,4 @@ Documentación consultada: [recuperación](https://supabase.com/docs/reference/j
 - La vista ejecutiva prioriza en una sola pantalla ventas ganadas, margen conocido, pipeline abierto, riesgo, decisiones inmediatas, ranking del equipo, embudo y pulso reciente. Cada tarjeta de decisión abre el módulo filtrado correspondiente.
 - Un lead convertido conserva su puntuación histórica para explicar la calidad con la que se convirtió. La tabla y el editor cambian la etiqueta a «Potencial al convertir» y muestran el siguiente paso de la oportunidad, en vez de recomendar convertir nuevamente el lead.
 - La puntuación representa potencial comercial calculado con señales disponibles; no es un porcentaje de avance del estado. El estado y la oportunidad vinculada son la fuente de verdad para saber si ya fue convertido.
+

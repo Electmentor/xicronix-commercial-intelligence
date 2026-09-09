@@ -22,7 +22,8 @@
   <p class="auth-note">Una cuenta nueva necesita ser vinculada a tu organización por un administrador.</p></main>
 </section>
 <section id="appView" class="app" hidden>
-  <aside class="sidebar"><div class="brand">XICRONIX<span>INTELIGENCIA COMERCIAL</span></div><p id="workspaceLabel" class="nav-label">ESPACIO COMERCIAL</p><nav id="navigation" aria-label="Navegación principal"></nav><div class="sidebar-bottom"><span id="userRole"></span><button id="logoutBtn">Cerrar sesión</button></div></aside>
+  <aside id="mainSidebar" class="sidebar"><div class="brand">XICRONIX<span>INTELIGENCIA COMERCIAL</span></div><p id="workspaceLabel" class="nav-label">ESPACIO COMERCIAL</p><nav id="navigation" aria-label="Navegación principal"></nav><div class="sidebar-bottom"><span id="userRole"></span><button id="logoutBtn">Cerrar sesión</button></div></aside>
+  <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-expanded="true" aria-controls="mainSidebar" aria-label="Ocultar navegación" title="Ocultar navegación">‹</button>
   <main class="main"><header class="top"><div><p class="eyebrow">XICRONIX / <span id="dateLabel"></span></p><h1 id="pageTitle">Resumen comercial</h1><p id="welcome"></p></div><div class="header-actions"><button id="themeToggle" type="button" aria-pressed="false" title="Cambiar contraste de la interfaz">🌙 Modo nocturno</button><button id="refreshBtn">Actualizar</button><button id="newBtn" class="primary">+ Nueva institución</button></div></header>
   <section id="workspaceControls" class="workspace-controls" aria-label="Experiencia de trabajo" hidden>
     <div class="workspace-switch" role="group" aria-label="Seleccionar modo de trabajo" aria-describedby="workspaceHint">
@@ -42,3 +43,4 @@
 <dialog id="methodDialog" aria-labelledby="methodTitle"><h2 id="methodTitle">Cómo leer el tablero</h2><p id="methodText" class="method-text"></p><button id="closeMethod" type="button">Entendido</button></dialog>
 <noscript>Activa JavaScript para utilizar Xicronix.</noscript>
 </body></html>
+

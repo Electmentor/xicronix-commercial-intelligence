@@ -4,6 +4,7 @@ import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWrite
 
 import {DEMO_VERSION, DEMO_SELLERS, createDemoData, mutateDemo, realOnly} from './demo.mjs';
 import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs';
+import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 
 const $ = id => document.getElementById(id);
 const enums = {
@@ -24,13 +25,22 @@ const followUp=[f('next_action','Próxima acción'),f('next_action_date','Fecha 
 const owner=f('owner_user_id','Responsable','relation');owner.adminOnly=true;
 const assignee=f('assigned_to','Responsable','relation');assignee.adminOnly=true;
 const cost=f('estimated_cost','Costo estimado (S/)','number');cost.adminOnly=true;
+const catalogPrice=f('supplier_unit_price','Precio proveedor (USD)','number');
+const costRateKeys=new Set(['ad_valorem_rate','igv_rate','perception_rate','contingency_rate']);
+const catalogProduct=f('catalog_product_id','Producto de catálogo','relation');
+const costProfile=f('cost_profile_id','Perfil de costos','relation');costProfile.adminOnly=true;
+const quantity=f('quantity','Cantidad','number');
+const discount=f('discount_pct','Descuento negociado (%)','number');
+const negotiatedPrice=f('negotiated_unit_price','Precio unitario negociado (USD)','number');
 const modules={
  institutions:{label:'Instituciones',singular:'institución',filter:'type',options:enums.type,fields:[f('name','Nombre','text',true),f('type','Tipo','select',true,enums.type),f('ruc','RUC'),f('city','Ciudad'),f('country','País','text',true),f('address','Dirección'),f('email','Correo','email'),f('phone','Teléfono','tel'),f('website','Sitio web','url'),f('notes','Notas','textarea')]},
  contacts:{label:'Contactos',singular:'contacto',filter:'decision_level',options:enums.decision_level,fields:[f('first_name','Nombres','text',true),f('last_name','Apellidos'),institution,f('job_title','Cargo'),f('decision_level','Nivel de decisión','select',true,enums.decision_level),f('email','Correo','email'),f('phone','Teléfono','tel'),f('notes','Notas','textarea')]},
  leads:{label:'Prospectos',singular:'prospecto',filter:'status',options:enums.status,fields:[f('title','Título','text',true),institution,contact,f('source','Fuente'),f('status','Estado','select',true,enums.status),f('estimated_value','Valor estimado (S/)','number'),f('score','Calificación manual (0–100)','number'),owner,...followUp]},
- opportunities:{label:'Oportunidades',singular:'oportunidad',filter:'stage',options:enums.stage,fields:[f('name','Nombre','text',true),institution,contact,f('stage','Etapa','select',true,enums.stage),f('value','Valor (S/)','number'),cost,owner,f('probability','Probabilidad manual (%)','number'),f('expected_close_date','Cierre esperado','date'),...followUp]},
+ opportunities:{label:'Oportunidades',singular:'oportunidad',filter:'stage',options:enums.stage,fields:[f('name','Nombre','text',true),institution,contact,catalogProduct,costProfile,quantity,discount,negotiatedPrice,f('stage','Etapa','select',true,enums.stage),f('value','Valor (S/)','number'),cost,owner,f('probability','Probabilidad manual (%)','number'),f('expected_close_date','Cierre esperado','date'),...followUp]},
  tasks:{label:'Tareas',singular:'tarea',filter:'status',options:enums.taskStatus,fields:[f('title','Título','text',true),institution,f('status','Estado','select',true,enums.taskStatus),f('priority','Prioridad','select',true,enums.priority),f('due_at','Fecha límite','datetime-local'),assignee]},
  activities:{label:'Interacciones',singular:'interacción',filter:'type',options:enums.activityType,fields:[f('lead_id','Prospecto','relation',true),institution,contact,f('type','Canal','select',true,enums.activityType),f('subject','Asunto','text',true),f('outcome','Resultado','select',false,enums.activityOutcome),f('need_summary','Necesidad detectada','textarea'),f('decision_timeline','Horizonte de decisión'),f('budget_signal','Señal de presupuesto'),f('notes','Notas','textarea'),f('occurred_at','Fecha y hora','datetime-local',true),f('next_action','Próxima acción'),f('next_action_date','Fecha de seguimiento','datetime-local')]},
+ catalog_products:{label:'Catálogo',singular:'producto',filter:'category',options:{Fisica:'Física','Educacion STEM':'Educación STEM',Optica:'Óptica',Quimica:'Química',Robotica:'Robótica'},fields:[f('supplier_name','Proveedor','text',true),f('supplier_sku','SKU proveedor','text',true),f('name','Producto','text',true),f('category','Categoría','text',true),f('currency','Moneda','text',true),catalogPrice,f('price_valid_from','Vigencia desde','date'),f('price_valid_until','Vigencia hasta','date'),f('origin_country','País de origen','text',true),f('tariff_code','Subpartida peruana validada'),f('weight_kg','Peso (kg)','number'),f('volume_m3','Volumen (m³)','number'),f('reference_url','Referencia oficial','url'),f('active','Activo','checkbox'),f('notes','Fuente y condiciones','textarea')]},
+ cost_profiles:{label:'Costos de importación',singular:'perfil de costos',filter:'destination_country',options:{Peru:'Perú'},fields:[f('name','Nombre','text',true),f('origin_country','Origen','text',true),f('destination_country','Destino','text',true),f('currency','Moneda','text',true),f('exchange_rate','Tipo de cambio','number',true),f('freight_international','Flete internacional','number'),f('insurance','Seguro','number'),f('ad_valorem_rate','Ad valorem (%)','number'),f('igv_rate','IGV (%)','number'),f('perception_rate','Percepción (%)','number'),f('customs_broker_fee','Agente de aduanas','number'),f('terminal_fee','Terminal','number'),f('storage_fee','Almacenaje','number'),f('inland_transport','Transporte interno','number'),f('installation_fee','Instalación','number'),f('contingency_rate','Contingencia (%)','number'),f('valid_from','Vigencia desde','date'),f('valid_until','Vigencia hasta','date'),f('notes','Notas','textarea')]},
  goals:{label:'Metas',singular:'meta',fields:[owner,f('period_start','Inicio del periodo','date',true),f('period_end','Fin del periodo','date',true),f('target_margin','Meta de margen (S/)','number',true),f('target_won_value','Meta de ventas ganadas (S/)','number',true),f('notes','Notas','textarea')]},
  users:{label:'Usuarios',singular:'usuario',filter:'role',options:enums.role,fields:[f('full_name','Nombre completo','text',true),f('role','Rol','select',true,enums.role)]}
 };
@@ -121,8 +131,8 @@ function renderWorkspaceControls(){
  $('workspaceHint').textContent=admin?'Visión global: resultados, margen, metas y equipo.':'Mi cartera: prospectos, potencial, interacciones y próximas acciones.';
  $('workspaceLabel').textContent=admin?'DIRECCIÓN COMERCIAL':'MI ESPACIO DE VENTAS';
  $('appView').dataset.workspace=admin?ADMIN:SELLER;
- const labels=admin?{}:{leads:'Mi cartera',opportunities:'Mis oportunidades',tasks:'Mis tareas',activities:'Mis interacciones',institutions:'Mis instituciones',contacts:'Mis contactos'};
- const keys=admin?['dashboard',...Object.keys(modules)]:['leads','tasks','activities','opportunities','institutions','contacts'];
+ const labels=admin?{}:{leads:'Mi cartera',opportunities:'Mis oportunidades',tasks:'Mis tareas',activities:'Mis interacciones',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
+ const keys=admin?['dashboard',...Object.keys(modules)]:['leads','tasks','activities','opportunities','catalog_products','institutions','contacts'];
  $('navigation').innerHTML=keys.filter(accessible).map((key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen ejecutivo')+'</button>').join('');
 }
 async function setWorkspace(next){
@@ -137,12 +147,14 @@ async function setWorkspace(next){
  await reload();
 }
 const THEME_STORAGE_KEY='xicronix-theme';
+const SIDEBAR_STORAGE_KEY='xicronix-sidebar-collapsed';
 const authRedirectUrl=()=>/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?PUBLIC_APP_URL:location.origin+location.pathname;
 const nameOf=row=>row.name || row.title || row.subject || row.full_name || [row.first_name,row.last_name].filter(Boolean).join(' ');
 const relatedName=row=>data.institutions?.find(i=>i.id===row.institution_id)?.name || '';
-const relationTable=key=>({institution_id:'institutions',contact_id:'contacts',lead_id:'leads',opportunity_id:'opportunities',owner_user_id:'users',assigned_to:'users'})[key];
+const relationTable=key=>({institution_id:'institutions',contact_id:'contacts',lead_id:'leads',opportunity_id:'opportunities',owner_user_id:'users',assigned_to:'users',catalog_product_id:'catalog_products',cost_profile_id:'cost_profiles'})[key];
 const relationName=(key,row)=>{const table=relationTable(key);return table?nameOf((data[table]||[]).find(item=>item.id===row[key])||{}):'';};
 const date=value=>value?new Date(value).toLocaleString('es-PE',{dateStyle:'medium',timeStyle:'short'}):'Sin fecha';
+const catalogMoney=value=>'USD '+new Intl.NumberFormat('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(value)||0);
 const notice=(message,error=false)=>{ $('status').hidden=!message;$('status').textContent=message;$('status').className='notice'+(error?' error':''); };
 function errorText(error){
  const code=error?.code;
@@ -232,6 +244,12 @@ function applyTheme(theme,persist=false){
  if(persist){try{localStorage.setItem(THEME_STORAGE_KEY,night?'night':'day');}catch(_error){}}
 }
 function initTheme(){let stored='';try{stored=localStorage.getItem(THEME_STORAGE_KEY)||'';}catch(_error){}applyTheme(stored==='night'?'night':'day');}
+function applySidebar(collapsed,persist=false){
+ const app=$('appView'),button=$('sidebarToggle');if(!app||!button)return;
+ app.classList.toggle('sidebar-collapsed',collapsed);button.textContent=collapsed?'›':'‹';button.setAttribute('aria-expanded',String(!collapsed));button.setAttribute('aria-label',collapsed?'Mostrar navegación':'Ocultar navegación');button.title=collapsed?'Mostrar navegación':'Ocultar navegación';
+ if(persist){try{localStorage.setItem(SIDEBAR_STORAGE_KEY,collapsed?'1':'0');}catch(_error){}}
+}
+function initSidebar(){let stored='';try{stored=localStorage.getItem(SIDEBAR_STORAGE_KEY)||'';}catch(_error){}applySidebar(stored==='1');}
 function navigate(next){
  if(busy||$('editor').open)return;
  if(!accessible(next))next=canViewDashboard()?'dashboard':'leads';
@@ -280,7 +298,7 @@ function renderSellerWorkspaceSummary(){
  const high=rows.filter(row=>Number(scores.find(score=>score.lead_id===row.id)?.total_score||0)>=75).length;
  return '<article class="seller-focus panel"><div><h2>Mi operación comercial</h2><p>Prioriza tus prospectos, registra cada interacción y trabaja la próxima acción sugerida.</p></div><div class="seller-focus-metrics"><span><b>'+active+'</b><small>Leads activos</small></span><span><b>'+high+'</b><small>Potencial alto</small></span><span><b>'+due+'</b><small>Seguimientos próximos</small></span></div></article>';
 }
-function filtered(){const config=modules[page];return filterRecords(filterExecutiveRows(scopedRows(page),page,executiveFilter,executiveOwner),$('search').value,config.filter,$('filter').value,relatedName);}
+function filtered(){const config=modules[page];return filterRecords(filterExecutiveRows(scopedRows(page),page,executiveFilter,executiveOwner),$('search').value,config.filter,$('filter').value,row=>[relatedName(row),row.supplier_sku,row.supplier_name].filter(Boolean).join(' '));}
 function scoreCell(row){
  const score=(data.scores||[]).find(item=>item.lead_id===row.id);
  const value=score?Math.max(0,Math.min(100,Number(score.total_score)||0)):0;
@@ -297,21 +315,23 @@ function renderRecords(){
  const isUsers=page==='users',isGoals=page==='goals';
  $('recordContext').hidden=!executiveFilter&&!executiveOwner;
  $('recordContextLabel').textContent=[{won:'Ganadas con cierre previsto este mes',pipeline:'Cartera abierta',risk:'Cartera en riesgo'}[executiveFilter],executiveOwner?'Vendedor: '+(data.users.find(row=>row.id===executiveOwner)?.full_name||'seleccionado'):''].filter(Boolean).join(' · ');
- $('importBtn').hidden=isUsers||isGoals||!writableFor(page);$('importBtn').disabled=loading||busy||!!failures[page];$('importHelp').hidden=isUsers||isGoals;
+ $('importBtn').hidden=isUsers||isGoals||!writableFor(page);$('importBtn').disabled=loading||busy||!!failures[page];$('importHelp').hidden=isUsers||isGoals||!writableFor(page);
  $('sellerSummary').hidden=canViewDashboard()||page!=='leads';$('sellerSummary').innerHTML=renderSellerWorkspaceSummary();
  const rows=filtered();const max=Math.max(1,Math.ceil(rows.length/size));pageIndex=Math.min(pageIndex,max-1);
  $('recordCount').textContent=failures[page]?'Información no disponible':rows.length+' registros';
  $('exportBtn').disabled=!!failures[page]||!rows.length;
  $('pageNumber').textContent='Página '+(pageIndex+1)+' de '+max;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
  const config=modules[page],canEdit=writableFor(page);
- const secondHeader=isUsers?'Rol':isGoals?'Responsable':page==='institutions'?'Ciudad':'Institución';
- const detailHeader=isGoals?'Meta de margen':(['leads','opportunities'].includes(page)?'Valor estimado':'Detalle');
+ const secondHeader=isUsers?'Rol':isGoals?'Responsable':page==='institutions'?'Ciudad':['catalog_products','cost_profiles'].includes(page)?'Origen / destino':'Institución';
+ const detailHeader=isGoals?'Meta de margen':(['leads','opportunities'].includes(page)?'Valor estimado':page==='catalog_products'?'Precio proveedor':page==='cost_profiles'?'Tipo de cambio':'Detalle');
  const rowsMarkup=rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>{
-  const secondCell=isUsers?badge(row.role,page):isGoals?esc(relationName('owner_user_id',row)||'Organización'):esc(page==='institutions'?row.city||'—':relatedName(row)||'Sin vincular');
-  const stateCell=isGoals?'<span class="badge success">Meta definida</span>':badge(row[config.filter],page);
-  const detail=page==='goals'?money(row.target_margin):page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='tasks'?esc(date(row.due_at)):page==='activities'?esc(date(row.occurred_at)):esc(row.phone||'—');
+  const secondCell=isUsers?badge(row.role,page):isGoals?esc(relationName('owner_user_id',row)||'Organización'):page==='catalog_products'?esc(row.origin_country||'—')+' → Perú':page==='cost_profiles'?esc(row.origin_country||'—')+' → '+esc(row.destination_country||'—'):esc(page==='institutions'?row.city||'—':relatedName(row)||'Sin vincular');
+  const stateCell=isGoals?'<span class="badge success">Meta definida</span>':page==='catalog_products'?(row.active===false?'<span class="badge warn">Inactivo</span>':'<span class="badge success">Activo</span>'):badge(row[config.filter],page);
+  const detail=page==='goals'?money(row.target_margin):page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='catalog_products'?catalogMoney(row.supplier_unit_price):page==='cost_profiles'?Number(row.exchange_rate||0).toFixed(2):page==='tasks'?esc(date(row.due_at)):page==='activities'?esc(date(row.occurred_at)):esc(row.phone||'—');
   const actionLabel=canEdit?'Editar':'Ver';
-  return '<tr><td><strong>'+esc(nameOf(row)||('Meta '+row.period_start))+'</strong><small>'+esc(isGoals?(row.period_start+' → '+row.period_end):(row.email||row.next_action||row.job_title||''))+'</small></td><td>'+secondCell+'</td><td>'+stateCell+'</td><td>'+detail+'</td>'+(page==='leads'?'<td>'+scoreCell(row)+'</td>':'')+'<td><div class="row-actions"><button data-edit="'+row.id+'" data-table="'+page+'">'+actionLabel+'</button>'+(page==='leads'&&writable()?'<button data-activity-lead="'+row.id+'">Registrar interacción</button>':'')+(!isUsers&&canDelete()?'<button class="danger-text" data-delete="'+row.id+'" data-table="'+page+'">Eliminar</button>':'')+'</div></td></tr>';
+  const rowName=page==='catalog_products'?catalogDisplayName(row):nameOf(row)||('Meta '+row.period_start);
+  const subline=isGoals?(row.period_start+' → '+row.period_end):(row.email||row.next_action||row.job_title||row.category||row.notes||'');
+  return '<tr><td><strong>'+esc(rowName)+'</strong><small>'+esc(subline)+'</small></td><td>'+secondCell+'</td><td>'+stateCell+'</td><td>'+detail+'</td>'+(page==='leads'?'<td>'+scoreCell(row)+'</td>':'')+'<td><div class="row-actions"><button data-edit="'+row.id+'" data-table="'+page+'">'+actionLabel+'</button>'+(page==='leads'&&writable()?'<button data-activity-lead="'+row.id+'">Registrar interacción</button>':'')+(!isUsers&&canDelete()?'<button class="danger-text" data-delete="'+row.id+'" data-table="'+page+'">Eliminar</button>':'')+'</div></td></tr>';
  }).join('');
  $('recordList').innerHTML=failures[page]?'<div class="panel empty">No pudimos cargar estos registros. Pulsa Actualizar.</div>':!rows.length?`<div class="panel empty">${$('search').value||$('filter').value?'No hay coincidencias. Cambia la búsqueda o el filtro.':'Aún no hay registros. Crea el primero con el botón superior.'}</div>`:`<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>${secondHeader}</th><th>Estado / tipo</th><th>${detailHeader}</th>${page==='leads'?'<th>Potencial</th>':''}<th>Acción</th></tr></thead><tbody>${rowsMarkup}</tbody></table></div>`;
 }
@@ -321,6 +341,7 @@ function importValue(source,field){
  const key=keys.find(candidate=>Object.hasOwn(source,candidate));
  const raw=String(key?source[key]??'':'').trim();
  if(!raw)return '';
+ if(field.type==='checkbox')return /^(true|1|si|sí)$/i.test(raw);
  if(field.options){
   const found=Object.entries(field.options).find(([option,label])=>normalize(option)===normalize(raw)||normalize(label)===normalize(raw));
   return found?found[0]:raw;
@@ -332,7 +353,7 @@ function importValue(source,field){
  }
  if(field.type==='number'){
   const normalized=raw.replace(/[^0-9,.-]/g,'').replace(/,(?=.*[,])/g,'').replace(',','.');
-  return normalized===''?0:Number(normalized);
+  return (normalized===''?0:Number(normalized))/(costRateKeys.has(field.key)?100:1);
  }
  if(field.type==='datetime-local'||field.type==='date'){
   const parsed=new Date(raw);
@@ -401,16 +422,21 @@ function openEditor(table,id=null,initialValues={}){
  editTable=table;editId=id;editingVersion=row.updated_at||null;
  $('editorTitle').textContent=`${id?(writableFor(table)?'Editar':'Ver'):'Crear'} ${modules[table].singular}`;$('formMsg').textContent='';
  $('fields').innerHTML=fieldsFor(table).map(field=>{
- let value=row[field.key]??({country:'Peru',type:'OTHER',priority:'MEDIUM',score:0,value:0,estimated_value:0,estimated_cost:'',probability:10,target_margin:0,target_won_value:0}[field.key]??'');if(field.type==='datetime-local')value=localDateTime(value);
+ let value=row[field.key]??({country:'Peru',type:'OTHER',priority:'MEDIUM',score:0,value:0,estimated_value:0,estimated_cost:'',probability:10,target_margin:0,target_won_value:0,active:true,quantity:1,discount_pct:0,negotiated_unit_price:''}[field.key]??'');if(field.type==='datetime-local')value=localDateTime(value);if(costRateKeys.has(field.key)&&value!=='')value=Number(value)*100;
  let options=field.options;if(field.type==='relation'){const source=relationTable(field.key);options=Object.fromEntries(scopedRows(source).map(r=>[r.id,nameOf(r)]));}
  let input;
  const attrs=`id="field-${field.key}" name="${field.key}" ${field.required?'required':''} ${!writableFor(editTable)?'disabled':''}`;
  if(options)input=`<select ${attrs}>${field.type==='relation'?'<option value="">Sin vincular</option>':''}${Object.entries(options).map(([k,v])=>`<option value="${esc(k)}" ${value===k?'selected':''}>${esc(v)}</option>`).join('')}</select>`;
  else if(field.type==='textarea')input=`<textarea ${attrs}>${esc(value)}</textarea>`;
- else input=`<input ${attrs} type="${field.type}" value="${esc(value)}" ${field.type==='number'?`min="0" step="${['score','probability'].includes(field.key)?1:'0.01'}" ${['score','probability'].includes(field.key)?'max="100"':''}`:''} ${field.key==='ruc'?'pattern="[0-9]{11}" title="Ingresa 11 dígitos"':''}>`;
+ else if(field.type==='checkbox')input=`<input ${attrs} type="checkbox" ${value!==false?'checked':''}>`;
+ else input=`<input ${attrs} type="${field.type}" value="${esc(value)}" ${field.type==='number'?`min="0" step="${['score','probability',...costRateKeys].includes(field.key)?1:'0.01'}" ${['score','probability',...costRateKeys].includes(field.key)?'max="100"':''}`:''} ${field.key==='ruc'?'pattern="[0-9]{11}" title="Ingresa 11 dígitos"':''}>`;
  return `<div class="${field.type==='textarea'?'full':''}"><label for="field-${field.key}">${field.label}${field.required?' *':''}</label>${input}</div>`;
  }).join('');
  const leadScore=id&&table==='leads'?(data.scores||[]).find(item=>item.lead_id===id):null;
+ if(table==='opportunities'&&canViewDashboard()){
+  $('fields').insertAdjacentHTML('beforeend','<section id="quotePreview" class="quote-insight full" aria-live="polite"></section>');
+  updateQuotePreview();
+ }
  if(table==='leads'){
   const scoreValue=leadScore?Math.max(0,Math.min(100,Number(leadScore.total_score)||0)):0;
   const linkedOpportunity=(data.opportunities||[]).find(item=>item.lead_id===id);
@@ -420,19 +446,30 @@ function openEditor(table,id=null,initialValues={}){
  }
  $('saveBtn').hidden=!writableFor(table);$('saveBtn').disabled=false;$('editor').showModal();
 }
+function updateQuotePreview(){
+ if(editTable!=='opportunities'||!canViewDashboard())return;
+ const target=$('quotePreview');if(!target)return;
+ const product=data.catalog_products?.find(item=>item.id===$('field-catalog_product_id').value);
+ const selected=data.cost_profiles?.find(item=>item.id===$('field-cost_profile_id').value);
+ if(!product||!selected){target.textContent='Selecciona producto y perfil de costos para calcular el escenario.';return;}
+ try{
+  const q=calculateQuote(product,selected,$('field-quantity').value,$('field-negotiated_unit_price').value,$('field-discount_pct').value);
+  target.textContent='Venta neta: '+money(q.revenuePen)+' · Costo total: '+money(q.economicTotalPen)+' · Caja estimada: '+money(q.cashTotalPen)+' · Margen: '+money(q.marginPen)+(q.marginPct===null?'':' ('+q.marginPct.toFixed(1)+'%)')+'. Escenario referencial; el valor comercial guardado se mantiene en su campo.';
+ }catch(error){target.textContent=error.message;}
+}
 async function saveRecord(event){
  event.preventDefault();const canEdit=writableFor(editTable);if(busy||loading||!canEdit)return;
  if(editId&&!scopedRows(editTable).some(row=>row.id===editId))return;
  const payload={}, form=new FormData($('recordForm'));
- for(const field of fieldsFor(editTable)){let value=String(form.get(field.key)??'').trim();
+ for(const field of fieldsFor(editTable)){let value=field.type==='checkbox'?form.get(field.key)==='on':String(form.get(field.key)??'').trim();
  if(field.required&&!value){$('formMsg').textContent='Completa los campos obligatorios.';return;}
- if(field.type==='number')value=value===''?(field.key==='estimated_cost'?null:0):Number(value);
+ if(field.type==='number'){value=value===''?(['estimated_cost','negotiated_unit_price'].includes(field.key)?null:field.key==='quantity'?1:0):Number(value);if(costRateKeys.has(field.key))value=value/100;}
  else if(field.type==='datetime-local')value=value?new Date(value).toISOString():null;
- else value=value||null;payload[field.key]=value;
+ else if(field.type!=='checkbox')value=value||null;payload[field.key]=value;
  }
  for(const field of fieldsFor(editTable)){
   const value=payload[field.key];
-  if(field.type==='number'&&value!==null&&(!Number.isFinite(value)||value<0||(['score','probability'].includes(field.key)&&value>100))){
+  if(field.type==='number'&&value!==null&&(!Number.isFinite(value)||value<0||(['score','probability','discount_pct'].includes(field.key)&&value>100)||(costRateKeys.has(field.key)&&value>1)||(field.key==='quantity'&&(!Number.isInteger(value)||value<1))||(field.key==='exchange_rate'&&value<=0))){
    $('formMsg').textContent='Revisa el valor de '+field.label+'.';return;
   }
   if(field.type==='relation'&&value&&!scopedRows(relationTable(field.key)).some(row=>row.id===value)){
@@ -491,6 +528,9 @@ function handleAuth(event,current){
 }
 function init(){
  initTheme();
+ initSidebar();
+ $('fields').addEventListener('input',updateQuotePreview);
+ $('fields').addEventListener('change',updateQuotePreview);
  $('adminModeBtn').onclick=()=>setWorkspace(ADMIN);$('sellerModeBtn').onclick=()=>setWorkspace(SELLER);renderWorkspaceControls();
  $('sourceToggle').onclick=()=>setDataSource(dataSource==='demo'?'live':'demo');$('resetDemoBtn').onclick=resetDemo;$('demoSeller').onchange=selectDemoSeller;
  $('clearRecordContext').onclick=()=>{executiveFilter='';executiveOwner='';renderRecords();};
@@ -498,6 +538,7 @@ function init(){
  $('methodText').textContent=EXECUTIVE_METHOD;
  $('dateLabel').textContent=new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long'});
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
+ $('sidebarToggle').onclick=()=>applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);
  document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.activityLead){openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();recovery=false;}setMode('login');};
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
@@ -506,7 +547,7 @@ function init(){
  $('previous').onclick=()=>{pageIndex--;renderRecords();};$('next').onclick=()=>{pageIndex++;renderRecords();};
  const close=()=>{if(!busy)$('editor').close();};$('closeEditor').onclick=$('cancelEditor').onclick=close;$('editor').addEventListener('cancel',e=>{if(busy)e.preventDefault();});
  $('logoutBtn').onclick=async()=>{const {error}=await sb.auth.signOut();if(error){notice(errorText(error),true);return;}clearSession();setMode('login');};
- $('exportBtn').onclick=()=>{if(!accessible(page)||loading||busy||failures[page])return;const columns=fieldsFor(page).map(field=>({key:field.key,label:field.label}));const rows=filtered().map(row=>Object.fromEntries(columns.map(c=>{const field=modules[page].fields.find(f=>f.key===c.key);return [c.key,field.type==='relation'?relationName(c.key,row):field.options?.[row[c.key]]||row[c.key]];})));const url=URL.createObjectURL(new Blob([csv(rows,columns)],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`xicronix-${dataSource==='demo'?'SIMULADO-':''}${page}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+ $('exportBtn').onclick=()=>{if(!accessible(page)||loading||busy||failures[page])return;const columns=fieldsFor(page).map(field=>({key:field.key,label:field.label}));const rows=filtered().map(row=>Object.fromEntries(columns.map(c=>{const field=modules[page].fields.find(f=>f.key===c.key);return [c.key,field.type==='relation'?relationName(c.key,row):costRateKeys.has(c.key)?Number(row[c.key])*100:field.options?.[row[c.key]]||row[c.key]];})));const url=URL.createObjectURL(new Blob([csv(rows,columns)],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`xicronix-${dataSource==='demo'?'SIMULADO-':''}${page}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
  if(!window.supabase){$('authMsg').textContent='No se pudo cargar el servicio de acceso. Comprueba tu conexión y recarga la página.';$('authBtn').disabled=true;return;}
  sb=window.supabase.createClient('https://qzfprdhmcaucqcdqgqiz.supabase.co','sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK');
  sb.auth.onAuthStateChange(handleAuth);
@@ -514,3 +555,4 @@ function init(){
 }
 // Both the SDK's defer script and module execution finish before DOMContentLoaded.
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+

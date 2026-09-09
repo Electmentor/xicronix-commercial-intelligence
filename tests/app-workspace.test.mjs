@@ -39,6 +39,8 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
   opportunities:[row('own-opp',{name:'Oportunidad propia',value:1000,estimated_cost:500,owner_user_id:'me',stage:'WON'}),row('other-opp',{name:'Oportunidad ajena',created_by:'colleague',owner_user_id:'colleague',value:2000,stage:'PROPOSAL'})],
   tasks:[row('own-task',{title:'Tarea propia',assigned_to:'me',status:'PENDING'})],
   activities:[row('activity',{lead_id:'own-lead',subject:'Interacción propia',type:'CALL',occurred_at:'2026-09-09T12:00:00Z'})],
+  catalog_products:[row('catalog-product',{supplier_name:'Proveedor demo',supplier_sku:'SKU-001',name:'Kit demo',category:'Fisica',currency:'USD',supplier_unit_price:680,origin_country:'Brasil',active:true})],
+  cost_profiles:[row('cost-profile',{name:'Perfil demo',origin_country:'Brasil',destination_country:'Peru',currency:'USD',exchange_rate:3.78,igv_rate:.18})],
   scores:[row('score',{lead_id:'own-lead',total_score:88,recommendation:'Llamar'})],
   commercial_goals:[row('goal',{period_start:'2026-09-01',period_end:'2026-09-30',target_margin:10000,target_won_value:50000})]
  };
@@ -132,7 +134,7 @@ for(const role of ['SALES','MANAGER','VIEWER']){
 }
 test('admin can create/edit all wired modules; seller cannot open another owner or admin form',async()=>{
  const h=harness();await h.boot();
- for(const table of ['institutions','contacts','leads','opportunities','tasks','activities','goals']){
+ for(const table of ['institutions','contacts','leads','opportunities','tasks','activities','catalog_products','cost_profiles','goals']){
   h.run('openEditor('+JSON.stringify(table)+')');
   assert.equal(h.nodes.get('editor').open,true,table);
   assert.equal(h.nodes.get('saveBtn').hidden,false,table);
@@ -267,3 +269,4 @@ test('converted leads keep their historical score but show conversion-aware guid
  assert.match(h.nodes.get('fields').innerHTML,/Potencial al convertir/);
  assert.doesNotMatch(h.nodes.get('fields').innerHTML,/Convertir en oportunidad/);
 });
+
