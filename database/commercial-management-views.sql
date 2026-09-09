@@ -1,5 +1,5 @@
 -- Xicronix commercial management views v1
--- Applied in Supabase as commercial_management_views_v1 on 2026-09-09.
+-- Applied in Supabase as commercial_management_views_v1 and commercial_management_views_v1_indexes on 2026-09-09.
 -- Adds estimated margin inputs and admin-owned commercial goals.
 
 begin;
