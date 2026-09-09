@@ -273,13 +273,24 @@ function openActivityForLead(leadId){
  openEditor('activities',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',type:'CALL',subject:'Primer contacto',outcome:'FOLLOW_UP',occurred_at:localDateTime(new Date().toISOString())});
 }
 function renderRecords(){
- const isUsers=page==='users';$('importBtn').hidden=isUsers;$('importHelp').hidden=isUsers;
+ const isUsers=page==='users',isGoals=page==='goals';
+ $('importBtn').hidden=isUsers||isGoals;$('importHelp').hidden=isUsers||isGoals;
+ $('sellerSummary').hidden=canViewDashboard()||page!=='leads';$('sellerSummary').innerHTML=renderSellerWorkspaceSummary();
  const rows=filtered();const max=Math.max(1,Math.ceil(rows.length/size));pageIndex=Math.min(pageIndex,max-1);
- $('recordCount').textContent=failures[page]?'Información no disponible':`${rows.length} registros`;
+ $('recordCount').textContent=failures[page]?'Información no disponible':${rows.length+' registros'};
  $('exportBtn').disabled=!!failures[page]||!rows.length;
- $('pageNumber').textContent=`Página ${pageIndex+1} de ${max}`;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
- const config=modules[page];
- $('recordList').innerHTML=failures[page]?'<div class="panel empty">No pudimos cargar estos registros. Pulsa Actualizar.</div>':!rows.length?`<div class="panel empty">${$('search').value||$('filter').value?'No hay coincidencias. Cambia la búsqueda o el filtro.':'Aún no hay registros. Crea el primero con el botón superior.'}</div>`:`<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>${isUsers?'Rol':page==='institutions'?'Ciudad':'Institución'}</th><th>Estado / tipo</th><th>${['leads','opportunities'].includes(page)?'Valor estimado':'Detalle'}</th>${page==='leads'?'<th>Potencial</th>':''}<th>Acción</th></tr></thead><tbody>${rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>`<tr><td><strong>${esc(nameOf(row))}</strong><small>${esc(row.email||row.next_action||row.job_title||'')}</small></td><td>${isUsers?badge(row.role,page):esc(page==='institutions'?row.city||'—':relatedName(row)||'Sin vincular')}</td><td>${badge(row[config.filter],page)}</td><td>${page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='tasks'?esc(date(row.due_at)):page==='activities'?esc(date(row.occurred_at)):esc(row.phone||'—')}</td>${page==='leads'?'<td>'+scoreCell(row)+'</td>':''}<td><div class="row-actions"><button data-edit="${row.id}" data-table="${page}">${(isUsers?canManageUsers():writable())?'Editar':'Ver'}</button>${page==='leads'&&writable()?'<button data-activity-lead="'+row.id+'">Registrar interacción</button>':''}${!isUsers&&canDelete()?`<button class="danger-text" data-delete="${row.id}" data-table="${page}">Eliminar</button>`:''}</div></td></tr>`).join('')}</tbody></table></div>`;
+ $('pageNumber').textContent=${`Página ${pageIndex+1} de ${max}`};$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
+ const config=modules[page],canEdit=isUsers||isGoals?canManageUsers():writable();
+ const secondHeader=isUsers?'Rol':isGoals?'Responsable':page==='institutions'?'Ciudad':'Institución';
+ const detailHeader=isGoals?'Meta de margen':(['leads','opportunities'].includes(page)?'Valor estimado':'Detalle');
+ const rowsMarkup=rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>{
+  const secondCell=isUsers?badge(row.role,page):isGoals?esc(relationName('owner_user_id',row)||'Organización'):esc(page==='institutions'?row.city||'—':relatedName(row)||'Sin vincular');
+  const stateCell=isGoals?'<span class="badge success">Meta definida</span>':badge(row[config.filter],page);
+  const detail=page==='goals'?money(row.target_margin):page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='tasks'?esc(date(row.due_at)):page==='activities'?esc(date(row.occurred_at)):esc(row.phone||'—');
+  const actionLabel=canEdit?'Editar':'Ver';
+  return '<tr><td><strong>'+esc(nameOf(row)||('Meta '+row.period_start))+'</strong><small>'+esc(isGoals?(row.period_start+' → '+row.period_end):(row.email||row.next_action||row.job_title||''))+'</small></td><td>'+secondCell+'</td><td>'+stateCell+'</td><td>'+detail+'</td>'+(page==='leads'?'<td>'+scoreCell(row)+'</td>':'')+'<td><div class="row-actions"><button data-edit="'+row.id+'" data-table="'+page+'">'+actionLabel+'</button>'+(page==='leads'&&writable()?'<button data-activity-lead="'+row.id+'">Registrar interacción</button>':'')+(!isUsers&&canDelete()?'<button class="danger-text" data-delete="'+row.id+'" data-table="'+page+'">Eliminar</button>':'')+'</div></td></tr>';
+ }).join('');
+ $('recordList').innerHTML=failures[page]?'<div class="panel empty">No pudimos cargar estos registros. Pulsa Actualizar.</div>':!rows.length?`<div class="panel empty">${$('search').value||$('filter').value?'No hay coincidencias. Cambia la búsqueda o el filtro.':'Aún no hay registros. Crea el primero con el botón superior.'}</div>`:`<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>${secondHeader}</th><th>Estado / tipo</th><th>${detailHeader}</th>${page==='leads'?'<th>Potencial</th>':''}<th>Acción</th></tr></thead><tbody>${rowsMarkup}</tbody></table></div>`;
 }
 function localDateTime(value){if(!value)return '';const d=new Date(value);if(!Number.isFinite(d.getTime()))return '';return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);}
 function importValue(source,field){
