@@ -85,8 +85,8 @@ function clearSession(){
  if($('editor').open)$('editor').close();$('appView').hidden=true;$('authView').hidden=false;$('dashboard').replaceChildren();$('recordList').replaceChildren();
 }
 async function allRows(table,org){
- const rows=[];for(let offset=0;;offset+=500){
- const {data:batch,error}=await sb.from(table).select('*').eq('organization_id',org).order('created_at',{ascending:false}).order('id').range(offset,offset+499);
+ const rows=[];const orderColumn=table==='scores'?'calculated_at':'created_at';for(let offset=0;;offset+=500){
+ const {data:batch,error}=await sb.from(table).select('*').eq('organization_id',org).order(orderColumn,{ascending:false}).order('id').range(offset,offset+499);
  if(error)throw error;rows.push(...batch);if(batch.length<500)return rows;
  }
 }
