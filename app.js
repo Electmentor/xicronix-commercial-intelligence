@@ -131,29 +131,79 @@ function render(){
  if(page==='dashboard')renderDashboard();else renderRecords();
 }
 function assignedUserId(row){return row.owner_user_id||row.assigned_to||row.user_id||row.created_by||null;}
-function renderCollaboratorPerformance(){
- if(!canManageUsers())return '';
- if(failures.users)return '<article class="panel team-performance"><div class="panel-head"><h2>Desempeño del equipo</h2></div><p class="error">No se pudo cargar el equipo. Pulsa Actualizar para reintentar.</p></article>';
+function opportunityMargin(row){
+ const value=Number(row.value);
+ const cost=row.estimated_cost;
+ if(!Number.isFinite(value)||cost===null||cost===undefined||cost==='')return null;
+ const numericCost=Number(cost);
+ return Number.isFinite(numericCost)?Math.max(0,value-numericCost):null;
+}
+function stageWeight(stage){return {DETECTED:10,CONTACT_PENDING:15,CONTACTED:25,QUALIFIED:40,OPPORTUNITY:55,PROPOSAL:70,NEGOTIATION:85,WON:100,LOST:0}[stage]??0;}
+function leadQuality(lead){
+ const checks=[lead.title,lead.institution_id,lead.contact_id,lead.status,lead.next_action,lead.next_action_date];
+ return Math.round(checks.filter(Boolean).length/checks.length*100);
+}
+function currentPeriod(){
+ const now=new Date(),start=new Date(now.getFullYear(),now.getMonth(),1),end=new Date(now.getFullYear(),now.getMonth()+1,0);
+ return {start:start.toISOString().slice(0,10),end:end.toISOString().slice(0,10)};
+}
+function currentGoal(){
+ const period=currentPeriod();
+ return (data.goals||[]).filter(goal=>!goal.owner_user_id&&goal.period_start<=period.end&&goal.period_end>=period.start).sort((a,b)=>String(b.period_start).localeCompare(String(a.period_start)))[0]||null;
+}
+function sellerPerformanceRows(){
  const users=(data.users||[]).filter(user=>user.role!=='ADMIN');
- if(!users.length)return '<article class="panel team-performance"><div class="panel-head"><h2>Desempeño del equipo</h2></div><div class="empty">Aún no hay colaboradores o vendedores vinculados a esta organización.</div></article>';
- const leads=data.leads||[],opportunities=data.opportunities||[],tasks=data.tasks||[],scores=data.scores||[],now=Date.now();
- const rows=users.map(user=>{
+ const leads=data.leads||[],opportunities=data.opportunities||[],tasks=data.tasks||[],activities=data.activities||[],scores=data.scores||[];
+ const wonMargins=opportunities.filter(row=>row.stage==='WON').map(opportunityMargin).filter(value=>value!==null);
+ const organizationWonMargin=wonMargins.reduce((sum,value)=>sum+value,0);
+ return users.map(user=>{
   const ownedLeads=leads.filter(row=>assignedUserId(row)===user.id);
   const ownedOpps=opportunities.filter(row=>assignedUserId(row)===user.id);
   const ownedTasks=tasks.filter(row=>assignedUserId(row)===user.id);
-  const leadScores=ownedLeads.map(lead=>scores.find(score=>score.lead_id===lead.id)?.total_score).filter(value=>value!==undefined&&value!==null).map(Number);
-  const avg=leadScores.length?Math.round(leadScores.reduce((sum,value)=>sum+value,0)/leadScores.length):null;
+  const ownedActivities=activities.filter(row=>row.created_by===user.id);
+  const scoreValues=ownedLeads.map(lead=>scores.find(score=>score.lead_id===lead.id)?.total_score).filter(value=>value!==undefined&&value!==null).map(Number);
+  const potential=scoreValues.length?scoreValues.reduce((sum,value)=>sum+value,0)/scoreValues.length:null;
+  const wonKnown=ownedOpps.filter(row=>row.stage==='WON').map(opportunityMargin).filter(value=>value!==null);
+  const wonMargin=wonKnown.length?wonKnown.reduce((sum,value)=>sum+value,0):null;
   const openOpps=ownedOpps.filter(row=>!['WON','LOST'].includes(row.stage));
   const pipeline=openOpps.reduce((sum,row)=>sum+Number(row.value||0),0);
-  const overdue=ownedTasks.filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&row.due_at&&Date.parse(row.due_at)<now).length;
+  const openMargins=openOpps.map(opportunityMargin).filter(value=>value!==null);
+  const openMargin=openMargins.length?openMargins.reduce((sum,value)=>sum+value,0):null;
+  const progress=ownedOpps.length?Math.round(ownedOpps.reduce((sum,row)=>sum+stageWeight(row.stage),0)/ownedOpps.length):0;
+  const quality=ownedLeads.length?Math.round(ownedLeads.reduce((sum,row)=>sum+leadQuality(row),0)/ownedLeads.length):0;
   const completed=ownedTasks.filter(row=>row.status==='COMPLETED').length;
-  const completion=ownedTasks.length?Math.round(completed/ownedTasks.length*100):null;
-  const indicator=avg!==null?avg:(completion!==null?completion:null);
-  const label=indicator===null?'Sin datos':indicator>=75?'Buen desempeño':indicator>=60?'En seguimiento':'Requiere atención';
-  return {user,ownedLeads,ownedOpps,ownedTasks,avg,pipeline,overdue,completion,indicator,label};
+  const followup=ownedTasks.length?Math.round(completed/ownedTasks.length*100):0;
+  const collaboration=Math.min(100,ownedActivities.length*10);
+  const result=organizationWonMargin&&wonMargin!==null?Math.min(100,Math.round(wonMargin/organizationWonMargin*100)):0;
+  const performance=Math.round(result*.4+progress*.2+quality*.15+followup*.15+collaboration*.1);
+  const rate=performance>=90?.03:performance>=75?.02:performance>=60?.01:0;
+  const bonusBase=wonMargin===null?null:wonMargin;
+  const bonus=bonusBase===null?null:Math.round(bonusBase*rate*100)/100;
+  return {user,ownedLeads,ownedOpps,ownedTasks,ownedActivities,potential,wonMargin,openMargin,pipeline,progress,quality,followup,collaboration,performance,rate,bonusBase,bonus};
  });
- const markup=rows.map(item=>'<tr><td><strong>'+esc(item.user.full_name||'Sin nombre')+'</strong><small>'+esc(enums.role[item.user.role]||item.user.role||'Sin rol')+'</small></td><td>'+item.ownedLeads.length+'</td><td>'+item.ownedOpps.length+'<small>'+money(item.pipeline)+'</small></td><td>'+item.ownedTasks.length+'<small>'+ (item.completion===null?'Sin cierre':item.completion+'% completadas')+'</small></td><td><div class="team-score"><div class="score-track"><i style="width:'+(item.indicator===null?0:item.indicator)+'%"></i></div><strong>'+(item.indicator===null?'—':item.indicator+'%')+'</strong><small>'+esc(item.label)+'</small></div></td><td><span class="badge '+(item.overdue?'warn':'success')+'">'+(item.overdue?item.overdue+' vencida'+(item.overdue===1?'':'s'):'Al día')+'</span></td></tr>').join('');
- return '<article class="panel team-performance"><div class="panel-head"><div><h2>Desempeño del equipo</h2><p class="muted">Seguimiento administrativo; no determina bonos ni pagos.</p></div></div><div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Leads</th><th>Oportunidades</th><th>Tareas</th><th>Indicador</th><th>Seguimiento</th></tr></thead><tbody>'+markup+'</tbody></table></div><p class="muted">El indicador muestra el potencial promedio de sus leads; si aún no hay puntuaciones, usa el porcentaje de tareas completadas. La atribución provisional toma responsable, asignado o creador del registro.</p></article>';
+}
+function renderAdminHighLevel(){
+ if(!canViewDashboard())return '';
+ const rows=sellerPerformanceRows(),opportunities=data.opportunities||[];
+ const open=opportunities.filter(row=>!['WON','LOST'].includes(row.stage));
+ const openMargins=open.map(opportunityMargin).filter(value=>value!==null);
+ const won=opportunities.filter(row=>row.stage==='WON').map(opportunityMargin).filter(value=>value!==null);
+ const openMargin=openMargins.length?openMargins.reduce((sum,value)=>sum+value,0):null;
+ const wonMargin=won.length?won.reduce((sum,value)=>sum+value,0):null;
+ const goal=currentGoal(),goalValue=goal?Number(goal.target_margin||0):0;
+ const goalProgress=goalValue?Math.min(999,Math.round((wonMargin||0)/goalValue*100)):null;
+ const top=rows.filter(row=>row.performance!==null).sort((a,b)=>b.performance-a.performance).slice(0,3);
+ const topMarkup=top.length?top.map((row,index)=>'<div class="top-seller-row"><span class="top-seller-rank">'+(index+1)+'</span><div><strong>'+esc(row.user.full_name||'Sin nombre')+'</strong><small>'+esc(enums.role[row.user.role]||row.user.role||'')+' · '+row.performance+'% desempeño</small></div><b>'+money(row.wonMargin||0)+'</b></div>').join(''):'<div class="empty">Aún no hay suficientes datos para ordenar vendedores.</div>';
+ const goalMarkup=goal?'<div class="goal-progress"><div class="panel-head"><strong>Meta de margen del periodo</strong><b>'+goalProgress+'%</b></div><div class="score-track"><i style="width:'+Math.min(100,goalProgress)+'%"></i></div><small>'+money(wonMargin||0)+' de '+money(goalValue)+' · '+goal.period_start+' a '+goal.period_end+'</small></div>':'<div class="empty">No hay una meta general definida para el periodo. Usa “Metas” para crearla.</div>';
+ return '<article class="panel admin-high-level"><div class="panel-head"><div><h2>Visión administrativa</h2><p class="muted">Resultados, prioridades, metas, margen y desempeño del equipo.</p></div><button data-page="goals">Gestionar metas</button></div><div class="admin-kpi-grid"><div><small>Margen ganado</small><strong>'+(wonMargin===null?'—':money(wonMargin))+'</strong><span>'+(wonMargin===null?'Falta costo estimado en oportunidades ganadas':'Oportunidades WON')+'</span></div><div><small>Margen abierto estimado</small><strong>'+(openMargin===null?'—':money(openMargin))+'</strong><span>'+open.length+' oportunidades abiertas</span></div><div><small>Meta del periodo</small><strong>'+(goal?money(goalValue):'—')+'</strong><span>'+(goal?'Margen objetivo':'Sin meta configurada')+'</span></div><div><small>Vendedores evaluados</small><strong>'+rows.length+'</strong><span>Evaluación preliminar</span></div></div><div class="admin-high-level-grid"><section><h3>Mejores vendedores</h3>'+topMarkup+'</section><section><h3>Avance de metas</h3>'+goalMarkup+'</section></div></article>';
+}
+function renderCollaboratorPerformance(){
+ if(!canManageUsers())return '';
+ if(failures.users)return '<article class="panel team-performance"><div class="panel-head"><h2>Desempeño del equipo</h2></div><p class="error">No se pudo cargar el equipo. Pulsa Actualizar para reintentar.</p></article>';
+ const rows=sellerPerformanceRows();
+ if(!rows.length)return '<article class="panel team-performance"><div class="panel-head"><h2>Desempeño del equipo</h2></div><div class="empty">Aún no hay colaboradores o vendedores vinculados a esta organización.</div></article>';
+ const markup=rows.sort((a,b)=>b.performance-a.performance).map(item=>'<tr><td><strong>'+esc(item.user.full_name||'Sin nombre')+'</strong><small>'+esc(enums.role[item.user.role]||item.user.role||'Sin rol')+'</small></td><td>'+item.ownedLeads.length+'</td><td>'+item.ownedOpps.length+'<small>'+money(item.pipeline)+'</small></td><td>'+(item.wonMargin===null?'—':money(item.wonMargin))+'<small>'+(item.openMargin===null?'Margen pendiente':money(item.openMargin)+' abierto')+'</small></td><td>'+item.ownedTasks.length+'<small>'+item.followup+'% completadas</small></td><td><div class="team-score"><div class="score-track"><i style="width:'+item.performance+'%"></i></div><strong>'+item.performance+'%</strong><small>Desempeño preliminar</small></div></td><td><strong>'+(item.bonus===null?'—':money(item.bonus))+'</strong><small>'+(item.rate*100).toFixed(0)+'% referencial · pendiente de cierre</small></td></tr>').join('');
+ return '<article class="panel team-performance"><div class="panel-head"><div><h2>Desempeño del equipo</h2><p class="muted">Seguimiento administrativo; el bono es referencial y no constituye una orden de pago.</p></div></div><div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Leads</th><th>Oportunidades</th><th>Margen</th><th>Tareas</th><th>Desempeño</th><th>Bono referencial</th></tr></thead><tbody>'+markup+'</tbody></table></div><p class="muted">La evaluación combina resultado 40%, avance 20%, calidad de datos 15%, seguimiento 15% y colaboración 10%. Si una oportunidad ganada no tiene costo estimado, su margen y bono permanecen pendientes.</p></article>';
 }
 function renderDashboard(){
  const m=metrics(data),failed=Object.keys(failures),opportunities=data.opportunities||[];
