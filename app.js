@@ -19,7 +19,8 @@ const modules={
  contacts:{label:'Contactos',singular:'contacto',filter:'decision_level',options:enums.decision_level,fields:[f('first_name','Nombres','text',true),f('last_name','Apellidos'),institution,f('job_title','Cargo'),f('decision_level','Nivel de decisión','select',true,enums.decision_level),f('email','Correo','email'),f('phone','Teléfono','tel'),f('notes','Notas','textarea')]},
  leads:{label:'Prospectos',singular:'prospecto',filter:'status',options:enums.status,fields:[f('title','Título','text',true),institution,contact,f('source','Fuente'),f('status','Estado','select',true,enums.status),f('estimated_value','Valor estimado (S/)','number'),f('score','Calificación manual (0–100)','number'),...followUp]},
  opportunities:{label:'Oportunidades',singular:'oportunidad',filter:'stage',options:enums.stage,fields:[f('name','Nombre','text',true),institution,contact,f('stage','Etapa','select',true,enums.stage),f('value','Valor (S/)','number'),f('probability','Probabilidad manual (%)','number'),f('expected_close_date','Cierre esperado','date'),...followUp]},
- tasks:{label:'Tareas',singular:'tarea',filter:'status',options:enums.taskStatus,fields:[f('title','Título','text',true),institution,f('status','Estado','select',true,enums.taskStatus),f('priority','Prioridad','select',true,enums.priority),f('due_at','Fecha límite','datetime-local')]}
+ tasks:{label:'Tareas',singular:'tarea',filter:'status',options:enums.taskStatus,fields:[f('title','Título','text',true),institution,f('status','Estado','select',true,enums.taskStatus),f('priority','Prioridad','select',true,enums.priority),f('due_at','Fecha límite','datetime-local')]},
+ users:{label:'Usuarios',singular:'usuario',filter:'role',options:enums.role,fields:[f('full_name','Nombre completo','text',true),f('role','Rol','select',true,enums.role)]}
 };
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
@@ -27,8 +28,9 @@ const PUBLIC_APP_URL='https://xicronix-commercial-intelligence-git-improvemen-29
 const emptyData=()=>Object.fromEntries(Object.keys(modules).map(k=>[k,[]]));
 const writable=()=>profile && ['ADMIN','MANAGER','SALES'].includes(profile.role);
 const canDelete=()=>profile?.role==='ADMIN';
+const canManageUsers=()=>profile?.role==='ADMIN';
 const authRedirectUrl=()=>/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?PUBLIC_APP_URL:location.origin+location.pathname;
-const nameOf=row=>row.name || row.title || [row.first_name,row.last_name].filter(Boolean).join(' ');
+const nameOf=row=>row.name || row.title || row.full_name || [row.first_name,row.last_name].filter(Boolean).join(' ');
 const relatedName=row=>data.institutions?.find(i=>i.id===row.institution_id)?.name || '';
 const date=value=>value?new Date(value).toLocaleString('es-PE',{dateStyle:'medium',timeStyle:'short'}):'Sin fecha';
 const notice=(message,error=false)=>{ $('status').hidden=!message;$('status').textContent=message;$('status').className='notice'+(error?' error':''); };
@@ -105,7 +107,10 @@ function navigate(next){page=next;pageIndex=0;$('search').value='';const config=
 function badge(value,table){return `<span class="badge ${['WON','COMPLETED'].includes(value)?'success':['OVERDUE','CRITICAL'].includes(value)?'warn':''}">${esc(modules[table]?.options[value]||enums.priority[value]||value||'—')}</span>`;}
 function render(){
  $('dashboard').hidden=page!=='dashboard';$('records').hidden=page==='dashboard';$('pageTitle').textContent=page==='dashboard'?'Resumen comercial':modules[page].label;
- const target=page==='dashboard'?'institutions':page;$('newBtn').textContent='+ Crear '+modules[target].singular;$('newBtn').disabled=!writable()||!!failures[target];
+ const target=page==='dashboard'?'institutions':page,managingUsers=target==='users';
+ const usersNav=document.querySelector('[data-page="users"]');if(usersNav)usersNav.hidden=!canManageUsers();
+ if(managingUsers&&!canManageUsers()){page='dashboard';return render();}
+ $('newBtn').hidden=managingUsers;$('newBtn').textContent='+ Crear '+modules[target].singular;$('newBtn').disabled=managingUsers||!writable()||!!failures[target];
  document.querySelectorAll('[data-page]').forEach(b=>{b.classList.toggle('active',b.dataset.page===page);if(b.dataset.page===page)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
  if(page==='dashboard')renderDashboard();else renderRecords();
 }
@@ -117,12 +122,13 @@ function renderDashboard(){
 }
 function filtered(){const config=modules[page];return filterRecords(data[page]||[],$('search').value,config.filter,$('filter').value,relatedName);}
 function renderRecords(){
+ const isUsers=page==='users';$('importBtn').hidden=isUsers;$('importHelp').hidden=isUsers;
  const rows=filtered();const max=Math.max(1,Math.ceil(rows.length/size));pageIndex=Math.min(pageIndex,max-1);
  $('recordCount').textContent=failures[page]?'Información no disponible':`${rows.length} registros`;
  $('exportBtn').disabled=!!failures[page]||!rows.length;
  $('pageNumber').textContent=`Página ${pageIndex+1} de ${max}`;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
  const config=modules[page];
- $('recordList').innerHTML=failures[page]?'<div class="panel empty">No pudimos cargar estos registros. Pulsa Actualizar.</div>':!rows.length?`<div class="panel empty">${$('search').value||$('filter').value?'No hay coincidencias. Cambia la búsqueda o el filtro.':'Aún no hay registros. Crea el primero con el botón superior.'}</div>`:`<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>${page==='institutions'?'Ciudad':'Institución'}</th><th>Estado / tipo</th><th>${['leads','opportunities'].includes(page)?'Valor estimado':'Detalle'}</th><th>Acción</th></tr></thead><tbody>${rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>`<tr><td><strong>${esc(nameOf(row))}</strong><small>${esc(row.email||row.next_action||row.job_title||'')}</small></td><td>${esc(page==='institutions'?row.city||'—':relatedName(row)||'Sin vincular')}</td><td>${badge(row[config.filter],page)}</td><td>${page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='tasks'?esc(date(row.due_at)):esc(row.phone||'—')}</td><td><div class="row-actions"><button data-edit="${row.id}" data-table="${page}">${writable()?'Editar':'Ver'}</button>${canDelete()?`<button class="danger-text" data-delete="${row.id}" data-table="${page}">Eliminar</button>`:''}</div></td></tr>`).join('')}</tbody></table></div>`;
+ $('recordList').innerHTML=failures[page]?'<div class="panel empty">No pudimos cargar estos registros. Pulsa Actualizar.</div>':!rows.length?`<div class="panel empty">${$('search').value||$('filter').value?'No hay coincidencias. Cambia la búsqueda o el filtro.':'Aún no hay registros. Crea el primero con el botón superior.'}</div>`:`<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>${isUsers?'Rol':page==='institutions'?'Ciudad':'Institución'}</th><th>Estado / tipo</th><th>${['leads','opportunities'].includes(page)?'Valor estimado':'Detalle'}</th><th>Acción</th></tr></thead><tbody>${rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>`<tr><td><strong>${esc(nameOf(row))}</strong><small>${esc(row.email||row.next_action||row.job_title||'')}</small></td><td>${isUsers?badge(row.role,page):esc(page==='institutions'?row.city||'—':relatedName(row)||'Sin vincular')}</td><td>${badge(row[config.filter],page)}</td><td>${page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='tasks'?esc(date(row.due_at)):esc(row.phone||'—')}</td><td><div class="row-actions"><button data-edit="${row.id}" data-table="${page}">${(isUsers?canManageUsers():writable())?'Editar':'Ver'}</button>${!isUsers&&canDelete()?`<button class="danger-text" data-delete="${row.id}" data-table="${page}">Eliminar</button>`:''}</div></td></tr>`).join('')}</tbody></table></div>`;
 }
 function localDateTime(value){if(!value)return '';const d=new Date(value);if(!Number.isFinite(d.getTime()))return '';return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);}
 function importValue(source,field){
@@ -180,7 +186,7 @@ async function importCsvFile(event){
  finally{$('importBtn').disabled=false;}
 }
 async function removeRecord(table,id){
- if(!canDelete()||busy)return;
+ if(table==='users'||!canDelete()||busy)return;
  const row=data[table]?.find(item=>item.id===id);if(!row)return;
  if(!window.confirm('¿Eliminar '+nameOf(row)+'? Esta acción no se puede deshacer.'))return;
  busy=true;notice('Eliminando…');
@@ -192,7 +198,7 @@ async function removeRecord(table,id){
  finally{busy=false;}
 }
 function openEditor(table,id=null){
- if(!profile||failures[table])return; if(!id&&!writable())return;
+ if(!profile||failures[table])return; if(table==='users'&&(!id||!canManageUsers()))return; if(!id&&!writable())return;
  const dependencies=modules[table].fields.filter(f=>f.type==='relation').map(f=>f.key==='institution_id'?'institutions':'contacts');
  if(dependencies.some(k=>failures[k])){notice('Actualiza los módulos vinculados antes de abrir este formulario para conservar las relaciones del registro.',true);return;}
  const row=id?data[table].find(r=>r.id===id):{};if(!row)return;
@@ -202,7 +208,7 @@ function openEditor(table,id=null){
  let value=row[field.key]??({country:'Peru',type:'OTHER',priority:'MEDIUM',score:0,value:0,estimated_value:0,probability:10}[field.key]??'');if(field.type==='datetime-local')value=localDateTime(value);
  let options=field.options;if(field.type==='relation'){const source=field.key==='institution_id'?'institutions':'contacts';options=Object.fromEntries((data[source]||[]).map(r=>[r.id,nameOf(r)]));}
  let input;
- const attrs=`id="field-${field.key}" name="${field.key}" ${field.required?'required':''} ${!writable()?'disabled':''}`;
+ const attrs=`id="field-${field.key}" name="${field.key}" ${field.required?'required':''} ${!(editTable==='users'?canManageUsers():writable())?'disabled':''}`;
  if(options)input=`<select ${attrs}>${field.type==='relation'?'<option value="">Sin vincular</option>':''}${Object.entries(options).map(([k,v])=>`<option value="${esc(k)}" ${value===k?'selected':''}>${esc(v)}</option>`).join('')}</select>`;
  else if(field.type==='textarea')input=`<textarea ${attrs}>${esc(value)}</textarea>`;
  else input=`<input ${attrs} type="${field.type}" value="${esc(value)}" ${field.type==='number'?`min="0" step="${['score','probability'].includes(field.key)?1:'0.01'}" ${['score','probability'].includes(field.key)?'max="100"':''}`:''} ${field.key==='ruc'?'pattern="[0-9]{11}" title="Ingresa 11 dígitos"':''}>`;
@@ -210,7 +216,7 @@ function openEditor(table,id=null){
  }).join('');$('saveBtn').hidden=!writable();$('saveBtn').disabled=false;$('editor').showModal();
 }
 async function saveRecord(event){
- event.preventDefault();if(busy||!writable())return;
+ event.preventDefault();const canEdit=editTable==='users'?canManageUsers():writable();if(busy||!canEdit)return;
  const payload={}, form=new FormData($('recordForm'));
  for(const field of modules[editTable].fields){let value=String(form.get(field.key)??'').trim();
  if(field.required&&!value){$('formMsg').textContent='Completa los campos obligatorios.';return;}
@@ -222,8 +228,8 @@ async function saveRecord(event){
  busy=true;$('saveBtn').disabled=true;$('formMsg').textContent='Guardando…';
  const table=editTable,id=editId,org=profile.organization_id,userId=session.user.id,version=loadVersion;
  try{
- let query;if(id){payload.updated_at=new Date().toISOString();query=sb.from(table).update(payload).eq('id',id).eq('organization_id',org);if(editingVersion)query=query.eq('updated_at',editingVersion);}
- else query=sb.from(table).insert({...payload,organization_id:org,created_by:userId});
+ let query;if(id){if(table!=='users'){payload.updated_at=new Date().toISOString();}query=sb.from(table).update(payload).eq('id',id).eq('organization_id',org);if(table!=='users'&&editingVersion)query=query.eq('updated_at',editingVersion);}
+ else if(table!=='users')query=sb.from(table).insert({...payload,organization_id:org,created_by:userId});else throw {code:'42501'};
  const {error}=await query.select('id').single();if(error)throw error;
  if(!session||session.user.id!==userId||version!==loadVersion)return;
  $('editor').close();await reload();if(!failures[table])notice('Registro guardado correctamente.');
