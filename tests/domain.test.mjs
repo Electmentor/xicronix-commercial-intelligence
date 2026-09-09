@@ -31,3 +31,15 @@ test('parses quoted CSV headers, commas, multiline cells and BOM',()=>{
  const rows=parseCsv('\uFEFFNombre,Notas\n"Institución, Sur","Línea 1\nLínea 2"');
  assert.deepEqual(rows,[{nombre:'Institución, Sur',notas:'Línea 1\nLínea 2'}]);
 });
+
+test('prioritizes overdue and calculated lead potential before lower-potential follow-ups',()=>{
+ const data={
+  leads:[
+   {id:'lead-low',title:'Bajo',status:'CONTACTED',next_action_date:'2026-01-01T12:00:00Z',score:90},
+   {id:'lead-high',title:'Alto',status:'QUALIFIED',next_action_date:'2026-02-01T12:00:00Z',score:10}
+  ],
+  scores:[{lead_id:'lead-low',total_score:20,recommendation:'Completar datos'},{lead_id:'lead-high',total_score:90,recommendation:'Contactar hoy'}]
+ };
+ assert.deepEqual(priorities(data,Date.parse('2026-01-02')).map(row=>row.id),['lead-low','lead-high']);
+ assert.equal(priorities(data,Date.parse('2025-12-01'))[0].derived_score,90);
+});
