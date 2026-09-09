@@ -105,7 +105,7 @@ async function reload(){
  const results=await Promise.allSettled(tables.map(k=>allRows(k,profile.organization_id)));
  if(version!==loadVersion)return;
  data=emptyData();failures={};tables.forEach((k,i)=>{if(results[i].status==='fulfilled')data[k]=results[i].value;else failures[k]=true;});
- render();const bad=Object.keys(failures);notice(bad.length?'No se pudo cargar: '+bad.map(k=>modules[k].label).join(', ')+'. Pulsa Actualizar para reintentar.':'',!!bad.length);
+ render();const bad=Object.keys(failures);notice(bad.length?'No se pudo cargar: '+bad.map(k=>modules[k]?.label||k).join(', ')+'. Pulsa Actualizar para reintentar.':'',!!bad.length);
  }catch(error){if(version===loadVersion){profile=null;data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice(errorText(error),true);}}
  finally{if(version===loadVersion){$('refreshBtn').disabled=false;$('newBtn').disabled=!writable()||!!failures[page==='dashboard'?'institutions':page];}}
 }
@@ -143,15 +143,15 @@ function renderDashboard(){
  const alertMarkup=alerts.map(row=>{
   const value=row.value??row.estimated_value;
   const meta=[value!==undefined&&value!==null?money(value):'',row.score!==undefined&&row.score!==null?'Score '+row.score:'',date(row.due)].filter(Boolean).join(' · ');
-  const action=row.next_action||row.title||row.name||modules[row.table].label;
+  const action=row.recommendation||row.next_action||row.title||row.name||modules[row.table].label;
   return '<div class="alert-row"><span class="alert-icon">!</span><div><strong>'+esc(nameOf(row))+'</strong><small>'+esc(meta)+'</small><b>Acción recomendada: '+esc(action)+'</b></div></div>';
  }).join('');
  const priorityMarkup=agenda.map((row,index)=>{
   const value=row.value??row.estimated_value;
-  const score=row.score??row.probability;
+  const score=row.derived_score??row.score??row.probability;
   const meta=[relatedName(row)||modules[row.table].label,value!==undefined&&value!==null?money(value):'',score!==undefined&&score!==null?'Score '+score:''].filter(Boolean).join(' · ');
   const overdue=Date.parse(row.due)<now.getTime();
-  const action=row.next_action||row.title||row.name||modules[row.table].label;
+  const action=row.recommendation||row.next_action||row.title||row.name||modules[row.table].label;
   return `<div class="priority-row"><div class="priority-rank">${index+1}</div><div class="priority-main"><strong>${esc(nameOf(row))}</strong><small>${esc(meta)}</small><span class="priority-action">${esc(action)}</span></div><div class="priority-side"><span class="badge ${overdue?'warn':''}">${overdue?'Vencida':esc(date(row.due))}</span><button data-edit="${row.id}" data-table="${row.table}">Ver</button></div></div>`;
  }).join('');
  const stageMarkup=stages.map(stage=>`<div class="stage-row"><span>${stage.label}</span><div class="bar"><i style="width:${stage.count/maxStage*100}%"></i></div><b>${stage.count}</b><small>${money(stage.value)}</small></div>`).join('');
