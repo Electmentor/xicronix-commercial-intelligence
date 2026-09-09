@@ -74,6 +74,7 @@ async function setWorkspace(next){
  if(next===workspace)return;
  workspace=effectiveWorkspace(profile,next);
  try{localStorage.setItem(workspaceIdentity,workspace);}catch(_error){}
+ $('fields').replaceChildren();editTable=null;editId=null;editingVersion=null;
  data=emptyData();failures={};$('dashboard').replaceChildren();$('recordList').replaceChildren();$('sellerSummary').replaceChildren();
  navigate(workspace===ADMIN?'dashboard':'leads');
  await reload();

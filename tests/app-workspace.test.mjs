@@ -153,6 +153,8 @@ test('an open form is preserved on mode switch; cancelling then switching works'
  assert.match(h.nodes.get('status').textContent,/Guarda o cancela/);
  h.click('cancelEditor');await h.click('sellerModeBtn');
  assert.equal(h.run('workspace'),'seller');
+ assert.equal(h.nodes.get('fields').innerHTML,'');
+ assert.equal(h.run('editTable'),null);
 });
 test('seller save works and does not submit admin-only ownership or cost fields',async()=>{
  const h=harness('SALES');await h.boot();h.run('openEditor("opportunities","own-opp")');
@@ -203,4 +205,3 @@ test('failed goal query is visible without breaking mode switching',async()=>{
  assert.equal(h.run('workspace'),'seller');
  assert.equal(h.run('failures.goals'),undefined);
 });
-
