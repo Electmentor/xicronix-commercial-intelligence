@@ -38,7 +38,7 @@ function errorText(error){
  if(['otp_expired','invalid_token','bad_jwt'].includes(code))return 'El enlace de recuperación venció o ya fue utilizado. Solicita uno nuevo y ábrelo una sola vez.';
  if(code==='email_not_confirmed')return 'Confirma tu correo antes de ingresar.';
  if(code==='over_email_send_rate_limit'||error?.status===429)return 'Se alcanzó el límite de intentos. Espera unos minutos y vuelve a intentar.';
- if(code==='weak_password')return 'Usa una contraseña más larga y combina letras, números y símbolos.';
+ if(code==='weak_password')return 'Usa una contraseña de al menos 6 caracteres y combina letras, números y símbolos.';
  if(code==='same_password')return 'Elige una contraseña diferente a la anterior.';
  if(code==='23505')return 'Ya existe un registro con esos datos.';
  if(code==='42501')return 'Tu cuenta no tiene permiso para esta operación.';
@@ -46,17 +46,32 @@ function errorText(error){
  return 'No se pudo completar la operación. Comprueba tu conexión e inténtalo nuevamente.';
 }
 function setMode(next){
- mode=next; $('authForm').reset();$('authMsg').textContent='';
+ mode=next; $('authForm').reset();resetPasswordVisibility();$('authMsg').textContent='';
  const reset=next==='reset', update=next==='update';
  $('authTitle').textContent={login:'Ingresar',signup:'Crear usuario',reset:'Recuperar acceso',update:'Nueva contraseña'}[next];
  $('authBtn').textContent={login:'Ingresar',signup:'Crear usuario',reset:'Enviar enlace de recuperación',update:'Guardar contraseña'}[next];
- $('authHint').textContent=reset?'Te enviaremos un enlace para cambiar tu contraseña.':update?'Elige una contraseña de al menos 10 caracteres.':'Accede con tu correo y contraseña.';
+ $('authHint').textContent=reset?'Te enviaremos un enlace para cambiar tu contraseña.':update?'Elige una contraseña de al menos 6 caracteres.':'Accede con tu correo y contraseña.';
  $('authTabs').hidden=reset||update;$('forgotBtn').hidden=next!=='login';$('backLogin').hidden=!(reset||update);
  $('emailField').hidden=update;$('email').required=!update;
- $('passwordField').hidden=reset;$('password').required=!reset;$('password').minLength=next==='login'?6:10;
+ $('passwordField').hidden=reset;$('password').required=!reset;$('password').minLength=6;$('confirmPassword').minLength=6;
  $('password').autocomplete=next==='login'?'current-password':'new-password';
  $('confirmField').hidden=!update;$('confirmPassword').required=update;
  document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===next));
+}
+function togglePassword(button){
+ const input=$(button.dataset.passwordToggle);if(!input)return;
+ const show=input.type==='password';input.type=show?'text':'password';
+ button.setAttribute('aria-pressed',String(show));button.setAttribute('aria-label',show?'Ocultar contraseña':'Mostrar contraseña');
+ button.querySelectorAll('[data-eye-open]').forEach(node=>node.hidden=show);
+ button.querySelectorAll('[data-eye-closed]').forEach(node=>node.hidden=!show);
+}
+function resetPasswordVisibility(){
+ document.querySelectorAll('[data-password-toggle]').forEach(button=>{
+  const input=$(button.dataset.passwordToggle);if(!input)return;
+  input.type='password';button.setAttribute('aria-pressed','false');button.setAttribute('aria-label','Mostrar contraseña');
+  button.querySelectorAll('[data-eye-open]').forEach(node=>node.hidden=false);
+  button.querySelectorAll('[data-eye-closed]').forEach(node=>node.hidden=true);
+ });
 }
 function clearSession(){
  loadVersion++;session=null;profile=null;data=emptyData();failures={};page='dashboard';pageIndex=0;
@@ -252,7 +267,7 @@ function handleAuth(event,current){
 function init(){
  $('navigation').innerHTML=[['dashboard','Resumen'],...Object.entries(modules).map(([k,v])=>[k,v.label])].map(([k,v],i)=>`<button data-page="${k}"><span class="nav-index">0${i+1}</span>${v}</button>`).join('');
  $('dateLabel').textContent=new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long'});
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();recovery=false;}setMode('login');};
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
