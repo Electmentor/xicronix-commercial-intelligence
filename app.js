@@ -32,6 +32,8 @@ const emptyData=()=>Object.fromEntries([...Object.keys(modules),'scores'].map(k=
 const writable=()=>profile && ['ADMIN','MANAGER','SALES'].includes(profile.role);
 const canDelete=()=>profile?.role==='ADMIN';
 const canManageUsers=()=>profile?.role==='ADMIN';
+const canViewDashboard=()=>profile?.role==='ADMIN';
+const THEME_STORAGE_KEY='xicronix-theme';
 const authRedirectUrl=()=>/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?PUBLIC_APP_URL:location.origin+location.pathname;
 const nameOf=row=>row.name || row.title || row.full_name || [row.first_name,row.last_name].filter(Boolean).join(' ');
 const relatedName=row=>data.institutions?.find(i=>i.id===row.institution_id)?.name || '';
@@ -109,16 +111,49 @@ async function reload(){
  }catch(error){if(version===loadVersion){profile=null;data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice(errorText(error),true);}}
  finally{if(version===loadVersion){$('refreshBtn').disabled=false;$('newBtn').disabled=!writable()||!!failures[page==='dashboard'?'institutions':page];}}
 }
-function navigate(next){page=next;pageIndex=0;$('search').value='';const config=modules[page];$('filter').innerHTML='<option value="">Todos los estados / tipos</option>'+Object.entries(config?.options||{}).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');render();}
+function applyTheme(theme,persist=false){
+ const night=theme==='night';document.documentElement.dataset.theme=night?'night':'day';
+ const button=$('themeToggle');if(button){button.textContent=night?'☀️ Modo diurno':'🌙 Modo nocturno';button.setAttribute('aria-pressed',String(night));button.setAttribute('aria-label',night?'Cambiar a modo diurno':'Cambiar a modo nocturno');button.title=night?'Usar fondo claro':'Usar fondo oscuro';}
+ if(persist){try{localStorage.setItem(THEME_STORAGE_KEY,night?'night':'day');}catch(_error){}}
+}
+function initTheme(){let stored='';try{stored=localStorage.getItem(THEME_STORAGE_KEY)||'';}catch(_error){}applyTheme(stored==='night'?'night':'day');}
+function navigate(next){if(next==='dashboard'&&!canViewDashboard())next='leads';page=next;pageIndex=0;$('search').value='';const config=modules[page];$('filter').innerHTML='<option value="">Todos los estados / tipos</option>'+Object.entries(config?.options||{}).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');render();}
 function badge(value,table){return `<span class="badge ${['WON','COMPLETED'].includes(value)?'success':['OVERDUE','CRITICAL'].includes(value)?'warn':''}">${esc(modules[table]?.options[value]||enums.priority[value]||value||'—')}</span>`;}
 function render(){
+ if(profile&&page==='dashboard'&&!canViewDashboard()){page='leads';pageIndex=0;const config=modules[page];$('filter').innerHTML='<option value="">Todos los estados / tipos</option>'+Object.entries(config.options||{}).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');}
  $('dashboard').hidden=page!=='dashboard';$('records').hidden=page==='dashboard';$('pageTitle').textContent=page==='dashboard'?'Resumen comercial':modules[page].label;
  const target=page==='dashboard'?'institutions':page,managingUsers=target==='users';
+ const dashboardNav=document.querySelector('[data-page="dashboard"]');if(dashboardNav)dashboardNav.hidden=!canViewDashboard();
  const usersNav=document.querySelector('[data-page="users"]');if(usersNav)usersNav.hidden=!canManageUsers();
- if(managingUsers&&!canManageUsers()){page='dashboard';return render();}
+ if(managingUsers&&!canManageUsers()){page='leads';return render();}
  $('newBtn').hidden=managingUsers;$('newBtn').textContent='+ Crear '+modules[target].singular;$('newBtn').disabled=managingUsers||!writable()||!!failures[target];
  document.querySelectorAll('[data-page]').forEach(b=>{b.classList.toggle('active',b.dataset.page===page);if(b.dataset.page===page)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
  if(page==='dashboard')renderDashboard();else renderRecords();
+}
+function assignedUserId(row){return row.owner_user_id||row.assigned_to||row.user_id||row.created_by||null;}
+function renderCollaboratorPerformance(){
+ if(!canManageUsers())return '';
+ if(failures.users)return '<article class="panel team-performance"><div class="panel-head"><h2>Desempeño del equipo</h2></div><p class="error">No se pudo cargar el equipo. Pulsa Actualizar para reintentar.</p></article>';
+ const users=(data.users||[]).filter(user=>user.role!=='ADMIN');
+ if(!users.length)return '<article class="panel team-performance"><div class="panel-head"><h2>Desempeño del equipo</h2></div><div class="empty">Aún no hay colaboradores o vendedores vinculados a esta organización.</div></article>';
+ const leads=data.leads||[],opportunities=data.opportunities||[],tasks=data.tasks||[],scores=data.scores||[],now=Date.now();
+ const rows=users.map(user=>{
+  const ownedLeads=leads.filter(row=>assignedUserId(row)===user.id);
+  const ownedOpps=opportunities.filter(row=>assignedUserId(row)===user.id);
+  const ownedTasks=tasks.filter(row=>assignedUserId(row)===user.id);
+  const leadScores=ownedLeads.map(lead=>scores.find(score=>score.lead_id===lead.id)?.total_score).filter(value=>value!==undefined&&value!==null).map(Number);
+  const avg=leadScores.length?Math.round(leadScores.reduce((sum,value)=>sum+value,0)/leadScores.length):null;
+  const openOpps=ownedOpps.filter(row=>!['WON','LOST'].includes(row.stage));
+  const pipeline=openOpps.reduce((sum,row)=>sum+Number(row.value||0),0);
+  const overdue=ownedTasks.filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&row.due_at&&Date.parse(row.due_at)<now).length;
+  const completed=ownedTasks.filter(row=>row.status==='COMPLETED').length;
+  const completion=ownedTasks.length?Math.round(completed/ownedTasks.length*100):null;
+  const indicator=avg!==null?avg:(completion!==null?completion:null);
+  const label=indicator===null?'Sin datos':indicator>=75?'Buen desempeño':indicator>=60?'En seguimiento':'Requiere atención';
+  return {user,ownedLeads,ownedOpps,ownedTasks,avg,pipeline,overdue,completion,indicator,label};
+ });
+ const markup=rows.map(item=>'<tr><td><strong>'+esc(item.user.full_name||'Sin nombre')+'</strong><small>'+esc(enums.role[item.user.role]||item.user.role||'Sin rol')+'</small></td><td>'+item.ownedLeads.length+'</td><td>'+item.ownedOpps.length+'<small>'+money(item.pipeline)+'</small></td><td>'+item.ownedTasks.length+'<small>'+ (item.completion===null?'Sin cierre':item.completion+'% completadas')+'</small></td><td><div class="team-score"><div class="score-track"><i style="width:'+(item.indicator===null?0:item.indicator)+'%"></i></div><strong>'+(item.indicator===null?'—':item.indicator+'%')+'</strong><small>'+esc(item.label)+'</small></div></td><td><span class="badge '+(item.overdue?'warn':'success')+'">'+(item.overdue?item.overdue+' vencida'+(item.overdue===1?'':'s'):'Al día')+'</span></td></tr>').join('');
+ return '<article class="panel team-performance"><div class="panel-head"><div><h2>Desempeño del equipo</h2><p class="muted">Seguimiento administrativo; no determina bonos ni pagos.</p></div></div><div class="table-wrap"><table><thead><tr><th>Colaborador</th><th>Leads</th><th>Oportunidades</th><th>Tareas</th><th>Indicador</th><th>Seguimiento</th></tr></thead><tbody>'+markup+'</tbody></table></div><p class="muted">El indicador muestra el potencial promedio de sus leads; si aún no hay puntuaciones, usa el porcentaje de tareas completadas. La atribución provisional toma responsable, asignado o creador del registro.</p></article>';
 }
 function renderDashboard(){
  const m=metrics(data),failed=Object.keys(failures),opportunities=data.opportunities||[];
@@ -155,7 +190,7 @@ function renderDashboard(){
   return `<div class="priority-row"><div class="priority-rank">${index+1}</div><div class="priority-main"><strong>${esc(nameOf(row))}</strong><small>${esc(meta)}</small><span class="priority-action">${esc(action)}</span></div><div class="priority-side"><span class="badge ${overdue?'warn':''}">${overdue?'Vencida':esc(date(row.due))}</span><button data-edit="${row.id}" data-table="${row.table}">Ver</button></div></div>`;
  }).join('');
  const stageMarkup=stages.map(stage=>`<div class="stage-row"><span>${stage.label}</span><div class="bar"><i style="width:${stage.count/maxStage*100}%"></i></div><b>${stage.count}</b><small>${money(stage.value)}</small></div>`).join('');
- $('dashboard').innerHTML=`<div class="cards">${cards.map(([label,value,hint])=>`<article class="card"><small>${label}</small><strong>${value}</strong><small>${hint}</small></article>`).join('')}</div><div class="grid"><article class="panel"><div class="panel-head"><h2>Prioridades comerciales</h2><button data-page="opportunities">Ver oportunidades</button></div>${priorityMarkup||'<div class="empty">No hay seguimientos con fecha. Agrega una próxima acción para priorizarla.</div>'}</article><article class="panel"><div class="panel-head"><h2>Pipeline por etapa</h2><button data-page="opportunities">Ver todo</button></div>${failures.opportunities?'<p class="error">No disponible</p>':stageMarkup}</article></div><article class="panel task-summary"><div class="panel-head"><h2>Próximas tareas</h2><button data-page="tasks">Ver tareas</button></div><div class="task-summary-grid"><div><small>Hoy</small><strong>${failures.tasks?'—':taskCount(start,tomorrow)}</strong></div><div><small>Mañana</small><strong>${failures.tasks?'—':taskCount(tomorrow,dayAfter)}</strong></div><div class="task-summary-overdue"><small>Vencidas</small><strong>${failures.tasks?'—':overdueTasks}</strong></div></div></article><article class="panel alerts-panel"><div class="panel-head"><h2>Alertas</h2><button data-page="tasks">Ver seguimientos</button></div>${alertMarkup||'<div class="empty">No hay alertas activas.</div>'}</article>${failed.length?'<p class="error">Algunos módulos no están disponibles. Pulsa Actualizar para reintentar.</p>':''}`;
+ $('dashboard').innerHTML=`<div class="cards">${cards.map(([label,value,hint])=>`<article class="card"><small>${label}</small><strong>${value}</strong><small>${hint}</small></article>`).join('')}</div><div class="grid"><article class="panel"><div class="panel-head"><h2>Prioridades comerciales</h2><button data-page="opportunities">Ver oportunidades</button></div>${priorityMarkup||'<div class="empty">No hay seguimientos con fecha. Agrega una próxima acción para priorizarla.</div>'}</article><article class="panel"><div class="panel-head"><h2>Pipeline por etapa</h2><button data-page="opportunities">Ver todo</button></div>${failures.opportunities?'<p class="error">No disponible</p>':stageMarkup}</article></div><article class="panel task-summary"><div class="panel-head"><h2>Próximas tareas</h2><button data-page="tasks">Ver tareas</button></div><div class="task-summary-grid"><div><small>Hoy</small><strong>${failures.tasks?'—':taskCount(start,tomorrow)}</strong></div><div><small>Mañana</small><strong>${failures.tasks?'—':taskCount(tomorrow,dayAfter)}</strong></div><div class="task-summary-overdue"><small>Vencidas</small><strong>${failures.tasks?'—':overdueTasks}</strong></div></div></article><article class="panel alerts-panel"><div class="panel-head"><h2>Alertas</h2><button data-page="tasks">Ver seguimientos</button></div>${alertMarkup||'<div class="empty">No hay alertas activas.</div>'}</article>${failed.length?'<p class="error">Algunos módulos no están disponibles. Pulsa Actualizar para reintentar.</p>':''}${renderCollaboratorPerformance()}`;
 }
 function filtered(){const config=modules[page];return filterRecords(data[page]||[],$('search').value,config.filter,$('filter').value,relatedName);}
 function scoreCell(row){
@@ -323,8 +358,10 @@ function handleAuth(event,current){
  setTimeout(()=>{if(session?.user.id===current.user.id&&!recovery)reload();},0);
 }
 function init(){
+ initTheme();
  $('navigation').innerHTML=[['dashboard','Resumen'],...Object.entries(modules).map(([k,v])=>[k,v.label])].map(([k,v],i)=>`<button data-page="${k}"><span class="nav-index">0${i+1}</span>${v}</button>`).join('');
  $('dateLabel').textContent=new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long'});
+ $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.activityLead){openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();recovery=false;}setMode('login');};
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
