@@ -7,9 +7,19 @@ export function filterRecords(records, query, field, value, relatedName = () => 
 }
 export const isOpen = row => !['WON','LOST','CONVERTED','DISQUALIFIED','COMPLETED','CANCELLED'].includes(row.stage || row.status);
 export function priorities(data, now = Date.now()) {
-  return ['tasks','leads','opportunities'].flatMap(table => (data[table] || []).filter(isOpen).map(row => ({...row,table,due:row.due_at || row.next_action_date})))
+  const scores = new Map((data.scores || []).filter(row => row.lead_id).map(row => [row.lead_id, row]));
+  return ['tasks','leads','opportunities'].flatMap(table => (data[table] || []).filter(isOpen).map(row => {
+    const score = table === 'leads' ? scores.get(row.id) : null;
+    return {...row, table, due:row.due_at || row.next_action_date, derived_score:score?.total_score ?? null, recommendation:score?.recommendation || null};
+  }))
     .filter(row => row.due && Number.isFinite(Date.parse(row.due)))
-    .sort((a,b) => Date.parse(a.due)-Date.parse(b.due));
+    .sort((a,b) => {
+      const aOverdue = Date.parse(a.due) < now;
+      const bOverdue = Date.parse(b.due) < now;
+      if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
+      const scoreDifference = Number(b.derived_score ?? b.score ?? b.probability ?? 0) - Number(a.derived_score ?? a.score ?? a.probability ?? 0);
+      return scoreDifference || Date.parse(a.due) - Date.parse(b.due);
+    });
 }
 export function metrics(data, now=Date.now()) {
   const open=(data.opportunities||[]).filter(isOpen);
