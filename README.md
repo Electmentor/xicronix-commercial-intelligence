@@ -11,7 +11,7 @@ Aplicación estática conectada al proyecto Supabase existente. No requiere comp
 - Búsqueda con acentos, filtros, paginación visual, importación validada y exportación CSV protegida contra fórmulas.
 - Resumen comercial con KPI de leads, pipeline, forecast ponderado, prioridades, pipeline por etapa, próximas tareas y alertas calculados desde los registros.
 - Registro de interacciones desde el primer contacto, con canal, resultado, necesidad, horizonte de decisión, señal de presupuesto y próxima acción.
-- Barra de potencial por lead y recomendación contextual individual, calculadas con un motor explicable y actualizadas al cambiar el lead o registrar una interacción.
+- Barra de potencial por lead y recomendación contextual individual, calculadas con un motor explicable y actualizadas al cambiar el lead o registrar una interacción, incluyendo la próxima acción capturada en el contacto.
 - Errores visibles por módulo; un fallo no se presenta como un cero real.
 - Lectura paginada de Supabase, limpieza de datos al salir y protección contra respuestas tardías de otra sesión.
 - Edición con comparación de `updated_at` para detectar cambios concurrentes desde esta versión.
@@ -34,7 +34,7 @@ Servir los archivos por HTTP para usar módulos ES; no abrir mediante `file://`.
 
 ## Activación
 
-1. Aplicadas en Supabase las migraciones `commercial_access_hardening_v2`, `admin_profile_management`, `commercial_query_indexes_v1`, `secure_admin_helper_private_v1`, `performance_policy_cleanup_v1` y `lead_interaction_scoring_v1` mediante una conexión administrativa. El helper de administración y el motor de puntuación viven en el esquema privado, fuera de la API pública; las políticas restrictivas se combinan con el aislamiento por organización existente, las eliminaciones siguen limitadas a ADMIN y solo ADMIN puede consultar o actualizar perfiles de su organización.
+1. Aplicadas en Supabase las migraciones `commercial_access_hardening_v2`, `admin_profile_management`, `commercial_query_indexes_v1`, `secure_admin_helper_private_v1`, `performance_policy_cleanup_v1`, `lead_interaction_scoring_v1` y `lead_interaction_scoring_v2` mediante una conexión administrativa. El helper de administración y el motor de puntuación viven en el esquema privado, fuera de la API pública; las políticas restrictivas se combinan con el aislamiento por organización existente, las eliminaciones siguen limitadas a ADMIN y solo ADMIN puede consultar o actualizar perfiles de su organización.
 2. En Supabase Auth, verificar Site URL y Redirect URLs para el dominio de producción. Agregar explícitamente `https://xicronix-commercial-intelligence-git-improvemen-2952f5-xicronix.vercel.app/` para recuperación en Preview. La aplicación evita generar enlaces `localhost` cuando se usa una copia local; el límite de correo gratuito puede requerir esperar entre intentos.
 3. Probar con cuentas de ensayo los flujos de acceso, recuperación, creación, edición, importación y eliminación para ADMIN, SALES y VIEWER. Probar rechazo entre organizaciones. No usar la contraseña del propietario ni crear cuentas privilegiadas automáticamente.
 4. Integrar la rama en `main` para que el proyecto Vercel conectado publique la versión. La vinculación Vercel de este repositorio no pudo confirmarse desde el conector disponible; revisar el deployment antes de dar la versión por publicada.
