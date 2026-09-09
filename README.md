@@ -7,11 +7,12 @@ Aplicación estática conectada al proyecto Supabase existente. No requiere comp
 - Identidad Xicronix y navegación adaptable a móvil, con cierre de sesión accesible.
 - Ingreso, registro y recuperación de contraseña con mensajes en español.
 - Instituciones, contactos, prospectos, oportunidades y tareas: consulta, creación y edición.
-- Búsqueda con acentos, filtros, paginación visual y exportación CSV protegida contra fórmulas.
+- Búsqueda con acentos, filtros, paginación visual, importación validada y exportación CSV protegida contra fórmulas.
 - Cartera abierta, estimación ponderada y agenda calculadas a partir de registros recuperados.
 - Errores visibles por módulo; un fallo no se presenta como un cero real.
 - Lectura paginada de Supabase, limpieza de datos al salir y protección contra respuestas tardías de otra sesión.
 - Edición con comparación de `updated_at` para detectar cambios concurrentes desde esta versión.
+- Eliminación controlada exclusivamente para ADMIN, con confirmación y aislamiento por organización.
 - Sin datos ficticios, envío automático de mensajes ni supuesta IA. Las calificaciones son manuales.
 
 ## Estructura
@@ -30,9 +31,9 @@ Servir los archivos por HTTP para usar módulos ES; no abrir mediante `file://`.
 
 ## Activación
 
-1. Revisar y aplicar `database/access-hardening.sql` mediante una conexión administrativa. Es una propuesta transaccional e idempotente, no una migración aplicada. Las políticas originales permitían INSERT/UPDATE a VIEWER. Las nuevas políticas restrictivas se combinan con el aislamiento por organización existente.
-2. En Supabase Auth, verificar Site URL y Redirect URLs para el dominio de producción. Agregar explícitamente el dominio de preview si se prueba recuperación allí. No se modificó la configuración de correo ni se enviaron mensajes durante esta revisión.
-3. Probar con cuentas de ensayo los flujos de acceso, recuperación, creación y edición para ADMIN, SALES y VIEWER. Probar rechazo entre organizaciones. No usar la contraseña del propietario ni crear cuentas privilegiadas automáticamente.
+1. Aplicado en Supabase como migración `commercial_access_hardening_v2` mediante una conexión administrativa. Las políticas restrictivas se combinan con el aislamiento por organización existente; las eliminaciones siguen limitadas a ADMIN.
+2. En Supabase Auth, verificar Site URL y Redirect URLs para el dominio de producción. Agregar explícitamente `https://xicronix-commercial-intelligence-git-improvemen-2952f5-xicronix.vercel.app/` para recuperación en Preview. La aplicación evita generar enlaces `localhost` cuando se usa una copia local; el límite de correo gratuito puede requerir esperar entre intentos.
+3. Probar con cuentas de ensayo los flujos de acceso, recuperación, creación, edición, importación y eliminación para ADMIN, SALES y VIEWER. Probar rechazo entre organizaciones. No usar la contraseña del propietario ni crear cuentas privilegiadas automáticamente.
 4. Integrar la rama en `main` para que el proyecto Vercel conectado publique la versión. La vinculación Vercel de este repositorio no pudo confirmarse desde el conector disponible; revisar el deployment antes de dar la versión por publicada.
 
 ## Límites
