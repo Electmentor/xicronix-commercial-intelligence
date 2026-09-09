@@ -13,8 +13,8 @@ Se revisó el único archivo del repositorio original (`index.html`, 936 líneas
 | No existía edición ni manejo de cambios concurrentes | Formularios y comparación de versión |
 | Datos permanecían en memoria al cerrar sesión | Limpieza de estado, formularios y vistas |
 | Lectura podía limitarse al máximo de la API | Lotes explícitos de 500 |
-| VIEWER podía escribir por RLS | Corrección restrictiva preparada, sin aplicar en producción |
-| Relaciones no exigían pertenecer a la misma organización | Validación de formularios y SQL restrictivo preparado |
-| Falta de índices verificada como requisito de rendimiento | No se modificaron índices sin evidencia de carga |
+| VIEWER podía escribir por RLS | Corrección restrictiva aplicada en Supabase y verificada con los asesores |
+| Relaciones no exigían pertenecer a la misma organización | Validación de formularios y SQL restrictivo aplicado |
+| Faltaban índices en claves foráneas | Índices añadidos; el asesor ya no reporta claves foráneas sin cobertura |
 
-Validado: sintaxis, archivos locales referenciados, pruebas de búsqueda, cartera, agenda, CSV y escape. El SQL propuesto se valida dentro de una transacción con rollback; no se activan permisos nuevos en producción. No se hicieron pruebas de navegador ni sesiones reales de usuarios. La aplicación mejorada queda como propuesta revisable en GitHub; no se sustituye silenciosamente la versión publicada.
+Validado: sintaxis, archivos locales referenciados, pruebas de búsqueda, cartera, agenda, CSV y escape. Las migraciones de endurecimiento, helper privado, políticas e índices están aplicadas en Supabase. El asesor de seguridad solo mantiene pendiente la activación manual de protección contra contraseñas filtradas. El despliegue Vercel del Preview reporta estado Ready. La prueba automatizada del navegador autenticado queda como validación manual en el Preview.
