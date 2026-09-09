@@ -22,3 +22,27 @@ export function csv(rows, columns) {
   const cell = v => '"'+String(v??'').replace(/^[=+@\-\t\r]/,"'$&").replaceAll('"','""')+'"';
   return '\uFEFF'+[columns.map(c=>cell(c.label)).join(','),...rows.map(row=>columns.map(c=>cell(row[c.key])).join(','))].join('\r\n');
 }
+
+export function parseCsv(text) {
+  const input=String(text??'').replace(/^\uFEFF/,'');
+  const rows=[];let row=[],cell='',quoted=false;
+  for(let i=0;i<input.length;i++){
+    const char=input[i],next=input[i+1];
+    if(quoted){
+      if(char==='"'&&next==='"'){cell+='"';i++;}
+      else if(char==='"')quoted=false;
+      else cell+=char;
+    }else if(char==='"'&&cell==='')quoted=true;
+    else if(char===','){row.push(cell);cell='';}
+    else if(char==='\n'||char==='\r'){
+      if(char==='\r'&&next==='\n')i++;
+      row.push(cell);cell='';
+      if(row.some(value=>value.trim()!==''))rows.push(row);
+      row=[];
+    }else cell+=char;
+  }
+  if(cell!==''||row.length){row.push(cell);if(row.some(value=>value.trim()!==''))rows.push(row);}
+  if(rows.length<2)return [];
+  const headers=rows.shift().map(header=>normalize(header));
+  return rows.map(values=>Object.fromEntries(headers.map((header,index)=>[header,String(values[index]??'').trim()])));
+}
