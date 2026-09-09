@@ -5,9 +5,11 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import * as domain from '../domain.mjs';
 import * as workspace from '../workspace.mjs';
+import * as demo from '../demo.mjs';
+import * as executive from '../executive.mjs';
 const source=readFileSync(new URL('../app.js',import.meta.url),'utf8').replace(/^import .*;$/gm,'');
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
-function harness(role='ADMIN',saved=null){
+function harness(role='ADMIN',saved=null,sourceChoice='live'){
  const nodes=new Map(),listeners={},storage=new Map();
  class Element{
   constructor(id){this.id=id;this.dataset={};this.attributes={};this.value='';this.hidden=false;this.disabled=false;this.open=false;this._html='';this.textContent='';this.classList={toggle(){}};}
@@ -36,7 +38,7 @@ function harness(role='ADMIN',saved=null){
   leads:[row('own-lead',{title:'Prospecto propio',owner_user_id:'me',institution_id:'institution',contact_id:'contact',status:'NEW'}),row('other-lead',{title:'Prospecto ajeno',created_by:'colleague',owner_user_id:'colleague',status:'NEW'})],
   opportunities:[row('own-opp',{name:'Oportunidad propia',value:1000,estimated_cost:500,owner_user_id:'me',stage:'WON'}),row('other-opp',{name:'Oportunidad ajena',created_by:'colleague',owner_user_id:'colleague',value:2000,stage:'PROPOSAL'})],
   tasks:[row('own-task',{title:'Tarea propia',assigned_to:'me',status:'PENDING'})],
-  activities:[row('activity',{lead_id:'own-lead',subject:'Interacción propia',type:'CALL'})],
+  activities:[row('activity',{lead_id:'own-lead',subject:'Interacción propia',type:'CALL',occurred_at:'2026-09-09T12:00:00Z'})],
   scores:[row('score',{lead_id:'own-lead',total_score:88,recommendation:'Llamar'})],
   commercial_goals:[row('goal',{period_start:'2026-09-01',period_end:'2026-09-30',target_margin:10000,target_won_value:50000})]
  };
@@ -64,7 +66,8 @@ function harness(role='ADMIN',saved=null){
  }
  const sb={from:table=>new Query(table),auth:{onAuthStateChange(){},signOut:async()=>({error:null})}};
  if(saved)storage.set(workspace.workspaceKey('me','org'),saved);
- const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,console,document,window:{supabase:{createClient:()=>sb},confirm:()=>true},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
+ if(sourceChoice)storage.set(workspace.workspaceKey('me','org')+':source-v'+demo.DEMO_VERSION,sourceChoice);
+ const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,console,document,window:{supabase:{createClient:()=>sb},confirm:()=>true},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
  const run=code=>vm.runInContext(code,context);
  run(source);run('init();session={user:{id:"me",email:"test@example.invalid"}};');
  return {run,nodes,db,queries,storage,boot:()=>run('reload()'),gate:promise=>{profileGate=promise;},click:id=>nodes.get(id).onclick()};
@@ -72,10 +75,10 @@ function harness(role='ADMIN',saved=null){
 test('ADMIN starts in executive mode; data is loaded from existing profiles/goals tables',async()=>{
  const h=harness();await h.boot();
  assert.equal(h.run('workspace'),'admin');
- assert.equal(h.nodes.get('pageTitle').textContent,'Resumen ejecutivo');
+ assert.equal(h.nodes.get('pageTitle').textContent,'Centro de decisiones');
  assert.equal(h.nodes.get('adminModeBtn').hidden,false);
  assert.equal(h.nodes.get('adminModeBtn').getAttribute('aria-pressed'),'true');
- assert.match(h.nodes.get('dashboard').innerHTML,/Visión administrativa/);
+ assert.match(h.nodes.get('dashboard').innerHTML,/LECTURA EJECUTIVA/);
  assert.match(h.nodes.get('navigation').innerHTML,/data-page="goals"/);
  assert.ok(h.queries.some(q=>q.table==='profiles'));
  assert.ok(h.queries.some(q=>q.table==='commercial_goals'));
@@ -100,7 +103,7 @@ test('mode buttons switch both experiences, clear management data, reset filters
  assert.equal(h.storage.get(workspace.workspaceKey('me','org')),'seller');
  await h.click('adminModeBtn');
  assert.equal(h.run('workspace'),'admin');
- assert.match(h.nodes.get('dashboard').innerHTML,/Visión administrativa/);
+ assert.match(h.nodes.get('dashboard').innerHTML,/LECTURA EJECUTIVA/);
  assert.equal(h.run('data.leads.length'),2);
  assert.equal(h.run('data.opportunities[0].estimated_cost'),500);
 });
@@ -204,4 +207,63 @@ test('failed goal query is visible without breaking mode switching',async()=>{
  await h.click('sellerModeBtn');
  assert.equal(h.run('workspace'),'seller');
  assert.equal(h.run('failures.goals'),undefined);
+});
+
+test('new ADMIN sees the complete demo by default without loading or creating real commercial records',async()=>{
+ const h=harness('ADMIN',null,null);await h.boot();
+ assert.equal(h.run('dataSource'),'demo');
+ assert.equal(h.run('data.users.length'),5);assert.equal(h.run('data.leads.length'),40);
+ assert.equal(h.run('data.opportunities.length'),30);
+ assert.match(h.nodes.get('dashboard').innerHTML,/Valeria Torres|Camila Ríos/);
+ assert.match(h.nodes.get('sourceBadge').textContent,/DEMOSTRACIÓN/);
+ assert.equal(h.queries.some(query=>query.table!=='profiles'),false);
+});
+test('demo save and import never issue Data API writes and survive refresh',async()=>{
+ const h=harness('ADMIN',null,'demo');await h.boot();h.run('openEditor("institutions")');
+ h.nodes.get('field-name').value='Institución creada en demo';h.nodes.get('field-type').value='SCHOOL';h.nodes.get('field-country').value='Perú';
+ await h.run('saveRecord({preventDefault(){}})');
+ assert.equal(h.run('data.institutions.length'),21);
+ assert.equal(h.nodes.get('editor').open,false);
+ assert.equal(h.queries.some(q=>q.operation!=='select'),false);
+ await h.boot();assert.equal(h.run('data.institutions.length'),21);
+ h.run('navigate("institutions")');
+ await h.run('importCsvFile({target:{files:[{text:async()=>"name,type,country\\nCSV demo,SCHOOL,Perú"}],value:""}})');
+ assert.equal(h.run('data.institutions.length'),22);
+ assert.equal(h.queries.some(q=>q.operation!=='select'),false);
+});
+test('source switching isolates simulated data from live operations and clears demo form state',async()=>{
+ const h=harness('ADMIN',null,'demo');await h.boot();
+ await h.click('sourceToggle');
+ assert.equal(h.run('dataSource'),'live');
+ assert.equal(h.run('data.users.length'),2);
+ assert.equal(h.run('data.institutions.some(row=>row.is_simulated)'),false);
+ await h.click('sourceToggle');
+ assert.equal(h.run('dataSource'),'demo');assert.equal(h.run('data.users.length'),5);
+});
+test('demo seller selection changes only fictional portfolios, not authentication or role',async()=>{
+ const h=harness('ADMIN',null,'demo');await h.boot();await h.click('sellerModeBtn');
+ assert.equal(h.run('data.leads.length'),8);
+ assert.equal(h.nodes.get('demoSellerField').hidden,false);
+ h.nodes.get('demoSeller').value='demo-seller-3';h.nodes.get('demoSeller').onchange();
+ assert.equal(h.run('data.leads.every(row=>row.owner_user_id==="demo-seller-3")'),true);
+ assert.equal(h.run('session.user.id'),'me');assert.equal(h.run('profile.role'),'ADMIN');
+ assert.equal(h.run('data.users.length'),0);
+});
+test('KPI drilldown applies a removable executive filter and clears when navigating',async()=>{
+ const h=harness('ADMIN',null,'demo');await h.boot();
+ h.run('openExecutiveView("won","demo-seller-1")');
+ assert.equal(h.run('page'),'opportunities');
+ assert.equal(h.run('filtered().every(row=>row.stage==="WON"&&row.owner_user_id==="demo-seller-1")'),true);
+ assert.equal(h.nodes.get('recordContext').hidden,false);
+ h.click('clearRecordContext');assert.equal(h.run('filtered().length'),30);
+ h.run('navigate("leads")');assert.equal(h.run('executiveFilter'),"");
+});
+test('converted leads keep their historical score but show conversion-aware guidance',async()=>{
+ const h=harness('ADMIN',null,'live');await h.boot();
+ h.run('data.leads[0].status="CONVERTED";data.opportunities[0].lead_id="own-lead";navigate("leads");');
+ assert.match(h.nodes.get('recordList').innerHTML,/Potencial al convertir/);
+ assert.match(h.nodes.get('recordList').innerHTML,/Lead convertido/);
+ h.run('openEditor("leads","own-lead")');
+ assert.match(h.nodes.get('fields').innerHTML,/Potencial al convertir/);
+ assert.doesNotMatch(h.nodes.get('fields').innerHTML,/Convertir en oportunidad/);
 });

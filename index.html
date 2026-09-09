@@ -5,6 +5,7 @@
 <meta name="theme-color" content="#081b32"><meta name="description" content="Xicronix: instituciones, contactos y seguimiento comercial.">
 <title>Xicronix | Inteligencia comercial</title>
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="executive.css">
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="module" src="app.js"></script>
 </head>
@@ -29,12 +30,15 @@
       <button id="sellerModeBtn" type="button" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="3"/><path d="M5 21v-4a7 7 0 0 1 14 0v4M8 21v-4M16 21v-4"/></svg>Modo vendedor</button>
     </div>
     <p id="workspaceHint" role="status" aria-live="polite"></p>
+    <div class="source-controls"><span id="sourceBadge" class="source-badge" role="status"></span><button id="sourceToggle" type="button">Ver demostración</button><button id="resetDemoBtn" type="button" hidden title="Restablece solo los casos ficticios de este navegador">Reiniciar demo</button></div>
+    <div id="demoSellerField" class="demo-seller" hidden><label for="demoSeller">Explorar vendedor ficticio</label><select id="demoSeller"></select></div>
   </section>
   <p id="status" class="notice" role="status" aria-live="polite" hidden></p>
   <section id="dashboard"></section>
-  <section id="records" hidden><div id="sellerSummary" hidden></div><div class="toolbar"><input id="search" type="search" aria-label="Buscar registros" placeholder="Buscar por nombre, institución o contacto…"><select id="filter" aria-label="Filtrar por estado o tipo"></select><div class="toolbar-actions"><button id="importBtn">Importar CSV</button><button id="exportBtn">Exportar CSV</button><input id="importInput" type="file" accept=".csv,text/csv" hidden></div></div><p id="importHelp" class="muted">Importa un CSV con los encabezados de la exportación de este módulo. La carga se valida antes de guardarse.</p><div id="recordCount" class="muted"></div><div id="recordList"></div><div class="pagination"><button id="previous">Anterior</button><span id="pageNumber"></span><button id="next">Siguiente</button></div></section>
+  <section id="records" hidden><div id="sellerSummary" hidden></div><div id="recordContext" class="record-context" hidden><span id="recordContextLabel"></span><button id="clearRecordContext" type="button">Quitar selección</button></div><div class="toolbar"><input id="search" type="search" aria-label="Buscar registros" placeholder="Buscar por nombre, institución o contacto…"><select id="filter" aria-label="Filtrar por estado o tipo"></select><div class="toolbar-actions"><button id="importBtn">Importar CSV</button><button id="exportBtn">Exportar CSV</button><input id="importInput" type="file" accept=".csv,text/csv" hidden></div></div><p id="importHelp" class="muted">Importa un CSV con los encabezados de la exportación de este módulo. La carga se valida antes de guardarse.</p><div id="recordCount" class="muted"></div><div id="recordList"></div><div class="pagination"><button id="previous">Anterior</button><span id="pageNumber"></span><button id="next">Siguiente</button></div></section>
   </main>
 </section>
 <dialog id="editor" aria-labelledby="editorTitle"><form id="recordForm"><header class="dialog-header"><h2 id="editorTitle"></h2><button type="button" id="closeEditor" aria-label="Cerrar formulario">✕</button></header><div id="fields" class="form-grid"></div><p id="formMsg" role="status"></p><footer><button type="button" id="cancelEditor">Cancelar</button><button class="primary" id="saveBtn">Guardar</button></footer></form></dialog>
+<dialog id="methodDialog" aria-labelledby="methodTitle"><h2 id="methodTitle">Cómo leer el tablero</h2><p id="methodText" class="method-text"></p><button id="closeMethod" type="button">Entendido</button></dialog>
 <noscript>Activa JavaScript para utilizar Xicronix.</noscript>
 </body></html>

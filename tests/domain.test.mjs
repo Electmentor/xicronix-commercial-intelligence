@@ -43,3 +43,4 @@ test('prioritizes overdue and calculated lead potential before lower-potential f
  assert.deepEqual(priorities(data,Date.parse('2026-01-02')).map(row=>row.id),['lead-low','lead-high']);
  assert.equal(priorities(data,Date.parse('2025-12-01'))[0].derived_score,90);
 });
+
