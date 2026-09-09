@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {filterRecords,metrics,priorities,csv,escapeHTML} from '../domain.mjs';
+import {filterRecords,metrics,priorities,csv,parseCsv,escapeHTML} from '../domain.mjs';
 
 test('institutions remain visible without a search; accents and type can be combined',()=>{
  const rows=[{name:'Colegio San Martín',type:'SCHOOL'},{name:'Universidad del Sur',type:'UNIVERSITY'}];
@@ -26,4 +26,8 @@ test('exports quote multiline text and prevent spreadsheet formula execution',()
 });
 test('untrusted content is escaped in text and attribute contexts',()=>{
  assert.equal(escapeHTML('<img src="x" onerror=\'alert(1)\'>'),'&lt;img src=&quot;x&quot; onerror=&#39;alert(1)&#39;&gt;');
+});
+test('parses quoted CSV headers, commas, multiline cells and BOM',()=>{
+ const rows=parseCsv('\uFEFFNombre,Notas\n"Institución, Sur","Línea 1\nLínea 2"');
+ assert.deepEqual(rows,[{nombre:'Institución, Sur',notas:'Línea 1\nLínea 2'}]);
 });
