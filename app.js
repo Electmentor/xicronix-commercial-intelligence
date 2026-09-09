@@ -243,7 +243,26 @@ function renderDashboard(){
  const adminHighLevel=renderAdminHighLevel();
  $('dashboard').innerHTML=`${adminHighLevel}<div class="cards">${cards.map(([label,value,hint])=>`<article class="card"><small>${label}</small><strong>${value}</strong><small>${hint}</small></article>`).join('')}</div><div class="grid"><article class="panel"><div class="panel-head"><h2>Prioridades comerciales</h2><button data-page="opportunities">Ver oportunidades</button></div>${priorityMarkup||'<div class="empty">No hay seguimientos con fecha. Agrega una próxima acción para priorizarla.</div>'}</article><article class="panel"><div class="panel-head"><h2>Pipeline por etapa</h2><button data-page="opportunities">Ver todo</button></div>${failures.opportunities?'<p class="error">No disponible</p>':stageMarkup}</article></div><article class="panel task-summary"><div class="panel-head"><h2>Próximas tareas</h2><button data-page="tasks">Ver tareas</button></div><div class="task-summary-grid"><div><small>Hoy</small><strong>${failures.tasks?'—':taskCount(start,tomorrow)}</strong></div><div><small>Mañana</small><strong>${failures.tasks?'—':taskCount(tomorrow,dayAfter)}</strong></div><div class="task-summary-overdue"><small>Vencidas</small><strong>${failures.tasks?'—':overdueTasks}</strong></div></div></article><article class="panel alerts-panel"><div class="panel-head"><h2>Alertas</h2><button data-page="tasks">Ver seguimientos</button></div>${alertMarkup||'<div class="empty">No hay alertas activas.</div>'}</article>${failed.length?'<p class="error">Algunos módulos no están disponibles. Pulsa Actualizar para reintentar.</p>':''}${renderCollaboratorPerformance()}`;
 }
-function filtered(){const config=modules[page];return filterRecords(data[page]||[],$('search').value,config.filter,$('filter').value,relatedName);}
+function rowVisibleToUser(table,row){
+ if(canViewDashboard())return true;
+ if(['leads','opportunities','tasks'].includes(table))return assignedUserId(row)===session?.user?.id;
+ if(table==='activities'){
+  if(row.created_by===session?.user?.id)return true;
+  const lead=(data.leads||[]).find(item=>item.id===row.lead_id);
+  return !!lead&&assignedUserId(lead)===session?.user?.id;
+ }
+ return true;
+}
+function scopedRows(table){return (data[table]||[]).filter(row=>rowVisibleToUser(table,row));}
+function renderSellerWorkspaceSummary(){
+ if(canViewDashboard()||page!=='leads')return '';
+ const rows=scopedRows('leads'),scores=data.scores||[],now=Date.now();
+ const active=rows.filter(row=>!['DISQUALIFIED','CONVERTED'].includes(row.status)).length;
+ const due=rows.filter(row=>row.next_action_date&&Date.parse(row.next_action_date)<=now+7*86400000).length;
+ const high=rows.filter(row=>Number(scores.find(score=>score.lead_id===row.id)?.total_score||0)>=75).length;
+ return '<article class="seller-focus panel"><div><h2>Mi operación comercial</h2><p>Prioriza tus prospectos, registra cada interacción y trabaja la próxima acción sugerida.</p></div><div class="seller-focus-metrics"><span><b>'+active+'</b><small>Leads activos</small></span><span><b>'+high+'</b><small>Potencial alto</small></span><span><b>'+due+'</b><small>Seguimientos próximos</small></span></div></article>';
+}
+function filtered(){const config=modules[page];return filterRecords(scopedRows(page),$('search').value,config.filter,$('filter').value,relatedName);}
 function scoreCell(row){
  const score=(data.scores||[]).find(item=>item.lead_id===row.id);
  const value=score?Math.max(0,Math.min(100,Number(score.total_score)||0)):0;
