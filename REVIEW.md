@@ -18,3 +18,12 @@ Se revisó el único archivo del repositorio original (`index.html`, 936 líneas
 | Faltaban índices en claves foráneas | Índices añadidos; el asesor ya no reporta claves foráneas sin cobertura |
 
 Validado: sintaxis, archivos locales referenciados, pruebas de búsqueda, cartera, agenda, CSV y escape. Las migraciones de endurecimiento, helper privado, políticas e índices están aplicadas en Supabase. El asesor de seguridad solo mantiene pendiente la activación manual de protección contra contraseñas filtradas. El despliegue Vercel del Preview reporta estado Ready. La prueba automatizada del navegador autenticado queda como validación manual en el Preview.
+
+
+## Visiones y bonos v1.0
+
+- **Colaborador/vendedor:** la pantalla de Prospectos se enfoca en leads asignados, potencial, interacción inicial y próxima acción.
+- **ADMIN:** el Resumen presenta KPI, prioridades, metas, margen estimado, mejores vendedores y evaluación de bono referencial.
+- La evaluación usa margen de oportunidades GANADAS con costo estimado, pesos 40/20/15/15/10 y tasas referenciales 0/1/2/3%. Si falta costo, no se muestra una base de bono.
+- La política vigente está documentada en el repositorio institucional como XICRONIX_Politica_de_Bonos_Comerciales_v1.0.md; la versión v0.1 se conserva como antecedente.
+- Los datos simulados tienen costo y meta simulados exclusivamente para validar la vista; no representan pago real.
