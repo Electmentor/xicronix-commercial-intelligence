@@ -4,7 +4,7 @@ import {createServer} from 'node:http';
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 const root=new URL('../',import.meta.url);
-const allowed=['app.js','domain.mjs','workspace.mjs','demo.mjs','catalog.mjs','executive.mjs','styles.css','executive.css'];
+const allowed=['app.js','domain.mjs','workspace.mjs','demo.mjs','catalog.mjs','executive.mjs','analytics.mjs','analytics-view.mjs','styles.css','executive.css','analytics.css'];
 const fixture=`window.supabase={createClient(){return {
  from(table){return {select(){return this},eq(){return this},order(){return this},or(){return this},async maybeSingle(){return {data:{id:'local-admin',organization_id:'local-demo-org',role:'ADMIN',full_name:'Dirección · prueba local'},error:null}},async range(){return {data:[],error:null}}}},
  auth:{onAuthStateChange(callback){setTimeout(()=>callback('SIGNED_IN',{user:{id:'local-admin',email:'local@example.invalid'}}),0)},async signOut(){return {error:null}}}

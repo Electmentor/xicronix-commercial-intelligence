@@ -5,7 +5,7 @@ import {executiveMetrics,renderExecutive,margin,filterExecutiveRows} from '../ex
 const now=new Date('2026-09-09T15:00:00Z');
 test('complete demo graph has five productive sellers and valid links in every module',()=>{
  const d=createDemoData('org',now);
- assert.deepEqual(Object.fromEntries(Object.entries(d).map(([key,rows])=>[key,rows.length])),{institutions:20,contacts:30,leads:40,opportunities:30,tasks:50,activities:80,catalog_products:5,cost_profiles:1,scores:40,users:5,goals:6});
+ assert.deepEqual(Object.fromEntries(Object.entries(d).map(([key,rows])=>[key,rows.length])),{institutions:20,contacts:30,leads:40,opportunities:85,tasks:50,activities:80,catalog_products:5,cost_profiles:1,scores:40,users:5,goals:20,expenses:72,demo_migrations:1});
  for(const rows of Object.values(d))for(const row of rows)assert.equal(row.is_simulated,true);
  const references={institution_id:'institutions',contact_id:'contacts',lead_id:'leads',owner_user_id:'users',assigned_to:'users'};
  for(const rows of Object.values(d))for(const row of rows)for(const [key,table] of Object.entries(references))if(row[key])assert.ok(d[table].some(other=>other.id===row[key]),key+': '+row.id);

@@ -3,14 +3,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
+import {resolveObjectURL} from 'node:buffer';
 import * as domain from '../domain.mjs';
 import * as workspace from '../workspace.mjs';
 import * as demo from '../demo.mjs';
 import * as executive from '../executive.mjs';
+import * as analytics from '../analytics.mjs';
 const source=readFileSync(new URL('../app.js',import.meta.url),'utf8').replace(/^import .*;$/gm,'');
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 function harness(role='ADMIN',saved=null,sourceChoice='live'){
- const nodes=new Map(),listeners={},storage=new Map();
+ const nodes=new Map(),listeners={},storage=new Map(),downloads=[];
  class Element{
   constructor(id){this.id=id;this.dataset={};this.attributes={};this.value='';this.hidden=false;this.disabled=false;this.open=false;this._html='';this.textContent='';this.classList={toggle(){}};}
   set innerHTML(value){this._html=value;for(const match of value.matchAll(/id="([^"]+)"/g))nodes.set(match[1],new Element(match[1]));}
@@ -24,11 +26,12 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
   showModal(){this.open=true;}
   close(){this.open=false;}
   reset(){}
+  click(){if(this.download)downloads.push({filename:this.download,url:this.href});}
   querySelectorAll(){return [];}
   closest(){return this;}
  }
  for(const match of html.matchAll(/id="([^"]+)"/g))nodes.set(match[1],new Element(match[1]));
- const document={readyState:'loading',documentElement:{dataset:{}},getElementById:id=>{if(!nodes.has(id))throw Error('Unknown element '+id);return nodes.get(id);},addEventListener:(name,fn)=>{listeners[name]=fn;},querySelectorAll:()=>[],createElement:()=>new Element('created')};
+ const document={readyState:'loading',documentElement:{dataset:{}},getElementById:id=>{if(!nodes.has(id))throw Error('Unknown element '+id);return nodes.get(id);},addEventListener:(name,fn)=>{listeners[name]=fn;},querySelectorAll:()=>[],querySelector:()=>null,createElement:()=>new Element('created')};
  const base={organization_id:'org',created_by:'me',created_at:'2026-09-09',updated_at:'2026-09-09'};
  const row=(id,extra={})=>({...base,id,...extra});
  const db={
@@ -42,6 +45,7 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
   catalog_products:[row('catalog-product',{supplier_name:'Proveedor demo',supplier_sku:'SKU-001',name:'Kit demo',category:'Fisica',currency:'USD',supplier_unit_price:680,origin_country:'Brasil',active:true})],
   cost_profiles:[row('cost-profile',{name:'Perfil demo',origin_country:'Brasil',destination_country:'Peru',currency:'USD',exchange_rate:3.78,igv_rate:.18})],
   scores:[row('score',{lead_id:'own-lead',total_score:88,recommendation:'Llamar'})],
+  commercial_expenses:[row('expense',{expense_date:'2026-09-09',description:'Licencia de laboratorio',category:'TECHNOLOGY',amount:800,currency:'PEN'})],
   commercial_goals:[row('goal',{period_start:'2026-09-01',period_end:'2026-09-30',target_margin:10000,target_won_value:50000})]
  };
  const queries=[];let profileGate=null;
@@ -69,10 +73,10 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
  const sb={from:table=>new Query(table),auth:{onAuthStateChange(){},signOut:async()=>({error:null})}};
  if(saved)storage.set(workspace.workspaceKey('me','org'),saved);
  if(sourceChoice)storage.set(workspace.workspaceKey('me','org')+':source-v'+demo.DEMO_VERSION,sourceChoice);
- const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,console,document,window:{supabase:{createClient:()=>sb},confirm:()=>true},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
+ const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,...analytics,console,document,window:{supabase:{createClient:()=>sb},confirm:()=>true},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
  const run=code=>vm.runInContext(code,context);
  run(source);run('init();session={user:{id:"me",email:"test@example.invalid"}};');
- return {run,nodes,db,queries,storage,boot:()=>run('reload()'),gate:promise=>{profileGate=promise;},click:id=>nodes.get(id).onclick()};
+ return {run,nodes,db,queries,storage,downloads,boot:()=>run('reload()'),gate:promise=>{profileGate=promise;},click:id=>nodes.get(id).onclick()};
 }
 test('ADMIN starts in executive mode; data is loaded from existing profiles/goals tables',async()=>{
  const h=harness();await h.boot();
@@ -215,7 +219,7 @@ test('new ADMIN sees the complete demo by default without loading or creating re
  const h=harness('ADMIN',null,null);await h.boot();
  assert.equal(h.run('dataSource'),'demo');
  assert.equal(h.run('data.users.length'),5);assert.equal(h.run('data.leads.length'),40);
- assert.equal(h.run('data.opportunities.length'),30);
+ assert.ok(h.run('data.opportunities.length')>30);
  assert.match(h.nodes.get('dashboard').innerHTML,/Valeria Torres|Camila Ríos/);
  assert.match(h.nodes.get('sourceBadge').textContent,/DEMOSTRACIÓN/);
  assert.equal(h.queries.some(query=>query.table!=='profiles'),false);
@@ -257,7 +261,7 @@ test('KPI drilldown applies a removable executive filter and clears when navigat
  assert.equal(h.run('page'),'opportunities');
  assert.equal(h.run('filtered().every(row=>row.stage==="WON"&&row.owner_user_id==="demo-seller-1")'),true);
  assert.equal(h.nodes.get('recordContext').hidden,false);
- h.click('clearRecordContext');assert.equal(h.run('filtered().length'),30);
+ h.click('clearRecordContext');assert.equal(h.run('filtered().length'),h.run('data.opportunities.length'));
  h.run('navigate("leads")');assert.equal(h.run('executiveFilter'),"");
 });
 test('converted leads keep their historical score but show conversion-aware guidance',async()=>{
@@ -268,5 +272,82 @@ test('converted leads keep their historical score but show conversion-aware guid
  h.run('openEditor("leads","own-lead")');
  assert.match(h.nodes.get('fields').innerHTML,/Potencial al convertir/);
  assert.doesNotMatch(h.nodes.get('fields').innerHTML,/Convertir en oportunidad/);
+});
+
+test('expenses load only for admin; seller switch clears financial records and blocks writes',async()=>{
+ const h=harness();await h.boot();
+ assert.equal(h.run('data.expenses.length'),1);
+ assert.ok(h.queries.some(q=>q.table==='commercial_expenses'));
+ h.run('navigate("expenses")');
+ assert.match(h.nodes.get('recordList').innerHTML,/Licencia de laboratorio/);
+ await h.click('sellerModeBtn');
+ assert.equal(h.run('data.expenses.length'),0);
+ assert.doesNotMatch(h.nodes.get('navigation').innerHTML,/data-page="expenses"/);
+ h.run('openEditor("expenses")');assert.equal(h.nodes.get('editor').open,false);
+ const seller=harness('SALES');await seller.boot();
+ assert.equal(seller.queries.some(q=>q.table==='commercial_expenses'),false);
+ assert.equal(seller.run('writableFor("expenses")'),false);
+});
+
+test('expenses save to their own table with organization and concurrency guards',async()=>{
+ const h=harness();await h.boot();h.run('openEditor("expenses","expense")');
+ for(const [key,value] of Object.entries({description:'Licencia actualizada',expense_date:'2026-09-09',category:'TECHNOLOGY',amount:'950.50',currency:'PEN'}))h.nodes.get('field-'+key).value=value;
+ await h.run('saveRecord({preventDefault(){}})');
+ const update=h.queries.find(q=>q.table==='commercial_expenses'&&q.operation==='update');
+ assert.equal(update.payload.amount,950.5);
+ assert.ok(update.filters.some(([key,value])=>key==='organization_id'&&value==='org'));
+ assert.ok(update.filters.some(([key])=>key==='updated_at'));
+ assert.equal(h.nodes.get('editor').open,false);
+});
+
+test('empty expense budget stays null while explicit zero is saved as zero',async()=>{
+ for(const value of ['', '0']){
+  const h=harness();await h.boot();h.run('openEditor("goals")');
+  for(const [key,input] of Object.entries({period_start:'2026-10-01',period_end:'2026-10-31',target_margin:'10000',target_won_value:'20000',target_expenses:value}))h.nodes.get('field-'+key).value=input;
+  await h.run('saveRecord({preventDefault(){}})');
+  const insert=h.queries.find(q=>q.operation==='insert'&&q.table==='commercial_goals');
+  assert.equal(insert.payload.target_expenses,value===''?null:0);
+ }
+});
+
+test('financial period controls rerender within admin and unavailable expenses flag a partial load',async()=>{
+ const h=harness('ADMIN',null,'demo');await h.boot();
+ h.run('setAnalyticsPeriod("quarter")');assert.equal(h.run('analyticsPeriod'),'quarter');
+ assert.match(h.nodes.get('dashboard').innerHTML,/Rendimiento del negocio/);
+ await h.click('sellerModeBtn');h.run('setAnalyticsPeriod("month")');assert.equal(h.run('analyticsPeriod'),'quarter');
+ const missing=harness();delete missing.db.commercial_expenses;await missing.boot();
+ assert.equal(missing.run('failures.expenses'),true);
+ assert.match(missing.nodes.get('status').textContent,/Gastos operativos/);
+});
+
+test('expense imports reject malformed values instead of silently recording zero',async()=>{
+ const h=harness('ADMIN',null,'demo');await h.boot();
+ const check=extra=>h.run('buildImport("expenses",'+JSON.stringify([{description:'Prueba',expense_date:'2026-09-09',category:'TECHNOLOGY',amount:'100',currency:'PEN',...extra}])+')');
+ for(const invalid of [{amount:'abc'},{amount:'-1'},{amount:'NaN'},{amount:'1,000.50'},{expense_date:'2026-02-30'},{expense_date:'nunca'},{category:'INVALID'},{currency:'USD'}])assert.ok(check(invalid).errors.length,JSON.stringify(invalid));
+ assert.equal(check({amount:'100.50'}).payloads[0].amount,100.5);
+});
+
+test('legacy local demos gain history without overwriting edits or issuing remote writes',async()=>{
+ const h=harness('ADMIN',null,'demo');
+ const old=demo.createDemoData('org');
+ delete old.expenses;delete old.demo_migrations;
+ old.opportunities=old.opportunities.filter(row=>!row.id.startsWith('demo-history-'));
+ old.institutions[0].name='Mi edición conservada';
+ h.storage.set(workspace.workspaceKey('me','org')+':demo-v'+demo.DEMO_VERSION,JSON.stringify(old));
+ await h.boot();
+ assert.equal(h.run('data.institutions[0].name'),'Mi edición conservada');
+ assert.ok(h.run('data.expenses.length')>0);
+ assert.equal(h.queries.some(q=>q.operation!=='select'),false);
+});
+
+test('financial export generates a downloadable CSV and blocks seller or partial-data exports',async()=>{
+ const h=harness('ADMIN',null,'demo');await h.boot();
+ h.run('exportAnalytics()');assert.equal(h.downloads.length,1);
+ assert.match(h.downloads[0].filename,/xicronix-rendimiento-SIMULADO-year-/);
+ const blob=resolveObjectURL(h.downloads[0].url);assert.ok(blob);
+ const content=await blob.text();
+ assert.match(content,/Margen operativo \(%\)/);assert.match(content,/DEMOSTRACIÓN/);
+ h.run('failures.expenses=true;exportAnalytics()');assert.equal(h.downloads.length,1);
+ h.run('failures={};');await h.click('sellerModeBtn');h.run('exportAnalytics()');assert.equal(h.downloads.length,1);
 });
 

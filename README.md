@@ -1,5 +1,22 @@
 # Xicronix · Inteligencia comercial
 
+## Rendimiento del negocio · septiembre de 2026
+
+El administrador dispone de una sección de control de gestión con periodos Mes, Trimestre y Año, ventas acumuladas frente a metas, gastos frente a presupuesto y resultado operativo estimado. El corte usa el calendario de Lima e incluye el día actual. La vista mensual muestra ventas día a día; las gráficas de gastos y resultados conservan seis meses de contexto. Los periodos futuros muestran únicamente la planificación.
+
+- El cumplimiento a la fecha compara las ventas con la meta prorrateada por días calendario. La barra de avance separa el porcentaje de la meta completa del porcentaje programado al corte.
+- Gastos operativos permite registrar, editar, importar y exportar conceptos en PEN por categoría. Solo ADMIN puede acceder, tanto en la interfaz como en las políticas de la base de datos. Los costos directos estimados de cada oportunidad no deben registrarse otra vez como gastos.
+- Metas incorpora un presupuesto operativo: vacío significa sin presupuesto; cero es un presupuesto explícito de cero. Para el tablero global se utilizan metas de organización, sin responsable individual. Ante superposición se usa la meta más específica y luego la revisión más reciente; el tablero informa la superposición.
+- Margen bruto estimado = ventas menos costos directos estimados. Resultado operativo estimado = margen bruto menos gastos registrados. El margen operativo divide ese resultado entre ventas. Un costo faltante impide calcular un resultado completo. Las oportunidades ganadas se contabilizan según cierre previsto; estas cifras no representan cobros ni utilidad contable auditada.
+- Se incluyen alertas por desviación, pérdidas y costos pendientes; una proyección lineal de cierre; tabla con importes a dos decimales y exportación CSV identificada como real o simulada. La proyección supone ritmo uniforme y se habilita desde el séptimo día.
+- La demostración amplía el historial a doce meses con ventas, gastos, presupuestos, pérdidas y excesos de gasto ficticios. La actualización local conserva los registros editados y no escribe casos ficticios en Supabase.
+
+Implementación: `analytics.mjs` contiene los cálculos; `analytics-view.mjs` y `analytics.css` presentan el tablero. La migración `business_performance_v1`, conservada en `database/business-performance-v1.sql`, está aplicada: crea `commercial_expenses` y el presupuesto nullable `commercial_goals.target_expenses`. La falta de carga se presenta como información parcial, sin sustituirla por ceros.
+
+La prueba `tests/expenses-rls.sql` pasó en Supabase: creación, lectura, edición y eliminación administrativa, aislamiento entre organizaciones, autor válido, restricciones de importes/moneda y rechazo de acceso anónimo o sin perfil. Los registros de prueba se revirtieron; no se crearon cuentas ni se modificaron perfiles. La prueba con un vendedor autenticado real queda pendiente porque aún no existe ese perfil. El asesor no detectó problemas nuevos de seguridad o rendimiento asociados al cambio; conserva el aviso previo de protección de contraseñas filtradas y avisos informativos de índices aún sin uso.
+
+Verificación: `node --test tests/*.test.mjs`, `node --check app.js` y `git diff --check`. Las pruebas cubren el cálculo, los periodos, las fechas futuras, los costos faltantes, el aislamiento de la demostración, permisos de interfaz e importación. La revisión visual utiliza `node tests/serve-ui.mjs`, un servidor local con una sesión ficticia y sin acceso de red a Supabase.
+
 ## Catálogo del proveedor, septiembre de 2026
 
 Se importaron en la organización Xicronix 730 códigos únicos de la tabla de precios suministrada de agosto de 2026, todos en USD y conservando dos decimales. Los precios reales residen en Supabase, no en el código público. Cada registro conserva archivo, hoja, fila y NCM del proveedor en sus notas. No se asignaron vencimientos, Incoterms ni subpartidas peruanas no confirmados. Para verlos, seleccionar «Ver datos reales» y «Catálogo».

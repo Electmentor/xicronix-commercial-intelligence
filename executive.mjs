@@ -1,6 +1,7 @@
 import {escapeHTML as esc, money} from './domain.mjs';
 import {assignedUserId} from './workspace.mjs';
-import {monthRange} from './demo.mjs';
+import {businessMonthRange as monthRange, businessDay} from './analytics.mjs';
+import {renderAnalytics} from './analytics-view.mjs';
 const closed=row=>['WON','LOST'].includes(row.stage);
 const amount=row=>Number(row.value)||0;
 export const margin=row=>row.estimated_cost===null||row.estimated_cost===undefined||row.estimated_cost===''?null:amount(row)-Number(row.estimated_cost);
@@ -15,7 +16,7 @@ function goalFor(goals,userId,period){
 }
 export function executiveMetrics(data,now=new Date()){
  const period=monthRange(now),opps=data.opportunities||[],leads=data.leads||[],tasks=data.tasks||[];
- const open=opps.filter(row=>!closed(row)),won=opps.filter(row=>row.stage==='WON'&&inPeriod(row,period));
+ const open=opps.filter(row=>!closed(row)),won=opps.filter(row=>row.stage==='WON'&&inPeriod(row,{...period,end:businessDay(now)}));
  const known=won.filter(row=>margin(row)!==null),revenue=won.reduce((sum,row)=>sum+amount(row),0);
  const knownRevenue=known.reduce((sum,row)=>sum+amount(row),0),grossMargin=known.length?known.reduce((sum,row)=>sum+margin(row),0):null;
  const overdue=open.filter(row=>row.next_action_date&&Date.parse(row.next_action_date)<now.getTime());
@@ -51,13 +52,13 @@ export function filterExecutiveRows(rows,table,filter,owner,now=new Date()){
  if(owner)rows=rows.filter(row=>assignedUserId(row)===owner);
  if(table==='opportunities'&&filter){
   const period=monthRange(now);
-  if(filter==='won')rows=rows.filter(row=>row.stage==='WON'&&inPeriod(row,period));
+  if(filter==='won')rows=rows.filter(row=>row.stage==='WON'&&inPeriod(row,{...period,end:businessDay(now)}));
   if(filter==='pipeline')rows=rows.filter(row=>!closed(row));
   if(filter==='risk')rows=rows.filter(row=>!closed(row)&&((row.next_action_date&&Date.parse(row.next_action_date)<now.getTime())||(margin(row)!==null&&amount(row)>0&&margin(row)/amount(row)<.15)));
  }
  return rows;
 }
-export function renderExecutive(data,{now=new Date(),demo=false,failures={}}={}){
+export function renderExecutive(data,{now=new Date(),demo=false,failures={},analyticsPeriod='year'}={}){
  const m=executiveMetrics(data,now),incomplete=Object.keys(failures).length>0;
  const progress=m.attainment===null?'Sin meta':Math.round(m.attainment)+'% de la meta';
  const headline=incomplete?'Datos incompletos: actualiza antes de decidir.':m.target===null?'Define la meta para orientar al equipo.':m.attainment>=100?'Meta alcanzada. Protege el margen del siguiente cierre.':'Faltan '+compactMoney(m.gap)+' para alcanzar la meta.';
@@ -73,8 +74,9 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={}}={})
  const pipeline=m.stages.map((row,index)=>'<div class="ceo-stage"><span>'+row.label+'</span><b>'+row.count+'</b><strong>'+compactMoney(row.value)+'</strong><div><i style="width:'+row.value/maxStage*100+'%;--stage-color:'+['#4b8cff','#62b3e4','#a790ed','#efad55','#40bda0'][index]+'"></i></div></div>').join('');
  const activities=(data.activities||[]).slice().sort((a,b)=>String(b.occurred_at).localeCompare(String(a.occurred_at))).slice(0,3);
  const activity=activities.map(row=>'<button class="ceo-event" data-edit="'+esc(row.id)+'" data-table="activities"><span class="ceo-event-dot"></span><span><strong>'+esc(row.subject||row.type)+'</strong><small>'+esc((data.users||[]).find(user=>user.id===row.created_by)?.full_name||'Equipo')+' · '+new Date(row.occurred_at).toLocaleDateString('es-PE',{day:'2-digit',month:'short'})+'</small></span><span aria-hidden="true">↗</span></button>').join('')||'<p class="ceo-empty">Aún no hay interacciones.</p>';
- return '<div class="ceo-dashboard"><section class="ceo-signal"><div><small>'+statusTitle+' · '+esc(now.toLocaleDateString('es-PE',{month:'long',year:'numeric'}))+'</small><h2>'+esc(headline)+'</h2></div><button id="ceoMethodBtn" class="ceo-method" title="Ver cómo se calculan los indicadores">Cómo se calcula</button></section>'+
+ return '<div class="ceo-dashboard ceo-dashboard--analytics"><section class="ceo-signal"><div><small>'+statusTitle+' · '+esc(now.toLocaleDateString('es-PE',{month:'long',year:'numeric'}))+'</small><h2>'+esc(headline)+'</h2></div><button id="ceoMethodBtn" class="ceo-method" title="Ver cómo se calculan los indicadores">Cómo se calcula</button></section>'+
  '<section class="ceo-kpis" aria-label="Indicadores ejecutivos">'+kpis+'</section>'+
+ renderAnalytics(data,{now,period:analyticsPeriod,demo,failures})+
  '<section class="ceo-decisions" aria-label="Decisiones prioritarias">'+decisions+'</section>'+
  '<section class="ceo-bottom"><article class="ceo-panel"><header><h2>Equipo · avance contra meta</h2><button data-page="users">Ver equipo ↗</button></header>'+team+'<p class="ceo-caption">Orden: % de meta de ventas; desempate por ventas. No calcula bonos.</p></article>'+
  '<article class="ceo-panel"><header><h2>Embudo comercial</h2><button data-page="opportunities" aria-label="Ver todas las oportunidades">↗</button></header>'+pipeline+'</article>'+

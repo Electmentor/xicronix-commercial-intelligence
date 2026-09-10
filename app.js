@@ -2,8 +2,9 @@ import {escapeHTML as esc, filterRecords, money, metrics, priorities, csv, parse
 
 import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWriteModule, assignedUserId, scopeWorkspaceData} from './workspace.mjs';
 
-import {DEMO_VERSION, DEMO_SELLERS, createDemoData, mutateDemo, realOnly} from './demo.mjs';
+import {DEMO_VERSION, DEMO_SELLERS, createDemoData, upgradeDemoData, mutateDemo, realOnly, localDay} from './demo.mjs';
 import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs';
+import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 
 const $ = id => document.getElementById(id);
@@ -16,7 +17,8 @@ const enums = {
  priority:{LOW:'Baja',MEDIUM:'Media',HIGH:'Alta',CRITICAL:'Crítica'},
  role:{ADMIN:'Administrador',MANAGER:'Responsable',SALES:'Comercial',VIEWER:'Solo lectura'},
  activityType:{CALL:'Llamada',WHATSAPP:'WhatsApp',EMAIL:'Correo',MEETING:'Reunión',VISIT:'Visita',DEMO:'Demostración',PROPOSAL_SENT:'Propuesta enviada',FOLLOW_UP:'Seguimiento',NOTE:'Nota',OTHER:'Otro'},
- activityOutcome:{INTERESTED:'Interesado',FOLLOW_UP:'Requiere seguimiento',NO_RESPONSE:'Sin respuesta',NOT_INTERESTED:'No interesado',QUALIFIED:'Calificado',DISQUALIFIED:'No califica'}
+ activityOutcome:{INTERESTED:'Interesado',FOLLOW_UP:'Requiere seguimiento',NO_RESPONSE:'Sin respuesta',NOT_INTERESTED:'No interesado',QUALIFIED:'Calificado',DISQUALIFIED:'No califica'},
+ expenseCategory:{PERSONNEL:'Personal',MARKETING:'Marketing',OPERATIONS:'Operaciones',TECHNOLOGY:'Tecnología',OTHER:'Otros'}
 };
 const f=(key,label,type='text',required=false,options=null)=>({key,label,type,required,options});
 const institution=f('institution_id','Institución','relation');
@@ -41,7 +43,8 @@ const modules={
  activities:{label:'Interacciones',singular:'interacción',filter:'type',options:enums.activityType,fields:[f('lead_id','Prospecto','relation',true),institution,contact,f('type','Canal','select',true,enums.activityType),f('subject','Asunto','text',true),f('outcome','Resultado','select',false,enums.activityOutcome),f('need_summary','Necesidad detectada','textarea'),f('decision_timeline','Horizonte de decisión'),f('budget_signal','Señal de presupuesto'),f('notes','Notas','textarea'),f('occurred_at','Fecha y hora','datetime-local',true),f('next_action','Próxima acción'),f('next_action_date','Fecha de seguimiento','datetime-local')]},
  catalog_products:{label:'Catálogo',singular:'producto',filter:'category',options:{Fisica:'Física','Educacion STEM':'Educación STEM',Optica:'Óptica',Quimica:'Química',Robotica:'Robótica'},fields:[f('supplier_name','Proveedor','text',true),f('supplier_sku','SKU proveedor','text',true),f('name','Producto','text',true),f('category','Categoría','text',true),f('currency','Moneda','text',true),catalogPrice,f('price_valid_from','Vigencia desde','date'),f('price_valid_until','Vigencia hasta','date'),f('origin_country','País de origen','text',true),f('tariff_code','Subpartida peruana validada'),f('weight_kg','Peso (kg)','number'),f('volume_m3','Volumen (m³)','number'),f('reference_url','Referencia oficial','url'),f('active','Activo','checkbox'),f('notes','Fuente y condiciones','textarea')]},
  cost_profiles:{label:'Costos de importación',singular:'perfil de costos',filter:'destination_country',options:{Peru:'Perú'},fields:[f('name','Nombre','text',true),f('origin_country','Origen','text',true),f('destination_country','Destino','text',true),f('currency','Moneda','text',true),f('exchange_rate','Tipo de cambio','number',true),f('freight_international','Flete internacional','number'),f('insurance','Seguro','number'),f('ad_valorem_rate','Ad valorem (%)','number'),f('igv_rate','IGV (%)','number'),f('perception_rate','Percepción (%)','number'),f('customs_broker_fee','Agente de aduanas','number'),f('terminal_fee','Terminal','number'),f('storage_fee','Almacenaje','number'),f('inland_transport','Transporte interno','number'),f('installation_fee','Instalación','number'),f('contingency_rate','Contingencia (%)','number'),f('valid_from','Vigencia desde','date'),f('valid_until','Vigencia hasta','date'),f('notes','Notas','textarea')]},
- goals:{label:'Metas',singular:'meta',fields:[owner,f('period_start','Inicio del periodo','date',true),f('period_end','Fin del periodo','date',true),f('target_margin','Meta de margen (S/)','number',true),f('target_won_value','Meta de ventas ganadas (S/)','number',true),f('notes','Notas','textarea')]},
+ expenses:{label:'Gastos operativos',singular:'gasto operativo',filter:'category',options:enums.expenseCategory,fields:[f('description','Concepto','text',true),f('expense_date','Fecha del gasto','date',true),f('category','Categoría','select',true,enums.expenseCategory),f('amount','Importe (S/)','number',true),f('currency','Moneda','select',true,{PEN:'Soles (PEN)'}),f('notes','Notas','textarea')]},
+ goals:{label:'Metas',singular:'meta',fields:[owner,f('period_start','Inicio del periodo','date',true),f('period_end','Fin del periodo','date',true),f('target_margin','Meta de margen bruto (S/)','number',true),f('target_won_value','Meta de ventas ganadas (S/)','number',true),f('target_expenses','Presupuesto de gastos operativos (S/)','number'),f('notes','Notas','textarea')]},
  users:{label:'Usuarios',singular:'usuario',filter:'role',options:enums.role,fields:[f('full_name','Nombre completo','text',true),f('role','Rol','select',true,enums.role)]}
 };
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
@@ -51,6 +54,7 @@ const emptyData=()=>Object.fromEntries([...Object.keys(modules),'scores'].map(k=
 const writable=()=>profile && ['ADMIN','MANAGER','SALES'].includes(profile.role);
 let workspace=SELLER, workspaceIdentity=null, loading=false;
 let dataSource='live', sourceIdentity=null, demoData=null, demoSeller=DEMO_SELLERS[0].id, demoSaved=true, executiveFilter='', executiveOwner='';
+let analyticsPeriod='year';
 const currentActor=()=>dataSource==='demo'?demoSeller:session?.user?.id;
 const sourceKey=()=>workspaceIdentity+':source-v'+DEMO_VERSION;
 const demoKey=()=>workspaceIdentity+':demo-v'+DEMO_VERSION;
@@ -62,8 +66,9 @@ function restoreSource(){
 }
 function loadDemo(){
  if(!demoData){
-  try{const saved=JSON.parse(localStorage.getItem(demoKey())||'null');if(saved&&Object.keys(emptyData()).every(key=>Array.isArray(saved[key])&&saved[key].every(row=>row&&row.organization_id===profile.organization_id)))demoData=saved;}catch(_error){}
+  try{const saved=JSON.parse(localStorage.getItem(demoKey())||'null');if(saved&&Object.keys(emptyData()).filter(key=>key!=='expenses').every(key=>Array.isArray(saved[key])&&saved[key].every(row=>row&&row.organization_id===profile.organization_id))&&(!saved.expenses||Array.isArray(saved.expenses)&&saved.expenses.every(row=>row&&row.organization_id===profile.organization_id)))demoData=saved;}catch(_error){}
   if(!demoData)demoData=createDemoData(profile.organization_id);
+  upgradeDemoData(demoData,profile.organization_id);persistDemo();
  }
  data=scopeWorkspaceData(demoData,profile,currentActor(),workspace);failures={};
 }
@@ -105,7 +110,7 @@ const canDelete=canViewDashboard;
 const accessible=table=>canAccessPage(profile,workspace,table);
 const writableFor=table=>canWriteModule(profile,workspace,table);
 const fieldsFor=table=>(modules[table]?.fields||[]).filter(field=>!field.adminOnly||canViewDashboard());
-const databaseTable=table=>({users:'profiles',goals:'commercial_goals'})[table]||table;
+const databaseTable=table=>({users:'profiles',goals:'commercial_goals',expenses:'commercial_expenses'})[table]||table;
 function restoreWorkspace(){
  const identity=workspaceKey(session.user.id,profile.organization_id);
  if(workspaceIdentity!==identity){
@@ -149,7 +154,7 @@ async function setWorkspace(next){
 const THEME_STORAGE_KEY='xicronix-theme';
 const SIDEBAR_STORAGE_KEY='xicronix-sidebar-collapsed';
 const authRedirectUrl=()=>/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?PUBLIC_APP_URL:location.origin+location.pathname;
-const nameOf=row=>row.name || row.title || row.subject || row.full_name || [row.first_name,row.last_name].filter(Boolean).join(' ');
+const nameOf=row=>row.name || row.title || row.subject || row.description || row.full_name || [row.first_name,row.last_name].filter(Boolean).join(' ');
 const relatedName=row=>data.institutions?.find(i=>i.id===row.institution_id)?.name || '';
 const relationTable=key=>({institution_id:'institutions',contact_id:'contacts',lead_id:'leads',opportunity_id:'opportunities',owner_user_id:'users',assigned_to:'users',catalog_product_id:'catalog_products',cost_profile_id:'cost_profiles'})[key];
 const relationName=(key,row)=>{const table=relationTable(key);return table?nameOf((data[table]||[]).find(item=>item.id===row[key])||{}):'';};
@@ -284,7 +289,18 @@ function render(){
 }
 function renderDashboard(){
  if(!canViewDashboard()){$('dashboard').replaceChildren();return;}
- $('dashboard').innerHTML=renderExecutive(data,{demo:dataSource==='demo',failures});
+ $('dashboard').innerHTML=renderExecutive(data,{demo:dataSource==='demo',failures,analyticsPeriod});
+}
+function setAnalyticsPeriod(period){
+ if(!canViewDashboard()||loading||busy||!['month','quarter','year'].includes(period))return;
+ analyticsPeriod=period;renderDashboard();
+ document.querySelector('[data-analytics-period="'+period+'"]')?.focus({preventScroll:true});
+}
+function exportAnalytics(){
+ if(!canViewDashboard()||loading||busy||['opportunities','goals','expenses'].some(key=>failures[key]))return;
+ const content=analyticsCSV(data,{period:analyticsPeriod,demo:dataSource==='demo'});
+ const url=URL.createObjectURL(new Blob([content],{type:'text/csv;charset=utf-8;'}));
+ const link=document.createElement('a');link.href=url;link.download='xicronix-rendimiento-'+(dataSource==='demo'?'SIMULADO-':'')+analyticsPeriod+'-'+new Date().toISOString().slice(0,10)+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function scopedRows(table){
  if(!accessible(table)&&table!=='scores')return [];
@@ -298,7 +314,7 @@ function renderSellerWorkspaceSummary(){
  const high=rows.filter(row=>Number(scores.find(score=>score.lead_id===row.id)?.total_score||0)>=75).length;
  return '<article class="seller-focus panel"><div><h2>Mi operación comercial</h2><p>Prioriza tus prospectos, registra cada interacción y trabaja la próxima acción sugerida.</p></div><div class="seller-focus-metrics"><span><b>'+active+'</b><small>Leads activos</small></span><span><b>'+high+'</b><small>Potencial alto</small></span><span><b>'+due+'</b><small>Seguimientos próximos</small></span></div></article>';
 }
-function filtered(){const config=modules[page];return filterRecords(filterExecutiveRows(scopedRows(page),page,executiveFilter,executiveOwner),$('search').value,config.filter,$('filter').value,row=>[relatedName(row),row.supplier_sku,row.supplier_name].filter(Boolean).join(' '));}
+function filtered(){const config=modules[page];const rows=filterRecords(filterExecutiveRows(scopedRows(page),page,executiveFilter,executiveOwner),$('search').value,config.filter,$('filter').value,row=>[relatedName(row),row.supplier_sku,row.supplier_name].filter(Boolean).join(' '));return page==='expenses'?rows.slice().sort((a,b)=>String(b.expense_date||'').localeCompare(String(a.expense_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||''))):rows;}
 function scoreCell(row){
  const score=(data.scores||[]).find(item=>item.lead_id===row.id);
  const value=score?Math.max(0,Math.min(100,Number(score.total_score)||0)):0;
@@ -312,7 +328,7 @@ function openActivityForLead(leadId){
  openEditor('activities',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',type:'CALL',subject:'Primer contacto',outcome:'FOLLOW_UP',occurred_at:localDateTime(new Date().toISOString())});
 }
 function renderRecords(){
- const isUsers=page==='users',isGoals=page==='goals';
+ const isUsers=page==='users',isGoals=page==='goals',isExpenses=page==='expenses';
  $('recordContext').hidden=!executiveFilter&&!executiveOwner;
  $('recordContextLabel').textContent=[{won:'Ganadas con cierre previsto este mes',pipeline:'Cartera abierta',risk:'Cartera en riesgo'}[executiveFilter],executiveOwner?'Vendedor: '+(data.users.find(row=>row.id===executiveOwner)?.full_name||'seleccionado'):''].filter(Boolean).join(' · ');
  $('importBtn').hidden=isUsers||isGoals||!writableFor(page);$('importBtn').disabled=loading||busy||!!failures[page];$('importHelp').hidden=isUsers||isGoals||!writableFor(page);
@@ -322,15 +338,15 @@ function renderRecords(){
  $('exportBtn').disabled=!!failures[page]||!rows.length;
  $('pageNumber').textContent='Página '+(pageIndex+1)+' de '+max;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
  const config=modules[page],canEdit=writableFor(page);
- const secondHeader=isUsers?'Rol':isGoals?'Responsable':page==='institutions'?'Ciudad':['catalog_products','cost_profiles'].includes(page)?'Origen / destino':'Institución';
- const detailHeader=isGoals?'Meta de margen':(['leads','opportunities'].includes(page)?'Valor estimado':page==='catalog_products'?'Precio proveedor':page==='cost_profiles'?'Tipo de cambio':'Detalle');
+ const secondHeader=isUsers?'Rol':isGoals?'Responsable':isExpenses?'Fecha del gasto':page==='institutions'?'Ciudad':['catalog_products','cost_profiles'].includes(page)?'Origen / destino':'Institución';
+ const detailHeader=isGoals?'Metas y presupuesto':isExpenses?'Importe':(['leads','opportunities'].includes(page)?'Valor estimado':page==='catalog_products'?'Precio proveedor':page==='cost_profiles'?'Tipo de cambio':'Detalle');
  const rowsMarkup=rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>{
-  const secondCell=isUsers?badge(row.role,page):isGoals?esc(relationName('owner_user_id',row)||'Organización'):page==='catalog_products'?esc(row.origin_country||'—')+' → Perú':page==='cost_profiles'?esc(row.origin_country||'—')+' → '+esc(row.destination_country||'—'):esc(page==='institutions'?row.city||'—':relatedName(row)||'Sin vincular');
+  const secondCell=isUsers?badge(row.role,page):isGoals?esc(relationName('owner_user_id',row)||'Organización'):isExpenses?esc(row.expense_date||'Sin fecha'):page==='catalog_products'?esc(row.origin_country||'—')+' → Perú':page==='cost_profiles'?esc(row.origin_country||'—')+' → '+esc(row.destination_country||'—'):esc(page==='institutions'?row.city||'—':relatedName(row)||'Sin vincular');
   const stateCell=isGoals?'<span class="badge success">Meta definida</span>':page==='catalog_products'?(row.active===false?'<span class="badge warn">Inactivo</span>':'<span class="badge success">Activo</span>'):badge(row[config.filter],page);
-  const detail=page==='goals'?money(row.target_margin):page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='catalog_products'?catalogMoney(row.supplier_unit_price):page==='cost_profiles'?Number(row.exchange_rate||0).toFixed(2):page==='tasks'?esc(date(row.due_at)):page==='activities'?esc(date(row.occurred_at)):esc(row.phone||'—');
+  const detail=isGoals?'Ventas '+money(row.target_won_value)+'<small>Margen bruto '+money(row.target_margin)+'</small><small>Gastos '+(row.target_expenses===null||row.target_expenses===undefined?'Sin presupuesto':money(row.target_expenses))+'</small>':isExpenses?money(row.amount):page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='catalog_products'?catalogMoney(row.supplier_unit_price):page==='cost_profiles'?Number(row.exchange_rate||0).toFixed(2):page==='tasks'?esc(date(row.due_at)):page==='activities'?esc(date(row.occurred_at)):esc(row.phone||'—');
   const actionLabel=canEdit?'Editar':'Ver';
   const rowName=page==='catalog_products'?catalogDisplayName(row):nameOf(row)||('Meta '+row.period_start);
-  const subline=isGoals?(row.period_start+' → '+row.period_end):(row.email||row.next_action||row.job_title||row.category||row.notes||'');
+  const subline=isGoals?(row.period_start+' → '+row.period_end):isExpenses?(row.currency||'PEN'):(row.email||row.next_action||row.job_title||row.category||row.notes||'');
   return '<tr><td><strong>'+esc(rowName)+'</strong><small>'+esc(subline)+'</small></td><td>'+secondCell+'</td><td>'+stateCell+'</td><td>'+detail+'</td>'+(page==='leads'?'<td>'+scoreCell(row)+'</td>':'')+'<td><div class="row-actions"><button data-edit="'+row.id+'" data-table="'+page+'">'+actionLabel+'</button>'+(page==='leads'&&writable()?'<button data-activity-lead="'+row.id+'">Registrar interacción</button>':'')+(!isUsers&&canDelete()?'<button class="danger-text" data-delete="'+row.id+'" data-table="'+page+'">Eliminar</button>':'')+'</div></td></tr>';
  }).join('');
  $('recordList').innerHTML=failures[page]?'<div class="panel empty">No pudimos cargar estos registros. Pulsa Actualizar.</div>':!rows.length?`<div class="panel empty">${$('search').value||$('filter').value?'No hay coincidencias. Cambia la búsqueda o el filtro.':'Aún no hay registros. Crea el primero con el botón superior.'}</div>`:`<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>${secondHeader}</th><th>Estado / tipo</th><th>${detailHeader}</th>${page==='leads'?'<th>Potencial</th>':''}<th>Acción</th></tr></thead><tbody>${rowsMarkup}</tbody></table></div>`;
@@ -352,11 +368,12 @@ function importValue(source,field){
   return found?.id||'__missing__:'+raw;
  }
  if(field.type==='number'){
-  const normalized=raw.replace(/[^0-9,.-]/g,'').replace(/,(?=.*[,])/g,'').replace(',','.');
-  return (normalized===''?0:Number(normalized))/(costRateKeys.has(field.key)?100:1);
+  const normalized=raw.replace(/^(?:S\/|PEN|USD)\s*/i,'').trim().replace(',','.');
+  return (/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)?Number(normalized):NaN)/(costRateKeys.has(field.key)?100:1);
  }
  if(field.type==='datetime-local'||field.type==='date'){
   const parsed=new Date(raw);
+  if(field.type==='date'&&/^\d{4}-\d{2}-\d{2}$/.test(raw)&&Number.isFinite(parsed.getTime())&&parsed.toISOString().slice(0,10)!==raw)return raw;
   return Number.isFinite(parsed.getTime())?(field.type==='date'?parsed.toISOString().slice(0,10):parsed.toISOString()):raw;
  }
  return raw;
@@ -369,6 +386,12 @@ function buildImport(table,rows){
    const value=importValue(source,field);
    if(String(value).startsWith('__missing__:'))errors.push(prefix+'no se encontró '+field.label+' “'+String(value).slice(12)+'”.');
    if(field.required&&!String(value).trim())errors.push(prefix+'falta '+field.label+'.');
+   if(value!==''&&field.type==='number'&&(!Number.isFinite(value)||value<0||(['score','probability','discount_pct'].includes(field.key)&&value>100)||(costRateKeys.has(field.key)&&value>1)||(field.key==='quantity'&&(!Number.isInteger(value)||value<1))||(field.key==='exchange_rate'&&value<=0)))errors.push(prefix+'revisa '+field.label+'.');
+   if(value!==''&&field.options&&!Object.hasOwn(field.options,value))errors.push(prefix+'opción inválida en '+field.label+'.');
+   if(value!==''&&['date','datetime-local'].includes(field.type)){
+    const parsed=new Date(value);
+    if(!Number.isFinite(parsed.getTime())||(field.type==='date'&&parsed.toISOString().slice(0,10)!==value))errors.push(prefix+'fecha inválida en '+field.label+'.');
+   }
    payload[field.key]=value===''?null:value;
   }
   if(!errors.some(error=>error.startsWith(prefix)))payloads.push(payload);
@@ -418,7 +441,7 @@ function openEditor(table,id=null,initialValues={}){
  if(!accessible(table)||loading||busy||failures[table])return; if(table==='users'&&(!id||!canManageUsers()))return; if(table==='goals'&&!canManageGoals())return; if(!id&&!writableFor(table))return;
  const dependencies=fieldsFor(table).filter(f=>f.type==='relation').map(f=>relationTable(f.key));
  if(dependencies.some(k=>failures[k])){notice('Actualiza los módulos vinculados antes de abrir este formulario para conservar las relaciones del registro.',true);return;}
- const row=id?scopedRows(table).find(r=>r.id===id):{owner_user_id:table==='goals'?null:currentActor(),assigned_to:currentActor(),...initialValues};if(!row)return;
+ const row=id?scopedRows(table).find(r=>r.id===id):{owner_user_id:table==='goals'?null:currentActor(),assigned_to:currentActor(),...(table==='expenses'?{expense_date:localDay(new Date()),currency:'PEN',category:'OPERATIONS'}:{}),...initialValues};if(!row)return;
  editTable=table;editId=id;editingVersion=row.updated_at||null;
  $('editorTitle').textContent=`${id?(writableFor(table)?'Editar':'Ver'):'Crear'} ${modules[table].singular}`;$('formMsg').textContent='';
  $('fields').innerHTML=fieldsFor(table).map(field=>{
@@ -432,6 +455,8 @@ function openEditor(table,id=null,initialValues={}){
  else input=`<input ${attrs} type="${field.type}" value="${esc(value)}" ${field.type==='number'?`min="0" step="${['score','probability',...costRateKeys].includes(field.key)?1:'0.01'}" ${['score','probability',...costRateKeys].includes(field.key)?'max="100"':''}`:''} ${field.key==='ruc'?'pattern="[0-9]{11}" title="Ingresa 11 dígitos"':''}>`;
  return `<div class="${field.type==='textarea'?'full':''}"><label for="field-${field.key}">${field.label}${field.required?' *':''}</label>${input}</div>`;
  }).join('');
+ if(table==='expenses')$('fields').insertAdjacentHTML('beforeend','<p class="full muted">Registra gastos operativos en soles. Los costos directos de las ventas se toman del costo estimado de cada oportunidad; no los registres aquí otra vez. Un gasto con fecha futura se incluirá cuando llegue esa fecha.</p>');
+ if(table==='goals')$('fields').insertAdjacentHTML('beforeend','<p class="full muted">Para el tablero general, deja el responsable sin vincular. El presupuesto de gastos corresponde al periodo completo; vacío significa sin presupuesto y 0 significa que no se prevén gastos. La meta de margen bruto se calcula antes de gastos operativos. El avance a la fecha se distribuye por días calendario.</p>');
  const leadScore=id&&table==='leads'?(data.scores||[]).find(item=>item.lead_id===id):null;
  if(table==='opportunities'&&canViewDashboard()){
   $('fields').insertAdjacentHTML('beforeend','<section id="quotePreview" class="quote-insight full" aria-live="polite"></section>');
@@ -463,7 +488,7 @@ async function saveRecord(event){
  const payload={}, form=new FormData($('recordForm'));
  for(const field of fieldsFor(editTable)){let value=field.type==='checkbox'?form.get(field.key)==='on':String(form.get(field.key)??'').trim();
  if(field.required&&!value){$('formMsg').textContent='Completa los campos obligatorios.';return;}
- if(field.type==='number'){value=value===''?(['estimated_cost','negotiated_unit_price'].includes(field.key)?null:field.key==='quantity'?1:0):Number(value);if(costRateKeys.has(field.key))value=value/100;}
+ if(field.type==='number'){value=value===''?(['estimated_cost','negotiated_unit_price','target_expenses'].includes(field.key)?null:field.key==='quantity'?1:0):Number(value);if(costRateKeys.has(field.key))value=value/100;}
  else if(field.type==='datetime-local')value=value?new Date(value).toISOString():null;
  else if(field.type!=='checkbox')value=value||null;payload[field.key]=value;
  }
@@ -477,6 +502,7 @@ async function saveRecord(event){
   }
  }
  if(editTable==='goals'&&payload.period_start>payload.period_end){$('formMsg').textContent='El fin del periodo debe ser posterior o igual al inicio.';return;}
+ if(editTable==='expenses'&&payload.currency!=='PEN'){$('formMsg').textContent='Registra los gastos en soles (PEN).';return;}
  if(payload.contact_id){const selected=data.contacts.find(c=>c.id===payload.contact_id);if(!selected||selected.institution_id&&selected.institution_id!==payload.institution_id){$('formMsg').textContent='El contacto debe pertenecer a la institución seleccionada.';return;}}
  busy=true;$('saveBtn').disabled=true;$('formMsg').textContent='Guardando…';
  const table=editTable,id=editId,org=profile.organization_id,userId=session.user.id,version=loadVersion;
@@ -539,7 +565,7 @@ function init(){
  $('dateLabel').textContent=new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long'});
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  $('sidebarToggle').onclick=()=>applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.activityLead){openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.activityLead){openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();recovery=false;}setMode('login');};
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
