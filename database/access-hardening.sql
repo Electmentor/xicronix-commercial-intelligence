@@ -1,0 +1,2 @@
+-- Applied in Supabase as migration commercial_access_hardening_v2 on 2026-09-09.
+-- Review before reusing in another environment. Existing organization policies remain in place.
