@@ -1,0 +1,68 @@
+name: Prepare approved CRM editor correction
+on:
+  push:
+    branches: [fix/crm-fields-webform-cleanup-20260918]
+    paths:
+      - scripts/fix_editor_v22.py
+      - tests/editor-fields.py
+      - .github/workflows/prepare-editor-fix.yml
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/crm-fields-webform-cleanup-20260918
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply reviewed editor fix and install regression gate
+        run: |
+          python scripts/fix_editor_v22.py
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('.github/workflows/crm-validation.yml');s=p.read_text()
+          if 'Editor linked-field regression' not in s:
+              s=s.replace('        run: python tests/browser-smoke.py\n','        run: python tests/browser-smoke.py\n      - name: Editor linked-field regression\n        run: python tests/editor-fields.py\n')
+              s=s.replace('      - uses: actions/upload-artifact@v4\n        if: always()\n        with:\n          name: crm-production-evidence', '      - name: Verify deployed edit forms with isolated fixtures\n        run: python tests/editor-fields.py --base-url https://xicronix-commercial-intelligence.vercel.app/ --output review-artifacts/production-editor-fields\n      - uses: actions/upload-artifact@v4\n        if: always()\n        with:\n          name: crm-production-evidence')
+              p.write_text(s)
+          PY
+      - name: Unit and syntax tests
+        run: |
+          mkdir -p review-artifacts
+          node --check app.js
+          node --test tests/*.test.mjs | tee review-artifacts/unit-tests.txt
+      - name: Install Chromium
+        run: |
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps chromium
+      - name: Navigation regression
+        run: python tests/browser-smoke.py
+      - name: Exercise all editor fields
+        run: python tests/editor-fields.py
+      - name: Record only validated app changes
+        run: |
+          git add app.js index.html tests/app-workspace.test.mjs tests/browser-smoke.py tests/verify-production.py .github/workflows/crm-validation.yml
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'fix: publish validated linked editor fields and Formulario web channel'
+            git push origin HEAD:fix/crm-fields-webform-cleanup-20260918
+          fi
+      - name: Archive verification results
+        if: always()
+        run: |
+          mkdir -p review-artifacts
+          git rev-parse HEAD > review-artifacts/commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: crm-editor-review
+          path: review-artifacts/
+          retention-days: 7
