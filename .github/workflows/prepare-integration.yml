@@ -1,0 +1,69 @@
+name: Prepare approved V2 integration
+on:
+  push:
+    branches: [integration/crm-v2-production-20260918]
+    paths:
+      - scripts/consolidate_v2.py
+      - tests/browser-fixture.js
+      - tests/browser-smoke.py
+      - .github/workflows/prepare-integration.yml
+permissions:
+  contents: read
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/integration/crm-v2-production-20260918'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: integration/crm-v2-production-20260918
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply reviewed integration
+        run: python scripts/consolidate_v2.py
+      - name: Run syntax and unit checks
+        run: |
+          mkdir -p review-artifacts
+          node --check app.js
+          node --check tests/browser-fixture.js
+          node --test tests/*.test.mjs | tee review-artifacts/unit-tests.txt
+      - name: Install browser test runtime
+        run: |
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps chromium
+      - name: Exercise all modules with isolated test data
+        run: python tests/browser-smoke.py
+      - name: Commit only verified generated application files
+        run: |
+          git add app.js index.html production.css tests/app-workspace.test.mjs
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'feat: restore advanced CRM V2 with production access and real-data defaults'
+            git push origin HEAD:integration/crm-v2-production-20260918
+          fi
+      - name: Archive reviewed working source and results
+        if: always()
+        run: |
+          mkdir -p review-artifacts
+          git rev-parse HEAD > review-artifacts/commit.txt
+          python - <<'PY'
+          import pathlib,tarfile
+          root=pathlib.Path('.')
+          with tarfile.open('review-artifacts/reviewed-working-source.tar','w') as archive:
+              for path in sorted(root.rglob('*')):
+                  if path.is_file() and not any(part in ('.git','review-artifacts','__pycache__','node_modules') for part in path.parts):
+                      archive.add(path,arcname=str(path),recursive=False)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: crm-v2-browser-review
+          path: review-artifacts/
+          retention-days: 7
