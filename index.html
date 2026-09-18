@@ -498,10 +498,15 @@ const SUPABASE_URL =
 const SUPABASE_KEY =
   "sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK";
 
+// Capture only recovery flags before Supabase consumes the URL fragment.
+const xicronixRecoveryLink = new URLSearchParams(location.hash.slice(1)).get("type") === "recovery";
+const xicronixAuthLinkError = new URLSearchParams(location.hash.slice(1)).has("error") || new URLSearchParams(location.hash.slice(1)).has("error_code");
+
 const sb =
   window.supabase.createClient(
     SUPABASE_URL,
-    SUPABASE_KEY
+    SUPABASE_KEY,
+    {auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}}
   );
 
 const $ = id => document.getElementById(id);
@@ -903,34 +908,8 @@ document
   };
 });
 
-sb.auth.onAuthStateChange(
-  (event,currentSession) => {
-
-    if(currentSession){
-      enterApp(currentSession);
-    }else{
-      $("appView")
-      .classList.add("hidden");
-
-      $("authView")
-      .classList.remove("hidden");
-    }
-  }
-);
-
-(async()=>{
-
-  const {data} =
-    await sb.auth.getSession();
-
-  if(data.session){
-    await enterApp(
-      data.session
-    );
-  }
-
-})();
 </script>
+<script src="/auth-access.js?v=20260918-1" defer></script>
 
 </body>
 </html>
