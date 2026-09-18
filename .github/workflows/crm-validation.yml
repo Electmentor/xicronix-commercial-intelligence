@@ -1,0 +1,40 @@
+name: CRM validation
+on:
+  push:
+    branches: [main, integration/crm-v2-production-20260918]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax validation
+        run: |
+          node --check app.js
+          for file in *.mjs; do node --check "$file"; done
+      - name: Unit and interface contract tests
+        run: node --test tests/*.test.mjs
+      - name: Package reviewed sources without credentials or customer data
+        if: always()
+        run: |
+          mkdir -p review-artifacts
+          git archive --format=tar HEAD > review-artifacts/candidate-source.tar
+          git archive --format=tar c2d92406b41854a8f4fc931bbbfff2ead574e6fd > review-artifacts/main-before-consolidation.tar
+          git rev-parse HEAD > review-artifacts/commit.txt
+      - name: Retain review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crm-reviewed-sources
+          path: review-artifacts/
+          retention-days: 7
