@@ -1,0 +1,5 @@
+-- Applied in Supabase as migration lead_interaction_scoring_v2 on 2026-09-09.
+-- The score engine now uses the most recent interaction's next_action_date
+-- as the effective urgency date, falling back to leads.next_action_date.
+-- The activity score trigger also listens for next_action_date changes.
+-- See database/lead-interaction-scoring.sql for the v1 schema and formula.

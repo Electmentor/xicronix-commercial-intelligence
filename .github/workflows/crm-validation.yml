@@ -1,0 +1,79 @@
+name: CRM validation
+on:
+  push:
+    branches: [main, integration/crm-v2-production-20260918]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax validation
+        run: |
+          node --check app.js
+          node --check recuperar.js
+          node --check tests/browser-fixture.js
+          for file in *.mjs; do node --check "$file"; done
+      - name: Unit and interface contract tests
+        run: |
+          mkdir -p review-artifacts
+          node --test tests/*.test.mjs | tee review-artifacts/unit-tests.txt
+      - name: Install isolated browser runtime
+        run: |
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps chromium
+      - name: Full navigation and access regression with isolated fixtures
+        run: python tests/browser-smoke.py
+      - name: Package reviewed sources without credentials or customer data
+        if: always()
+        run: |
+          mkdir -p review-artifacts
+          git archive --format=tar HEAD > review-artifacts/candidate-source.tar
+          git archive --format=tar c2d92406b41854a8f4fc931bbbfff2ead574e6fd > review-artifacts/main-before-consolidation.tar
+          git rev-parse HEAD > review-artifacts/commit.txt
+      - name: Retain review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crm-reviewed-sources
+          path: review-artifacts/
+          retention-days: 7
+  verify-production:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser runtime
+        run: |
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps chromium
+      - name: Verify exact deployed files and genuine signed-out access
+        run: python tests/verify-production.py
+      - name: Verify navigation against deployed application assets with isolated data
+        run: python tests/browser-smoke.py --base-url https://xicronix-commercial-intelligence.vercel.app/ --output review-artifacts/production-fixture-browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: crm-production-evidence
+          path: review-artifacts/
+          retention-days: 7
