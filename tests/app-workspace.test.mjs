@@ -359,7 +359,7 @@ test('financial export generates a downloadable CSV and blocks seller or partial
 test('production uses one canonical recovery destination and keeps original session namespace',()=>{
  const h=harness();
  assert.equal(h.run('authRedirectUrl()'),'https://xicronix-commercial-intelligence.vercel.app/');
- assert.match(html,/xicronix-release.*2026-09-18-v2.1/);
+ assert.match(html,/xicronix-release.*2026-09-18-v2.2/);
  assert.doesNotMatch(source,/git-improvemen-2952f5/);
  assert.doesNotMatch(html,/src=".*(?:auth-access|workspace-navigation)\.js/);
 });
