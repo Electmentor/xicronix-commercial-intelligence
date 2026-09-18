@@ -35,7 +35,7 @@ with sync_playwright() as p:
  try:
   context,page=newpage();expect(page.locator('#workspaceControls')).to_be_visible()
   check('actual data is default',lambda:expect(page.locator('#sourceBadge')).to_have_text('DATOS REALES'))
-  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-18-v2.1'))
+  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-18-v2.2'))
   page.screenshot(path=str(out/'desktop-v2-fixture.png'),full_page=True)
   pages=['institutions','contacts','leads','opportunities','tasks','activities','catalog_products','cost_profiles','expenses','goals','users','dashboard']
   for target in pages:
