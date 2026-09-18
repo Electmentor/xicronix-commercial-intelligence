@@ -49,7 +49,11 @@ const modules={
 };
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
-const PUBLIC_APP_URL='https://xicronix-commercial-intelligence-git-improvemen-2952f5-xicronix.vercel.app/';
+const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
+const CRM_RELEASE='2026-09-18-v2.1';
+const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
+const RECOVERY_KEY='xicronix.crm.password-recovery';
+let entryRoute=readEntryRoute();
 const emptyData=()=>Object.fromEntries([...Object.keys(modules),'scores'].map(k=>[k,[]]));
 const writable=()=>profile && ['ADMIN','MANAGER','SALES'].includes(profile.role);
 let workspace=SELLER, workspaceIdentity=null, loading=false;
@@ -62,7 +66,7 @@ function restoreSource(){
  if(sourceIdentity===workspaceIdentity)return;
  sourceIdentity=workspaceIdentity;demoData=null;demoSeller=DEMO_SELLERS[0].id;
  let saved;try{saved=localStorage.getItem(sourceKey());}catch(_error){}
- dataSource=saved==='live'?'live':saved==='demo'?'demo':isAdminAccount()?'demo':'live';
+ dataSource=entryRoute?.lead?'live':saved==='demo'?'demo':'live';
 }
 function loadDemo(){
  if(!demoData){
@@ -77,6 +81,7 @@ function persistDemo(){
 }
 function demoSavedMessage(){return demoSaved?'Simulación guardada en este navegador; no modifica datos reales.':'Simulación guardada solo en esta sesión: el navegador no permitió conservarla.';}
 function clearWorkspaceViews(){
+ closeLeadDetails(false);
  $('fields').replaceChildren();editTable=null;editId=null;editingVersion=null;
  data=emptyData();failures={};executiveFilter='';executiveOwner='';
  $('dashboard').replaceChildren();$('recordList').replaceChildren();$('sellerSummary').replaceChildren();
@@ -129,6 +134,7 @@ function renderWorkspaceControls(){
  $('demoSeller').innerHTML=DEMO_SELLERS.map(row=>'<option value="'+row.id+'">'+esc(row.full_name)+' (demo)</option>').join('');$('demoSeller').value=demoSeller;
  $('demoSeller').disabled=loading||busy;
  $('workspaceControls').hidden=!profile;
+ $('complaintsLink').hidden=!admin||dataSource!=='live';
  $('adminModeBtn').hidden=!isAdminAccount();
  $('adminModeBtn').setAttribute('aria-pressed',String(admin));
  $('sellerModeBtn').setAttribute('aria-pressed',String(!admin));
@@ -153,7 +159,7 @@ async function setWorkspace(next){
 }
 const THEME_STORAGE_KEY='xicronix-theme';
 const SIDEBAR_STORAGE_KEY='xicronix-sidebar-collapsed';
-const authRedirectUrl=()=>/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?PUBLIC_APP_URL:location.origin+location.pathname;
+const authRedirectUrl=()=>PUBLIC_APP_URL;
 const nameOf=row=>row.name || row.title || row.subject || row.description || row.full_name || [row.first_name,row.last_name].filter(Boolean).join(' ');
 const relatedName=row=>data.institutions?.find(i=>i.id===row.institution_id)?.name || '';
 const relationTable=key=>({institution_id:'institutions',contact_id:'contacts',lead_id:'leads',opportunity_id:'opportunities',owner_user_id:'users',assigned_to:'users',catalog_product_id:'catalog_products',cost_profile_id:'cost_profiles'})[key];
@@ -167,7 +173,7 @@ function errorText(error){
  if(['otp_expired','invalid_token','bad_jwt'].includes(code))return 'El enlace de recuperación venció o ya fue utilizado. Solicita uno nuevo y ábrelo una sola vez.';
  if(code==='email_not_confirmed')return 'Confirma tu correo antes de ingresar.';
  if(code==='over_email_send_rate_limit'||error?.status===429)return 'Se alcanzó el límite de intentos. Espera unos minutos y vuelve a intentar.';
- if(code==='weak_password')return 'Usa una contraseña de al menos 6 caracteres y combina letras, números y símbolos.';
+ if(code==='weak_password')return 'Usa una contraseña única de al menos 12 caracteres.';
  if(code==='same_password')return 'Elige una contraseña diferente a la anterior.';
  if(code==='23505')return 'Ya existe un registro con esos datos.';
  if(code==='42501')return 'Tu cuenta no tiene permiso para esta operación.';
@@ -175,14 +181,16 @@ function errorText(error){
  return 'No se pudo completar la operación. Comprueba tu conexión e inténtalo nuevamente.';
 }
 function setMode(next){
- mode=next; $('authForm').reset();resetPasswordVisibility();$('authMsg').textContent='';
+ const previousEmail=$('email').value,previousRemember=$('rememberEmail').checked;
+ mode=next; $('authForm').reset();restoreRememberedEmail(previousEmail);$('rememberEmail').checked=previousRemember||$('rememberEmail').checked;resetPasswordVisibility();$('authMsg').textContent='';
  const reset=next==='reset', update=next==='update';
  $('authTitle').textContent={login:'Ingresar',signup:'Crear usuario',reset:'Recuperar acceso',update:'Nueva contraseña'}[next];
  $('authBtn').textContent={login:'Ingresar',signup:'Crear usuario',reset:'Enviar enlace de recuperación',update:'Guardar contraseña'}[next];
- $('authHint').textContent=reset?'Te enviaremos un enlace para cambiar tu contraseña.':update?'Elige una contraseña de al menos 6 caracteres.':'Accede con tu correo y contraseña.';
+ $('authHint').textContent=reset?'Te enviaremos un enlace para cambiar tu contraseña.':update?'Elige una contraseña única de al menos 12 caracteres.':'Accede con tu correo y contraseña.';
  $('authTabs').hidden=reset||update;$('forgotBtn').hidden=next!=='login';$('backLogin').hidden=!(reset||update);
- $('emailField').hidden=update;$('email').required=!update;
- $('passwordField').hidden=reset;$('password').required=!reset;$('password').minLength=6;$('confirmPassword').minLength=6;
+ $('emailField').hidden=false;$('email').required=!update;$('email').readOnly=update;if(update)$('email').value=session?.user.email||previousEmail;
+ $('rememberEmailLabel').hidden=update;$('recoveryHelp').hidden=!reset;
+ $('passwordField').hidden=reset;$('password').required=!reset;$('password').disabled=reset;$('password').minLength=next==='login'?6:12;$('confirmPassword').minLength=12;
  $('password').autocomplete=next==='login'?'current-password':'new-password';
  $('confirmField').hidden=!update;$('confirmPassword').required=update;
  document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===next));
@@ -203,6 +211,7 @@ function resetPasswordVisibility(){
  });
 }
 function clearSession(){
+ closeLeadDetails(false);
  loadVersion++;session=null;profile=null;data=emptyData();failures={};page='dashboard';pageIndex=0;workspace=SELLER;workspaceIdentity=null;loading=false;dataSource='live';sourceIdentity=null;demoData=null;executiveFilter='';executiveOwner='';editTable=null;editId=null;editingVersion=null;
  $('fields').replaceChildren();$('sellerSummary').replaceChildren();$('navigation').replaceChildren();$('workspaceControls').hidden=true;
  if($('editor').open)$('editor').close();$('appView').hidden=true;$('authView').hidden=false;$('dashboard').replaceChildren();$('recordList').replaceChildren();
@@ -241,7 +250,7 @@ async function reload(){
  data=scopeWorkspaceData(realOnly(data),profile,userId,workspace);
  render();const bad=Object.keys(failures);notice(bad.length?'No se pudo cargar: '+bad.map(k=>modules[k]?.label||k).join(', ')+'. Pulsa Actualizar para reintentar.':'',!!bad.length);
  }catch(error){if(version===loadVersion){profile=null;data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice(errorText(error),true);}}
- finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;render();}}
+ finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;render();applyEntryRoute();}}
 }
 function applyTheme(theme,persist=false){
  const night=theme==='night';document.documentElement.dataset.theme=night?'night':'day';
@@ -259,6 +268,7 @@ function navigate(next){
  if(busy||$('editor').open)return;
  if(!accessible(next))next=canViewDashboard()?'dashboard':'leads';
  page=next;pageIndex=0;executiveFilter='';executiveOwner='';$('search').value='';
+ rememberPage();
  const config=modules[page];$('filter').dataset.page=page;
  $('filter').innerHTML='<option value="">Todos los estados / tipos</option>'+Object.entries(config?.options||{}).map(([key,value])=>'<option value="'+key+'">'+value+'</option>').join('');
  render();
@@ -347,7 +357,7 @@ function renderRecords(){
   const actionLabel=canEdit?'Editar':'Ver';
   const rowName=page==='catalog_products'?catalogDisplayName(row):nameOf(row)||('Meta '+row.period_start);
   const subline=isGoals?(row.period_start+' → '+row.period_end):isExpenses?(row.currency||'PEN'):(row.email||row.next_action||row.job_title||row.category||row.notes||'');
-  return '<tr><td><strong>'+esc(rowName)+'</strong><small>'+esc(subline)+'</small></td><td>'+secondCell+'</td><td>'+stateCell+'</td><td>'+detail+'</td>'+(page==='leads'?'<td>'+scoreCell(row)+'</td>':'')+'<td><div class="row-actions"><button data-edit="'+row.id+'" data-table="'+page+'">'+actionLabel+'</button>'+(page==='leads'&&writable()?'<button data-activity-lead="'+row.id+'">Registrar interacción</button>':'')+(!isUsers&&canDelete()?'<button class="danger-text" data-delete="'+row.id+'" data-table="'+page+'">Eliminar</button>':'')+'</div></td></tr>';
+  return '<tr><td><strong>'+esc(rowName)+'</strong><small>'+esc(subline)+'</small></td><td>'+secondCell+'</td><td>'+stateCell+'</td><td>'+detail+'</td>'+(page==='leads'?'<td>'+scoreCell(row)+'</td>':'')+'<td><div class="row-actions">'+(page==='leads'?'<button data-lead-detail="'+row.id+'">Ver solicitud</button>':'')+'<button data-edit="'+row.id+'" data-table="'+page+'">'+actionLabel+'</button>'+(page==='leads'&&writable()?'<button data-activity-lead="'+row.id+'">Registrar interacción</button>':'')+(!isUsers&&canDelete()?'<button class="danger-text" data-delete="'+row.id+'" data-table="'+page+'">Eliminar</button>':'')+'</div></td></tr>';
  }).join('');
  $('recordList').innerHTML=failures[page]?'<div class="panel empty">No pudimos cargar estos registros. Pulsa Actualizar.</div>':!rows.length?`<div class="panel empty">${$('search').value||$('filter').value?'No hay coincidencias. Cambia la búsqueda o el filtro.':'Aún no hay registros. Crea el primero con el botón superior.'}</div>`:`<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>${secondHeader}</th><th>Estado / tipo</th><th>${detailHeader}</th>${page==='leads'?'<th>Potencial</th>':''}<th>Acción</th></tr></thead><tbody>${rowsMarkup}</tbody></table></div>`;
 }
@@ -525,15 +535,19 @@ async function authenticate(event){
  if(mode==='reset'){
  if(Date.now()<resetCooldownUntil){$('authMsg').textContent='Espera unos segundos antes de solicitar otro enlace.';return;}
  result=await sb.auth.resetPasswordForEmail(email,{redirectTo:authRedirectUrl()});if(result.error)throw result.error;
- startResetCooldown(60);$('authMsg').textContent='Si el correo tiene una cuenta, recibirás un enlace. Revisa también la carpeta de spam.';return;
+ rememberEmailChoice();startResetCooldown(60);$('authMsg').textContent='Si el correo tiene una cuenta, recibirás un enlace. Revisa también la carpeta de spam. Si el enlace abre una versión de pruebas, utiliza la opción de recuperación alternativa de abajo.';return;
  }
  if(mode==='update'){
  if(password!==$('confirmPassword').value){$('authMsg').textContent='Las contraseñas no coinciden.';return;}
+ if(password.length<12){$('authMsg').textContent='Usa al menos 12 caracteres.';return;}
+ const verified=await sb.auth.getUser();if(verified.error||!session||verified.data.user?.id!==session.user.id)throw {code:'invalid_token'};
  result=await sb.auth.updateUser({password});if(result.error)throw result.error;
- recovery=false;history.replaceState(null,'',location.pathname);$('authForm').reset();await sb.auth.signOut();clearSession();setMode('login');$('authMsg').textContent='Contraseña actualizada. Ya puedes ingresar.';return;
+ setRecovery(false);history.replaceState(null,'',location.pathname);$('authForm').reset();await sb.auth.signOut({scope:'local'});clearSession();setMode('login');$('email').value=email;$('authMsg').textContent='Contraseña actualizada. Ingresa y guárdala en el gestor del navegador cuando te lo ofrezca.';return;
  }
  result=mode==='login'?await sb.auth.signInWithPassword({email,password}):await sb.auth.signUp({email,password,options:{emailRedirectTo:authRedirectUrl()}});
  if(result.error)throw result.error;
+ rememberEmailChoice();
+ if(mode==='login'&&result.data?.session){setRecovery(false);handleAuth('SIGNED_IN',result.data.session);}
  $('authMsg').textContent=mode==='signup'?'Si el registro procede, recibirás un correo de confirmación. Después, un administrador debe vincular tu cuenta.':'';
  }catch(error){if(mode==='reset'&&(error?.status===429||error?.code==='over_email_send_rate_limit'))startResetCooldown(60);$('authMsg').className='error';$('authMsg').textContent=errorText(error);}
  finally{$('authBtn').disabled=mode==='reset'&&Date.now()<resetCooldownUntil;}
@@ -544,15 +558,70 @@ function startResetCooldown(seconds){
  update();resetCooldownTimer=setInterval(update,1000);
 }
 function handleAuth(event,current){
- if(event==='PASSWORD_RECOVERY'){clearSession();session=current;recovery=true;setMode('update');return;}
- if(!current){recovery=false;clearSession();return;}
- if(recovery)return;
+ if(event==='PASSWORD_RECOVERY'){clearSession();session=current;setRecovery(true);setMode('update');return;}
+ if(!current){setRecovery(false);clearSession();return;}
+ if(recovery){clearSession();session=current;setMode('update');return;}
  if(session?.user.id===current.user.id){session=current;return;}
  clearSession();session=current;$('authView').hidden=true;$('appView').hidden=false;
  // Run data requests outside the auth callback lock.
  setTimeout(()=>{if(session?.user.id===current.user.id&&!recovery)reload();},0);
 }
+
+// Production integration: no passwords, tokens or customer records are stored here.
+function restoreRememberedEmail(previous=''){
+ let remembered='';try{remembered=localStorage.getItem(REMEMBER_EMAIL_KEY)||'';}catch(_error){}
+ $('email').value=previous||remembered;$('rememberEmail').checked=!!remembered;
+}
+function rememberEmailChoice(){
+ try{if($('rememberEmail').checked)localStorage.setItem(REMEMBER_EMAIL_KEY,$('email').value.trim());else localStorage.removeItem(REMEMBER_EMAIL_KEY);}catch(_error){}
+}
+function setRecovery(value){
+ recovery=value;try{if(value)sessionStorage.setItem(RECOVERY_KEY,'1');else sessionStorage.removeItem(RECOVERY_KEY);}catch(_error){}
+}
+function readEntryRoute(){
+ const query=new URLSearchParams(location.search||''),hash=new URLSearchParams((location.hash||'').slice(1));
+ const lead=query.get('lead');
+ return {page:hash.get('page'),lead:/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lead||'')?lead:null};
+}
+function rememberPage(lead=null){
+ if(!profile||recovery)return;
+ const query=new URLSearchParams(location.search||'');query.delete('lead');
+ if(lead)query.set('lead',lead);
+ history.replaceState(null,'',location.pathname+(query.size?'?'+query.toString():'')+'#page='+page);
+}
+function applyEntryRoute(){
+ if(!entryRoute||!profile||loading||recovery)return;
+ const route=entryRoute;entryRoute=null;
+ if(route.lead){
+  navigate('leads');
+  if(scopedRows('leads').some(row=>row.id===route.lead))openLeadDetails(route.lead);
+  else notice('No se encontró esa solicitud en tu cartera visible. Revisa el modo de trabajo y pulsa Actualizar.',true);
+ }else if(route.page)navigate(route.page);
+}
+function closeLeadDetails(updateRoute=true){
+ if($('leadDetailDialog').open)$('leadDetailDialog').close();
+ $('leadDetailContent').replaceChildren();
+ if(updateRoute)rememberPage();
+}
+function openLeadDetails(id){
+ if(loading||busy||!profile)return;
+ const lead=scopedRows('leads').find(row=>row.id===id);if(!lead)return;
+ const contact=(data.contacts||[]).find(row=>row.id===lead.contact_id);
+ const institution=(data.institutions||[]).find(row=>row.id===lead.institution_id);
+ const activities=(data.activities||[]).filter(row=>row.lead_id===id).sort((a,b)=>String(b.occurred_at||'').localeCompare(String(a.occurred_at||'')));
+ const tasks=(data.tasks||[]).filter(row=>row.lead_id===id);
+ const field=(label,value)=>'<div class="lead-detail-row"><dt>'+esc(label)+'</dt><dd>'+esc(value||'Sin registrar')+'</dd></div>';
+ $('leadDetailTitle').textContent=lead.title||'Solicitud comercial';
+ $('leadDetailContent').innerHTML='<p class="muted">'+(dataSource==='demo'?'Demostración, sin datos reales.':'Registro real · vista de consulta, sin modificaciones automáticas.')+'</p><dl>'+field('Estado',enums.status[lead.status]||lead.status)+field('Institución',institution?.name||'Pendiente de vincular')+field('Contacto',contact?nameOf(contact):'Pendiente de vincular')+(contact?field('Correo',contact.email)+field('Teléfono',contact.phone):'')+field('Origen',lead.source)+field('Próxima acción',lead.next_action)+field('Fecha de seguimiento',date(lead.next_action_date))+'</dl><h3>Solicitud e interacciones registradas</h3>'+(activities.length?activities.map(row=>'<article class="lead-note"><h4>'+esc(row.subject||enums.activityType[row.type]||'Interacción')+'</h4><small>'+esc(date(row.occurred_at))+'</small><p>'+esc(row.notes||row.need_summary||'Sin notas adicionales')+'</p></article>').join(''):'<p class="muted">Todavía no hay interacciones vinculadas a este prospecto.</p>')+'<h3>Tareas vinculadas</h3>'+(tasks.length?tasks.map(row=>'<article class="lead-note"><strong>'+esc(row.title)+'</strong><p>'+esc(enums.taskStatus[row.status]||row.status)+' · '+esc(date(row.due_at))+'</p></article>').join(''):'<p class="muted">Sin tareas vinculadas.</p>');
+ rememberPage(id);$('leadDetailDialog').showModal();
+}
+
 function init(){
+ restoreRememberedEmail();
+ try{recovery=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery'||sessionStorage.getItem(RECOVERY_KEY)==='1';}catch(_error){}
+ $('rememberEmail').onchange=()=>{if(!$('rememberEmail').checked){try{localStorage.removeItem(REMEMBER_EMAIL_KEY);}catch(_error){}}};
+ $('closeLeadDetail').onclick=()=>closeLeadDetails();
+ $('leadDetailDialog').addEventListener('close',()=>{$('leadDetailContent').replaceChildren();rememberPage();});
  initTheme();
  initSidebar();
  $('fields').addEventListener('input',updateQuotePreview);
@@ -565,8 +634,8 @@ function init(){
  $('dateLabel').textContent=new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long'});
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  $('sidebarToggle').onclick=()=>applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.activityLead){openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
- $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();recovery=false;}setMode('login');};
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.activityLead){openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
+ $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
  $('search').oninput=$('filter').onchange=()=>{pageIndex=0;renderRecords();};
@@ -575,9 +644,10 @@ function init(){
  $('logoutBtn').onclick=async()=>{const {error}=await sb.auth.signOut();if(error){notice(errorText(error),true);return;}clearSession();setMode('login');};
  $('exportBtn').onclick=()=>{if(!accessible(page)||loading||busy||failures[page])return;const columns=fieldsFor(page).map(field=>({key:field.key,label:field.label}));const rows=filtered().map(row=>Object.fromEntries(columns.map(c=>{const field=modules[page].fields.find(f=>f.key===c.key);return [c.key,field.type==='relation'?relationName(c.key,row):costRateKeys.has(c.key)?Number(row[c.key])*100:field.options?.[row[c.key]]||row[c.key]];})));const url=URL.createObjectURL(new Blob([csv(rows,columns)],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`xicronix-${dataSource==='demo'?'SIMULADO-':''}${page}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
  if(!window.supabase){$('authMsg').textContent='No se pudo cargar el servicio de acceso. Comprueba tu conexión y recarga la página.';$('authBtn').disabled=true;return;}
- sb=window.supabase.createClient('https://qzfprdhmcaucqcdqgqiz.supabase.co','sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK');
+ sb=window.supabase.createClient('https://qzfprdhmcaucqcdqgqiz.supabase.co','sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
  sb.auth.onAuthStateChange(handleAuth);
- const params=new URLSearchParams(location.hash.slice(1));if(params.has('error')){$('authMsg').textContent='El enlace de acceso venció o no es válido. Solicita uno nuevo.';history.replaceState(null,'',location.pathname);}
+ const params=new URLSearchParams(location.hash.slice(1));if(params.has('error')){setRecovery(false);setMode('reset');$('authMsg').textContent='El enlace de acceso venció o no es válido. Solicita uno nuevo.';history.replaceState(null,'',location.pathname);}
+ if(typeof sb.auth.getSession==='function')sb.auth.getSession().then(({data,error})=>{if(!error)handleAuth('INITIAL_SESSION',data.session);}).catch(()=>{$('authMsg').textContent='No se pudo verificar la sesión. Recarga la página.';});
 }
 // Both the SDK's defer script and module execution finish before DOMContentLoaded.
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();

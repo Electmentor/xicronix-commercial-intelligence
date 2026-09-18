@@ -21,10 +21,10 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
   removeAttribute(k){delete this.attributes[k];}
   getAttribute(k){return this.attributes[k];}
   replaceChildren(){this._html='';this.textContent='';}
-  addEventListener(name,fn){this[name]=fn;}
+  addEventListener(name,fn){this._listeners??={};this._listeners[name]=fn;if(name!=="close")this[name]=fn;}
   insertAdjacentHTML(_where,value){this.innerHTML+=value;}
   showModal(){this.open=true;}
-  close(){this.open=false;}
+  close(){this.open=false;this._listeners?.close?.();}
   reset(){}
   click(){if(this.download)downloads.push({filename:this.download,url:this.href});}
   querySelectorAll(){return [];}
@@ -215,14 +215,18 @@ test('failed goal query is visible without breaking mode switching',async()=>{
  assert.equal(h.run('failures.goals'),undefined);
 });
 
-test('new ADMIN sees the complete demo by default without loading or creating real commercial records',async()=>{
+test('new ADMIN starts with actual records; demonstration is an explicit choice',async()=>{
  const h=harness('ADMIN',null,null);await h.boot();
+ assert.equal(h.run('dataSource'),'live');
+ assert.equal(h.run('data.leads.length'),2);
+ assert.match(h.nodes.get('sourceBadge').textContent,/DATOS REALES/);
+ assert.doesNotMatch(h.nodes.get('dashboard').innerHTML,/Valeria Torres|Camila Ríos/);
+ assert.equal(h.queries.some(query=>query.table==='leads'),true);
+ assert.equal(h.queries.some(query=>query.operation!=='select'),false);
+ await h.click('sourceToggle');
  assert.equal(h.run('dataSource'),'demo');
  assert.equal(h.run('data.users.length'),5);assert.equal(h.run('data.leads.length'),40);
- assert.ok(h.run('data.opportunities.length')>30);
- assert.match(h.nodes.get('dashboard').innerHTML,/Valeria Torres|Camila Ríos/);
  assert.match(h.nodes.get('sourceBadge').textContent,/DEMOSTRACIÓN/);
- assert.equal(h.queries.some(query=>query.table!=='profiles'),false);
 });
 test('demo save and import never issue Data API writes and survive refresh',async()=>{
  const h=harness('ADMIN',null,'demo');await h.boot();h.run('openEditor("institutions")');
@@ -351,3 +355,33 @@ test('financial export generates a downloadable CSV and blocks seller or partial
  h.run('failures={};');await h.click('sellerModeBtn');h.run('exportAnalytics()');assert.equal(h.downloads.length,1);
 });
 
+
+test('production uses one canonical recovery destination and keeps original session namespace',()=>{
+ const h=harness();
+ assert.equal(h.run('authRedirectUrl()'),'https://xicronix-commercial-intelligence.vercel.app/');
+ assert.match(html,/xicronix-release.*2026-09-18-v2.1/);
+ assert.doesNotMatch(source,/git-improvemen-2952f5/);
+ assert.doesNotMatch(html,/src=".*(?:auth-access|workspace-navigation)\.js/);
+});
+test('original web request and tasks are readable without modifying a prospect',async()=>{
+ const h=harness();h.db.activities[0].notes='<script>untrusted()</script> Solicitud de diagnóstico';
+ h.db.tasks[0].lead_id='own-lead';await h.boot();
+ h.run('navigate("leads");openLeadDetails("own-lead")');
+ assert.equal(h.nodes.get('leadDetailDialog').open,true);
+ assert.match(h.nodes.get('leadDetailContent').innerHTML,/Solicitud de diagnóstico/);
+ assert.match(h.nodes.get('leadDetailContent').innerHTML,/&lt;script&gt;/);
+ assert.doesNotMatch(h.nodes.get('leadDetailContent').innerHTML,/<script>/);
+ assert.match(h.nodes.get('leadDetailContent').innerHTML,/Tarea propia/);
+ assert.equal(h.queries.some(query=>query.operation!=='select'),false);
+ h.run('closeLeadDetails()');assert.equal(h.nodes.get('leadDetailDialog').open,false);
+});
+test('seller cannot open another owner request details',async()=>{
+ const h=harness('SALES');await h.boot();h.run('openLeadDetails("other-lead")');
+ assert.equal(h.nodes.get('leadDetailDialog').open,false);
+ assert.equal(h.nodes.get('complaintsLink').hidden,true);
+});
+test('complaints console is linked only for a real administrator workspace',async()=>{
+ const h=harness();await h.boot();assert.equal(h.nodes.get('complaintsLink').hidden,false);
+ await h.click('sourceToggle');assert.equal(h.nodes.get('complaintsLink').hidden,true);
+ await h.click('sourceToggle');await h.click('sellerModeBtn');assert.equal(h.nodes.get('complaintsLink').hidden,true);
+});
