@@ -5,3 +5,22 @@
 @media(min-width:701px) and (max-width:1099px){.sidebar-toggle{left:192px}}
 .app.sidebar-collapsed .sidebar-toggle{left:54px}
 @media(max-width:700px){.sidebar-bottom{flex-wrap:wrap;gap:10px}.sidebar-bottom .release-label{margin:0}.sidebar nav{overflow-y:hidden}.lead-detail-row{grid-template-columns:1fr;gap:5px}#leadDetailDialog{padding:18px}.auth-card{padding:24px 18px}.header-actions{flex-wrap:wrap}.sidebar-toggle,.app.sidebar-collapsed .sidebar-toggle{left:auto;right:12px}.sidebar .brand{padding-right:44px}#recordList table{min-width:900px}#recordList .row-actions{min-width:230px}.table-wrap{overscroll-behavior-x:contain}}
+
+/* V2.3 commercial core */
+#leadDetailDialog{width:min(1040px,calc(100% - 24px))}
+.lead-master-actions{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 18px}
+.lead-master-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:14px 0 20px}
+.lead-master-kpis article{border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+.lead-master-kpis small,.lead-master-kpis span{display:block;color:var(--muted);line-height:1.35}
+.lead-master-kpis strong{display:block;font-size:1.35rem;margin:5px 0;overflow-wrap:anywhere}
+.lead-master-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:start}
+.milestone-rail{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+.milestone-rail li{display:grid;grid-template-columns:54px minmax(0,1fr);gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px 12px;opacity:.66}
+.milestone-rail li.done{opacity:1}.milestone-rail li.current{outline:2px solid var(--viz-accent,#2f7de1);outline-offset:1px;opacity:1}
+.milestone-rail li span{font-weight:800}.milestone-rail li strong{font-size:.9rem}
+.movement-note-head{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.movement-note-head h4{margin:0}.milestone-evidence{font-weight:700}
+.movement-preview{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--viz-panel,transparent);line-height:1.5}
+.commercial-progress-head{display:grid;gap:3px;margin-bottom:5px}.commercial-progress-head small{white-space:normal}
+@media(max-width:820px){.lead-master-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.lead-master-grid{grid-template-columns:1fr}}
+@media(max-width:480px){.lead-master-kpis{grid-template-columns:1fr}.lead-master-actions>*{flex:1 1 100%}}
