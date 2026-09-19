@@ -53,6 +53,9 @@ function classifyRouting(input: { interest?: string | null; product?: string | n
   if (has("soporte", "falla", "garantía", "garantia", "mantenimiento", "postventa", "incidencia", "no funciona")) {
     return { area: "SUPPORT", reason: "Soporte, postventa o incidencia" };
   }
+  if (has("propuesta", "cotización", "cotizacion", "diagnóstico", "diagnostico", "presupuesto", "costo", "equipamiento", "comprar", "compra")) {
+    return { area: "COMMERCIAL", reason: "Solicitud de diagnóstico, propuesta, cotización o compra" };
+  }
   if (has("implementación", "implementacion", "instalación", "instalacion", "puesta en marcha", "proyecto en curso", "cronograma", "coordinación", "coordinacion")) {
     return { area: "PROJECTS", reason: "Implementación o coordinación de proyecto" };
   }
