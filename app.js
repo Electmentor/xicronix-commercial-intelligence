@@ -6,6 +6,7 @@ import {DEMO_VERSION, DEMO_SELLERS, createDemoData, upgradeDemoData, mutateDemo,
 import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs';
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
+import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs';
 
 const $ = id => document.getElementById(id);
 const enums = {
@@ -19,6 +20,7 @@ const enums = {
  activityType:{WEB_FORM:'Formulario web',CALL:'Llamada',WHATSAPP:'WhatsApp',EMAIL:'Correo',MEETING:'Reunión',VISIT:'Visita',DEMO:'Demostración',PROPOSAL_SENT:'Propuesta enviada',FOLLOW_UP:'Seguimiento',NOTE:'Nota',OTHER:'Otro'},
  leadSource:{WEBSITE:'Formulario web',EMAIL:'Correo',WHATSAPP:'WhatsApp',CALL:'Llamada',REFERRAL:'Referido',EVENT:'Evento',OTHER:'Otro'},
  activityOutcome:{INTERESTED:'Interesado',FOLLOW_UP:'Requiere seguimiento',NO_RESPONSE:'Sin respuesta',NOT_INTERESTED:'No interesado',QUALIFIED:'Calificado',DISQUALIFIED:'No califica'},
+ movementAction:MOVEMENT_ACTIONS,
  expenseCategory:{PERSONNEL:'Personal',MARKETING:'Marketing',OPERATIONS:'Operaciones',TECHNOLOGY:'Tecnología',OTHER:'Otros'}
 };
 const f=(key,label,type='text',required=false,options=null)=>({key,label,type,required,options});
@@ -41,7 +43,7 @@ const modules={
  leads:{label:'Prospectos',singular:'prospecto',filter:'status',options:enums.status,fields:[f('title','Título','text',true),institution,contact,f('source','Canal de origen','select',false,enums.leadSource),f('status','Estado','select',true,enums.status),f('estimated_value','Valor estimado (S/)','number'),f('score','Calificación manual (0–100)','number'),owner,...followUp]},
  opportunities:{label:'Oportunidades',singular:'oportunidad',filter:'stage',options:enums.stage,fields:[f('name','Nombre','text',true),institution,contact,catalogProduct,costProfile,quantity,discount,negotiatedPrice,f('stage','Etapa','select',true,enums.stage),f('value','Valor (S/)','number'),cost,owner,f('probability','Probabilidad manual (%)','number'),f('expected_close_date','Cierre esperado','date'),...followUp]},
  tasks:{label:'Tareas',singular:'tarea',filter:'status',options:enums.taskStatus,fields:[f('title','Título','text',true),f('lead_id','Prospecto','relation'),institution,contact,f('status','Estado','select',true,enums.taskStatus),f('priority','Prioridad','select',true,enums.priority),f('due_at','Fecha límite','datetime-local'),assignee]},
- activities:{label:'Interacciones',singular:'interacción',filter:'type',options:enums.activityType,fields:[f('lead_id','Prospecto','relation',true),institution,contact,f('type','Canal','select',true,enums.activityType),f('subject','Asunto','text',true),f('outcome','Resultado','select',false,enums.activityOutcome),f('need_summary','Necesidad detectada','textarea'),f('decision_timeline','Horizonte de decisión'),f('budget_signal','Señal de presupuesto'),f('notes','Notas','textarea'),f('occurred_at','Fecha y hora','datetime-local',true),f('next_action','Próxima acción'),f('next_action_date','Fecha de seguimiento','datetime-local')]},
+ activities:{label:'Movimientos',singular:'movimiento',filter:'action_code',options:MOVEMENT_ACTIONS,fields:[f('lead_id','Prospecto','relation',true),institution,contact,f('action_code','Acción realizada','select',false,MOVEMENT_ACTIONS),f('type','Canal','select',true,enums.activityType),f('subject','Asunto','text',true),f('outcome','Resultado','select',false,enums.activityOutcome),f('need_summary','Necesidad detectada','textarea'),f('decision_timeline','Horizonte de decisión'),f('budget_signal','Señal de presupuesto'),f('evidence_note','Evidencia / referencia','textarea'),f('notes','Notas','textarea'),f('occurred_at','Fecha y hora','datetime-local',true),f('next_action','Próxima acción'),f('next_action_date','Fecha de seguimiento','datetime-local')]},
  catalog_products:{label:'Catálogo',singular:'producto',filter:'category',options:{Fisica:'Física','Educacion STEM':'Educación STEM',Optica:'Óptica',Quimica:'Química',Robotica:'Robótica'},fields:[f('supplier_name','Proveedor','text',true),f('supplier_sku','SKU proveedor','text',true),f('name','Producto','text',true),f('category','Categoría','text',true),f('currency','Moneda','text',true),catalogPrice,f('price_valid_from','Vigencia desde','date'),f('price_valid_until','Vigencia hasta','date'),f('origin_country','País de origen','text',true),f('tariff_code','Subpartida peruana validada'),f('weight_kg','Peso (kg)','number'),f('volume_m3','Volumen (m³)','number'),f('reference_url','Referencia oficial','url'),f('active','Activo','checkbox'),f('notes','Fuente y condiciones','textarea')]},
  cost_profiles:{label:'Costos de importación',singular:'perfil de costos',filter:'destination_country',options:{Peru:'Perú'},fields:[f('name','Nombre','text',true),f('origin_country','Origen','text',true),f('destination_country','Destino','text',true),f('currency','Moneda','text',true),f('exchange_rate','Tipo de cambio','number',true),f('freight_international','Flete internacional','number'),f('insurance','Seguro','number'),f('ad_valorem_rate','Ad valorem (%)','number'),f('igv_rate','IGV (%)','number'),f('perception_rate','Percepción (%)','number'),f('customs_broker_fee','Agente de aduanas','number'),f('terminal_fee','Terminal','number'),f('storage_fee','Almacenaje','number'),f('inland_transport','Transporte interno','number'),f('installation_fee','Instalación','number'),f('contingency_rate','Contingencia (%)','number'),f('valid_from','Vigencia desde','date'),f('valid_until','Vigencia hasta','date'),f('notes','Notas','textarea')]},
  expenses:{label:'Gastos operativos',singular:'gasto operativo',filter:'category',options:enums.expenseCategory,fields:[f('description','Concepto','text',true),f('expense_date','Fecha del gasto','date',true),f('category','Categoría','select',true,enums.expenseCategory),f('amount','Importe (S/)','number',true),f('currency','Moneda','select',true,{PEN:'Soles (PEN)'}),f('notes','Notas','textarea')]},
@@ -51,7 +53,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-18-v2.2';
+const CRM_RELEASE='2026-09-18-v2.3';
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
 let entryRoute=readEntryRoute();
@@ -326,6 +328,12 @@ function renderSellerWorkspaceSummary(){
  return '<article class="seller-focus panel"><div><h2>Mi operación comercial</h2><p>Prioriza tus prospectos, registra cada interacción y trabaja la próxima acción sugerida.</p></div><div class="seller-focus-metrics"><span><b>'+active+'</b><small>Leads activos</small></span><span><b>'+high+'</b><small>Potencial alto</small></span><span><b>'+due+'</b><small>Seguimientos próximos</small></span></div></article>';
 }
 function filtered(){const config=modules[page];const rows=filterRecords(filterExecutiveRows(scopedRows(page),page,executiveFilter,executiveOwner),$('search').value,config.filter,$('filter').value,row=>[relatedName(row),row.supplier_sku,row.supplier_name].filter(Boolean).join(' '));return page==='expenses'?rows.slice().sort((a,b)=>String(b.expense_date||'').localeCompare(String(a.expense_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||''))):rows;}
+function maturityCell(row){
+ const score=(data.scores||[]).find(item=>item.lead_id===row.id);
+ const potential=score?Math.max(0,Math.min(100,Number(score.total_score)||0)):null;
+ const maturity=Math.max(0,Math.min(100,Number(row.maturity_percent)||0));
+ return '<div class="score-cell commercial-progress" aria-label="Madurez '+maturity+'%"><div class="commercial-progress-head"><strong>Madurez '+maturity+'%</strong><small>'+esc(milestoneLabel(row.commercial_milestone))+'</small></div><div class="score-track"><i style="width:'+maturity+'%"></i></div><small>Potencial calculado: '+(potential===null?'pendiente':potential+'%')+'</small></div>';
+}
 function scoreCell(row){
  const score=(data.scores||[]).find(item=>item.lead_id===row.id);
  const value=score?Math.max(0,Math.min(100,Number(score.total_score)||0)):0;
@@ -336,7 +344,23 @@ function scoreCell(row){
 }
 function openActivityForLead(leadId){
  const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
- openEditor('activities',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',type:'',subject:'',outcome:'',occurred_at:new Date().toISOString()});
+ openEditor('activities',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',action_code:'',type:'',subject:'',outcome:'',occurred_at:new Date().toISOString()});
+}
+function openTaskForLead(leadId){
+ const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
+ closeLeadDetails(false);
+ openEditor('tasks',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',title:'',status:'PENDING',priority:'MEDIUM'});
+}
+function updateMovementPreview(){
+ if(editTable!=='activities')return;
+ const target=$('movementPreview'),action=$('field-action_code')?.value||'';
+ if(target)target.textContent=action?movementMilestoneHelp(action):'Selecciona la acción que realmente ocurrió. Solo los hitos definidos modifican la madurez comercial.';
+}
+function applyLocalMovementMilestone(payload){
+ const code=ACTION_MILESTONE[payload.action_code],meta=code&&MILESTONE_META[code];if(!meta||!payload.lead_id)return;
+ const lead=demoData?.leads?.find(row=>row.id===payload.lead_id);if(!lead)return;
+ const current=milestonePercent(lead.commercial_milestone);
+ if(current<meta.percent){lead.commercial_milestone=code;lead.maturity_percent=meta.percent;lead.milestone_updated_at=payload.occurred_at||new Date().toISOString();}
 }
 function renderRecords(){
  const isUsers=page==='users',isGoals=page==='goals',isExpenses=page==='expenses';
@@ -358,9 +382,9 @@ function renderRecords(){
   const actionLabel=canEdit?'Editar':'Ver';
   const rowName=page==='catalog_products'?catalogDisplayName(row):nameOf(row)||('Meta '+row.period_start);
   const subline=isGoals?(row.period_start+' → '+row.period_end):isExpenses?(row.currency||'PEN'):(row.email||row.next_action||row.job_title||row.category||row.notes||'');
-  return '<tr><td><strong>'+esc(rowName)+'</strong><small>'+esc(subline)+'</small></td><td>'+secondCell+'</td><td>'+stateCell+'</td><td>'+detail+'</td>'+(page==='leads'?'<td>'+scoreCell(row)+'</td>':'')+'<td><div class="row-actions">'+(page==='leads'?'<button data-lead-detail="'+row.id+'">Ver solicitud</button>':'')+'<button data-edit="'+row.id+'" data-table="'+page+'">'+actionLabel+'</button>'+(page==='leads'&&writable()?'<button data-activity-lead="'+row.id+'">Registrar interacción</button>':'')+(!isUsers&&canDelete()?'<button class="danger-text" data-delete="'+row.id+'" data-table="'+page+'">Eliminar</button>':'')+'</div></td></tr>';
+  return '<tr><td><strong>'+esc(rowName)+'</strong><small>'+esc(subline)+'</small></td><td>'+secondCell+'</td><td>'+stateCell+'</td><td>'+detail+'</td>'+(page==='leads'?'<td>'+maturityCell(row)+'</td>':'')+'<td><div class="row-actions">'+(page==='leads'?'<button data-lead-detail="'+row.id+'">Ver solicitud</button>':'')+'<button data-edit="'+row.id+'" data-table="'+page+'">'+actionLabel+'</button>'+(page==='leads'&&writable()?'<button data-activity-lead="'+row.id+'">Registrar movimiento</button>':'')+(!isUsers&&canDelete()?'<button class="danger-text" data-delete="'+row.id+'" data-table="'+page+'">Eliminar</button>':'')+'</div></td></tr>';
  }).join('');
- $('recordList').innerHTML=failures[page]?'<div class="panel empty">No pudimos cargar estos registros. Pulsa Actualizar.</div>':!rows.length?`<div class="panel empty">${$('search').value||$('filter').value?'No hay coincidencias. Cambia la búsqueda o el filtro.':'Aún no hay registros. Crea el primero con el botón superior.'}</div>`:`<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>${secondHeader}</th><th>Estado / tipo</th><th>${detailHeader}</th>${page==='leads'?'<th>Potencial</th>':''}<th>Acción</th></tr></thead><tbody>${rowsMarkup}</tbody></table></div>`;
+ $('recordList').innerHTML=failures[page]?'<div class="panel empty">No pudimos cargar estos registros. Pulsa Actualizar.</div>':!rows.length?`<div class="panel empty">${$('search').value||$('filter').value?'No hay coincidencias. Cambia la búsqueda o el filtro.':'Aún no hay registros. Crea el primero con el botón superior.'}</div>`:`<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>${secondHeader}</th><th>Estado / tipo</th><th>${detailHeader}</th>${page==='leads'?'<th>Madurez / potencial</th>':''}<th>Acción</th></tr></thead><tbody>${rowsMarkup}</tbody></table></div>`;
 }
 function localDateTime(value){if(!value)return '';const d=new Date(value);if(!Number.isFinite(d.getTime()))return '';return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);}
 function importValue(source,field){
@@ -501,7 +525,7 @@ function openEditor(table,id=null,initialValues={}){
  if(dependencies.some(k=>failures[k])){notice('Actualiza los módulos vinculados antes de abrir este formulario para conservar las relaciones del registro.',true);return;}
  const row=id?scopedRows(table).find(r=>r.id===id):{owner_user_id:table==='goals'?null:currentActor(),assigned_to:currentActor(),...(table==='expenses'?{expense_date:localDay(new Date()),currency:'PEN',category:'OPERATIONS'}:{}),...initialValues};if(!row)return;
  editTable=table;editId=id;editingVersion=row.updated_at||null;
- $('editorTitle').textContent=`${id?(writableFor(table)?'Editar':'Ver'):'Crear'} ${modules[table].singular}`;$('formMsg').textContent='';
+ $('editorTitle').textContent=table==='activities'&&!id?'Registrar movimiento':`${id?(writableFor(table)?'Editar':'Ver'):'Crear'} ${modules[table].singular}`;$('formMsg').textContent='';
  $('fields').innerHTML=fieldsFor(table).map(field=>{
  let value=row[field.key]??({country:'Peru',type:table==='activities'?'':'OTHER',priority:'MEDIUM',score:0,value:0,estimated_value:0,estimated_cost:'',probability:10,target_margin:0,target_won_value:0,active:true,quantity:1,discount_pct:0,negotiated_unit_price:''}[field.key]??'');if(field.type==='datetime-local')value=localDateTime(value);if(costRateKeys.has(field.key)&&value!=='')value=Number(value)*100;
  let options=field.options;if(field.type==='relation')options=Object.fromEntries(editorRelationRows(field.key,row).map(r=>[r.id,nameOf(r)]));
@@ -529,7 +553,10 @@ function openEditor(table,id=null,initialValues={}){
   $('fields').insertAdjacentHTML('beforeend','<section class="score-insight full" aria-live="polite"><div class="score-insight-head"><strong>'+scoreLabel+'</strong><b>'+(leadScore?scoreValue+'%':'Pendiente')+'</b></div><div class="score-track"><i style="width:'+scoreValue+'%"></i></div><p>'+esc(scoreRecommendation)+'</p><small>Motor explicable v1 · Fuente: '+(esc(leadScore?.recommendation_source||'RULES_V1'))+(row.status==='CONVERTED'?' · La conversión no reinicia este histórico':'')+'</small></section>');
  }
  if(['leads','activities','opportunities','tasks'].includes(table))$('fields').insertAdjacentHTML('beforeend','<p id="relationHelp" class="full muted" role="status">Institución y contacto deben corresponder entre sí. Al cambiar de institución se actualiza la lista de contactos.</p>');
- if(table==='activities')$('fields').insertAdjacentHTML('beforeend','<p class="full muted">Registra únicamente una interacción que haya ocurrido. La solicitud inicial del formulario ya figura en el historial; no es una llamada ni una propuesta enviada. La próxima acción con fecha genera una tarea interna, no envía mensajes.</p>');
+ if(table==='activities'){
+  $('fields').insertAdjacentHTML('beforeend','<section id="movementPreview" class="movement-preview full" aria-live="polite"></section><p class="full muted">Registra únicamente un movimiento que realmente ocurrió. Acción, canal y resultado son datos distintos. La próxima acción con fecha genera una tarea interna; no envía mensajes ni invitaciones.</p>');
+  updateMovementPreview();
+ }
  if(fieldsFor(table).some(f=>f.type==='datetime-local'))$('fields').insertAdjacentHTML('beforeend','<p class="full muted">Las fechas y horas se muestran en la zona horaria de este navegador y se guardan como instantes UTC.</p>');
  $('saveBtn').hidden=!writableFor(table);$('saveBtn').disabled=false;$('editor').showModal();
 }
@@ -570,12 +597,13 @@ async function saveRecord(event){
  if(editTable==='goals'&&payload.period_start>payload.period_end){$('formMsg').textContent='El fin del periodo debe ser posterior o igual al inicio.';return;}
  if(editTable==='expenses'&&payload.currency!=='PEN'){$('formMsg').textContent='Registra los gastos en soles (PEN).';return;}
  const relationshipError=editorRelationshipError(payload);if(relationshipError){$('formMsg').textContent=relationshipError;return;}
+ if(editTable==='activities'&&!editId&&!payload.action_code){$('formMsg').textContent='Selecciona la acción realizada antes de guardar el movimiento.';return;}
  if(editTable==='activities'&&Boolean(payload.next_action)!==Boolean(payload.next_action_date)){$('formMsg').textContent='Para programar el seguimiento, completa la próxima acción y su fecha, o deja ambos campos vacíos.';return;}
  busy=true;$('saveBtn').disabled=true;$('formMsg').textContent='Guardando…';
  const table=editTable,id=editId,org=profile.organization_id,userId=session.user.id,version=loadVersion;
  try{
  if(dataSource==='demo'){
-  mutateDemo(demoData,table,id?'update':'insert',payload,{id,userId:currentActor(),org});persistDemo();loadDemo();$('editor').close();render();notice(demoSavedMessage());return;
+  mutateDemo(demoData,table,id?'update':'insert',payload,{id,userId:currentActor(),org});if(table==='activities')applyLocalMovementMilestone(payload);persistDemo();loadDemo();$('editor').close();render();notice(demoSavedMessage());return;
  }
  let query;if(id){if(table!=='users'&&table!=='activities'){payload.updated_at=new Date().toISOString();}query=sb.from(databaseTable(table)).update(payload).eq('id',id).eq('organization_id',org);if(table!=='users'&&table!=='activities'&&editingVersion)query=query.eq('updated_at',editingVersion);}
  else if(table!=='users')query=sb.from(databaseTable(table)).insert({...payload,organization_id:org,created_by:userId});else throw {code:'42501'};
@@ -666,10 +694,17 @@ function openLeadDetails(id){
  const contact=(data.contacts||[]).find(row=>row.id===lead.contact_id);
  const institution=(data.institutions||[]).find(row=>row.id===lead.institution_id);
  const activities=(data.activities||[]).filter(row=>row.lead_id===id).sort((a,b)=>String(b.occurred_at||'').localeCompare(String(a.occurred_at||'')));
- const tasks=(data.tasks||[]).filter(row=>row.lead_id===id);
+ const tasks=(data.tasks||[]).filter(row=>row.lead_id===id).sort((a,b)=>String(a.due_at||'9999').localeCompare(String(b.due_at||'9999')));
+ const pending=tasks.filter(row=>!['COMPLETED','CANCELLED'].includes(row.status));
+ const score=(data.scores||[]).find(row=>row.lead_id===id);
+ const potential=score?Math.max(0,Math.min(100,Number(score.total_score)||0)):null;
+ const maturity=Math.max(0,Math.min(100,Number(lead.maturity_percent)||0));
+ const need=activities.find(row=>row.need_summary)?.need_summary||'Pendiente de precisar';
+ const budget=Number(lead.estimated_value)>0?money(lead.estimated_value):'Sin definir';
  const field=(label,value)=>'<div class="lead-detail-row"><dt>'+esc(label)+'</dt><dd>'+esc(value||'Sin registrar')+'</dd></div>';
- $('leadDetailTitle').textContent=lead.title||'Solicitud comercial';
- $('leadDetailContent').innerHTML='<p class="muted">'+(dataSource==='demo'?'Demostración, sin datos reales.':'Registro real · vista de consulta, sin modificaciones automáticas.')+'</p><dl>'+field('Estado',enums.status[lead.status]||lead.status)+field('Institución',institution?.name||'Pendiente de vincular')+field('Contacto',contact?nameOf(contact):'Pendiente de vincular')+(contact?field('Correo',contact.email)+field('Teléfono',contact.phone):'')+field('Canal de origen',enums.leadSource[lead.source]||lead.source)+field('Próxima acción',lead.next_action)+field('Fecha de seguimiento',date(lead.next_action_date))+'</dl><h3>Solicitud e interacciones registradas</h3>'+(activities.length?activities.map(row=>'<article class="lead-note"><h4>'+esc(row.subject||enums.activityType[row.type]||'Interacción')+'</h4><small>'+esc(enums.activityType[row.type]||row.type)+' · '+esc(date(row.occurred_at))+'</small><p>'+esc(row.notes||row.need_summary||'Sin notas adicionales')+'</p>'+(writableFor('activities')?'<button type="button" data-edit-activity="'+row.id+'">Editar interacción</button>':'')+'</article>').join(''):'<p class="muted">Todavía no hay interacciones vinculadas a este prospecto.</p>')+'<h3>Tareas vinculadas</h3>'+(tasks.length?tasks.map(row=>'<article class="lead-note"><strong>'+esc(row.title)+'</strong><p>'+esc(enums.taskStatus[row.status]||row.status)+' · '+esc(date(row.due_at))+'</p></article>').join(''):'<p class="muted">Sin tareas vinculadas.</p>');
+ const buttons=writableFor('leads')?'<div class="lead-master-actions"><button type="button" data-edit-lead="'+lead.id+'">Editar prospecto</button><button type="button" class="primary" data-activity-lead="'+lead.id+'">Registrar movimiento</button><button type="button" data-create-task-lead="'+lead.id+'">Crear tarea</button></div>':'';
+ $('leadDetailTitle').textContent=(institution?.name||lead.title||'Prospecto')+' · Resumen';
+ $('leadDetailContent').innerHTML='<section class="lead-master"><p class="muted">'+(dataSource==='demo'?'Demostración, sin datos reales.':'Expediente comercial real · movimientos y evidencias conservan su fecha de ocurrencia y registro.')+'</p>'+buttons+'<div class="lead-master-kpis"><article><small>Madurez comercial</small><strong>'+maturity+'%</strong><span>'+esc(milestoneLabel(lead.commercial_milestone))+'</span></article><article><small>Potencial calculado</small><strong>'+(potential===null?'—':potential+'%')+'</strong><span>Indicador separado de la madurez</span></article><article><small>Presupuesto estimado</small><strong>'+esc(budget)+'</strong><span>Pagos se controlarán en su módulo financiero</span></article><article><small>Tareas pendientes</small><strong>'+pending.length+'</strong><span>'+(pending[0]?.due_at?'Próxima: '+esc(date(pending[0].due_at)):'Sin vencimiento próximo')+'</span></article></div><div class="lead-master-grid"><section><h3>Ficha maestra</h3><dl>'+field('Estado',enums.status[lead.status]||lead.status)+field('Institución',institution?.name||'Pendiente de vincular')+field('Contacto',contact?nameOf(contact):'Pendiente de vincular')+(contact?field('Cargo',contact.job_title)+field('Correo',contact.email)+field('Teléfono',contact.phone):'')+field('Necesidad',need)+field('Canal de origen',enums.leadSource[lead.source]||lead.source)+field('Próxima acción',lead.next_action)+field('Fecha de seguimiento',date(lead.next_action_date))+'</dl></section><section><h3>Hitos comerciales</h3><ol class="milestone-rail">'+renderMilestoneRail(lead.commercial_milestone,esc)+'</ol><p class="muted">El porcentaje solo avanza por acciones que acreditan un hito; más correos o llamadas no lo incrementan por sí solos.</p></section></div><section><h3>Movimientos registrados</h3>'+(activities.length?activities.map(row=>'<article class="lead-note"><div class="movement-note-head"><h4>'+esc(row.subject||MOVEMENT_ACTIONS[row.action_code]||enums.activityType[row.type]||'Movimiento')+'</h4>'+(row.action_code?'<span class="badge">'+esc(MOVEMENT_ACTIONS[row.action_code]||row.action_code)+'</span>':'')+'</div><small>'+esc(enums.activityType[row.type]||row.type)+' · ocurrió '+esc(date(row.occurred_at))+' · registrado '+esc(date(row.created_at))+'</small><p>'+esc(row.notes||row.need_summary||'Sin notas adicionales')+'</p>'+(row.evidence_note?'<p><strong>Evidencia:</strong> '+esc(row.evidence_note)+'</p>':'')+(row.milestone_after?'<p class="milestone-evidence">Hito acreditado: '+esc(milestoneLabel(row.milestone_after))+' · '+Number(row.maturity_after||0)+'%</p>':'')+(writableFor('activities')?'<button type="button" data-edit-activity="'+row.id+'">Editar movimiento</button>':'')+'</article>').join(''):'<p class="muted">Todavía no hay movimientos vinculados a este prospecto.</p>')+'</section><section><h3>Tareas vinculadas</h3>'+(tasks.length?tasks.map(row=>'<article class="lead-note"><strong>'+esc(row.title)+'</strong><p>'+esc(enums.taskStatus[row.status]||row.status)+' · '+esc(enums.priority[row.priority]||row.priority)+' · '+esc(date(row.due_at))+'</p></article>').join(''):'<p class="muted">Sin tareas vinculadas.</p>')+'</section></section>';
  rememberPage(id);$('leadDetailDialog').showModal();
 }
 
@@ -682,7 +717,7 @@ function init(){
  initTheme();
  initSidebar();
  $('fields').addEventListener('input',updateQuotePreview);
- $('fields').addEventListener('change',event=>{syncEditorRelations(event.target?.name);updateQuotePreview();});
+ $('fields').addEventListener('change',event=>{syncEditorRelations(event.target?.name);updateQuotePreview();updateMovementPreview();});
  $('adminModeBtn').onclick=()=>setWorkspace(ADMIN);$('sellerModeBtn').onclick=()=>setWorkspace(SELLER);renderWorkspaceControls();
  $('sourceToggle').onclick=()=>setDataSource(dataSource==='demo'?'live':'demo');$('resetDemoBtn').onclick=resetDemo;$('demoSeller').onchange=selectDemoSeller;
  $('clearRecordContext').onclick=()=>{executiveFilter='';executiveOwner='';renderRecords();};
@@ -691,7 +726,7 @@ function init(){
  $('dateLabel').textContent=new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long'});
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  $('sidebarToggle').onclick=()=>applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editActivity){closeLeadDetails();openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
