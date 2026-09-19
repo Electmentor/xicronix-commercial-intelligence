@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#081b32"><meta name="description" content="Xicronix: instituciones, contactos y seguimiento comercial.">
-<meta name="robots" content="noindex,nofollow"><meta name="xicronix-release" content="2026-09-18-v2.4">
+<meta name="robots" content="noindex,nofollow"><meta name="xicronix-release" content="2026-09-18-v2.5">
 <title>Xicronix V2 | Inteligencia comercial</title>
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="executive.css">
 <link rel="stylesheet" href="analytics.css">
-<link rel="stylesheet" href="production.css?v=20260918-v2.4">
+<link rel="stylesheet" href="production.css?v=20260918-v2.5">
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script type="module" src="app.js?v=20260918-v2.4"></script>
+<script type="module" src="app.js?v=20260918-v2.5"></script>
 </head>
 <body>
 <section id="authView" class="auth">
@@ -28,9 +28,9 @@
   <p class="auth-note">Una cuenta nueva necesita ser vinculada a tu organización por un administrador.</p></main>
 </section>
 <section id="appView" class="app" hidden>
-  <aside id="mainSidebar" class="sidebar"><div class="brand">XICRONIX<span>INTELIGENCIA COMERCIAL</span></div><p id="workspaceLabel" class="nav-label">ESPACIO COMERCIAL</p><nav id="navigation" aria-label="Navegación principal"></nav><div class="sidebar-bottom"><small class="release-label">V2.4 · 18 SEP 2026</small><a id="complaintsLink" class="complaints-link" href="complaints.html" hidden>Libro de Reclamaciones</a><span id="userRole"></span><button id="logoutBtn">Cerrar sesión</button></div></aside>
+  <aside id="mainSidebar" class="sidebar"><div class="brand">XICRONIX<span>INTELIGENCIA COMERCIAL</span></div><p id="workspaceLabel" class="nav-label">ESPACIO COMERCIAL</p><nav id="navigation" aria-label="Navegación principal"></nav><div class="sidebar-bottom"><small class="release-label">V2.5 · 18 SEP 2026</small><a id="complaintsLink" class="complaints-link" href="complaints.html" hidden>Libro de Reclamaciones</a><span id="userRole"></span><button id="logoutBtn">Cerrar sesión</button></div></aside>
   <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-expanded="true" aria-controls="mainSidebar" aria-label="Ocultar navegación" title="Ocultar navegación">‹</button>
-  <main class="main"><header class="top"><div><p class="eyebrow">XICRONIX / <span id="dateLabel"></span></p><h1 id="pageTitle">Resumen comercial</h1><p id="welcome"></p></div><div class="header-actions"><button id="themeToggle" type="button" aria-pressed="false" title="Cambiar contraste de la interfaz">🌙 Modo nocturno</button><button id="refreshBtn">Actualizar</button><button id="newBtn" class="primary">+ Nueva institución</button></div></header>
+  <main class="main"><header class="top"><div><p class="eyebrow">XICRONIX / <span id="dateLabel"></span></p><h1 id="pageTitle">Resumen comercial</h1><p id="welcome"></p></div><div class="header-actions"><button id="attentionBtn" type="button" class="attention-button" aria-haspopup="dialog" aria-controls="attentionDialog"><span>Atención</span><b id="attentionCount" aria-label="Solicitudes pendientes">0</b></button><button id="themeToggle" type="button" aria-pressed="false" title="Cambiar contraste de la interfaz">🌙 Modo nocturno</button><button id="refreshBtn">Actualizar</button><button id="newBtn" class="primary">+ Nueva institución</button></div></header>
   <section id="workspaceControls" class="workspace-controls" aria-label="Experiencia de trabajo" hidden>
     <div class="workspace-switch" role="group" aria-label="Seleccionar modo de trabajo" aria-describedby="workspaceHint">
       <button id="adminModeBtn" type="button" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10h4v10M10 20V4h4v16M16 20V7h4v13"/></svg>Modo administrador</button>
@@ -47,6 +47,7 @@
 </section>
 <dialog id="editor" aria-labelledby="editorTitle"><form id="recordForm"><header class="dialog-header"><h2 id="editorTitle"></h2><button type="button" id="closeEditor" aria-label="Cerrar formulario">✕</button></header><div id="fields" class="form-grid"></div><p id="formMsg" role="status"></p><footer><button type="button" id="cancelEditor">Cancelar</button><button class="primary" id="saveBtn">Guardar</button></footer></form></dialog>
 <dialog id="methodDialog" aria-labelledby="methodTitle"><h2 id="methodTitle">Cómo leer el tablero</h2><p id="methodText" class="method-text"></p><button id="closeMethod" type="button">Entendido</button></dialog>
+<dialog id="attentionDialog" aria-labelledby="attentionTitle"><header class="dialog-header"><div><p class="eyebrow">CENTRO DE ATENCIÓN</p><h2 id="attentionTitle">Solicitudes que requieren respuesta</h2></div><button id="closeAttention" type="button" aria-label="Cerrar centro de atención">Cerrar</button></header><div id="attentionContent"></div></dialog>
 <dialog id="leadDetailDialog" aria-labelledby="leadDetailTitle"><header class="dialog-header"><h2 id="leadDetailTitle">Solicitud comercial</h2><button id="closeLeadDetail" type="button" aria-label="Cerrar detalle">Cerrar</button></header><div id="leadDetailContent"></div></dialog>
 <noscript>Activa JavaScript para utilizar Xicronix.</noscript>
 </body></html>

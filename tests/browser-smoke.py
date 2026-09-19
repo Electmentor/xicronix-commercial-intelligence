@@ -35,7 +35,7 @@ with sync_playwright() as p:
  try:
   context,page=newpage();expect(page.locator('#workspaceControls')).to_be_visible()
   check('actual data is default',lambda:expect(page.locator('#sourceBadge')).to_have_text('DATOS REALES'))
-  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-18-v2.4'))
+  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-18-v2.5'))
   page.screenshot(path=str(out/'desktop-v2-fixture.png'),full_page=True)
   pages=['institutions','contacts','leads','opportunities','tasks','activities','catalog_products','cost_profiles','expenses','goals','users','dashboard']
   for target in pages:
@@ -43,6 +43,8 @@ with sync_playwright() as p:
    check('navigation '+target,lambda t=target:expect(page.locator('#appView')).to_have_attribute('data-page',t))
   page.locator('#navigation [data-page="leads"]').click()
   check('real lead visible',lambda:expect(page.locator('#recordList')).to_contain_text('Institución de validación · Diagnóstico'))
+  check('attention counter shows pending first response',lambda:expect(page.locator('#attentionCount')).to_have_text('1'))
+  page.locator('#attentionBtn').click();check('attention center opens',lambda:expect(page.locator('#attentionDialog')).to_be_visible());check('attention center lists pending prospect',lambda:expect(page.locator('#attentionContent')).to_contain_text('Institución de validación'));page.locator('#closeAttention').click()
   check('historical simulated records excluded',lambda:expect(page.locator('#recordList')).not_to_contain_text('[SIMULADO]'))
   page.get_by_role('button',name='Ver solicitud').first.click()
   check('original request displayed',lambda:expect(page.locator('#leadDetailContent')).to_contain_text('Solicitamos un diagnóstico'))
