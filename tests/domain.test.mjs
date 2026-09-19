@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {filterRecords,metrics,priorities,csv,parseCsv,escapeHTML} from '../domain.mjs';
+import {filterRecords,metrics,priorities,taskUrgency,sortTasksByUrgency,csv,parseCsv,escapeHTML} from '../domain.mjs';
 
 test('institutions remain visible without a search; accents and type can be combined',()=>{
  const rows=[{name:'Colegio San Martín',type:'SCHOOL'},{name:'Universidad del Sur',type:'UNIVERSITY'}];
@@ -15,10 +15,11 @@ test('pipeline excludes closed deals and weights each open amount by probability
  const data={institutions:[{}],leads:[{status:'NEW'},{status:'CONVERTED'}],opportunities:[{value:'200000',probability:25,stage:'PROPOSAL'},{value:'10000',probability:50,stage:'NEGOTIATION'},{value:'900000',probability:100,stage:'WON'},{value:'900000',stage:'LOST'}]};
  assert.deepEqual(metrics(data),{institutions:1,leads:1,pipeline:210000,weighted:55000,overdue:0});
 });
-test('agenda excludes completed work and invalid dates and sorts overdue first',()=>{
- const data={tasks:[{title:'Late',due_at:'2026-01-01T12:00:00Z',status:'PENDING'},{due_at:'2020-01-01',status:'COMPLETED'},{due_at:'bad',status:'PENDING'}],leads:[{title:'Next',next_action_date:'2026-02-01T12:00:00Z',status:'QUALIFIED'}]};
- assert.deepEqual(priorities(data).map(x=>x.title),['Late','Next']);
- assert.equal(metrics(data,Date.parse('2026-01-02')).overdue,1);
+test('agenda keeps undated work visible after dated urgent items',()=>{
+ const now=Date.parse('2026-01-02T12:00:00Z');
+ const data={tasks:[{title:'Late',due_at:'2026-01-01T12:00:00Z',status:'PENDING',priority:'HIGH'},{title:'No date',due_at:null,status:'PENDING',priority:'MEDIUM'},{due_at:'2020-01-01',status:'COMPLETED'}],leads:[{title:'Next',next_action_date:'2026-02-01T12:00:00Z',status:'QUALIFIED'}]};
+ assert.deepEqual(priorities(data,now).map(x=>x.title),['Late','No date','Next']);
+ assert.equal(metrics(data,now).overdue,1);
 });
 test('exports quote multiline text and prevent spreadsheet formula execution',()=>{
  const out=csv([{name:'=HYPERLINK("https://example.com")',notes:'a\nb'}],[{key:'name',label:'Nombre'},{key:'notes',label:'Notas'}]);
@@ -44,3 +45,16 @@ test('prioritizes overdue and calculated lead potential before lower-potential f
  assert.equal(priorities(data,Date.parse('2025-12-01'))[0].derived_score,90);
 });
 
+
+test('dynamic task urgency changes with time and never hides tasks without date',()=>{
+ const now=Date.parse('2026-09-18T20:00:00Z');
+ const tasks=[
+  {title:'No date',status:'PENDING',priority:'CRITICAL'},
+  {title:'Tomorrow',status:'PENDING',priority:'LOW',due_at:'2026-09-19T10:00:00Z'},
+  {title:'Overdue',status:'PENDING',priority:'MEDIUM',due_at:'2026-09-18T10:00:00Z'}
+ ];
+ assert.equal(taskUrgency(tasks[2],now).band,'OVERDUE');
+ assert.equal(taskUrgency(tasks[1],now).band,'TODAY');
+ assert.equal(taskUrgency(tasks[0],now).band,'UNSCHEDULED');
+ assert.deepEqual(sortTasksByUrgency(tasks,now).map(x=>x.title),['Overdue','Tomorrow','No date']);
+});
