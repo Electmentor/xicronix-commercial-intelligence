@@ -8,7 +8,7 @@ base='https://xicronix-commercial-intelligence.vercel.app/'
 out=root/'review-artifacts'/'production';out.mkdir(parents=True,exist_ok=True)
 expected=(root/'index.html').read_bytes()
 files=['index.html','app.js','styles.css','executive.css','analytics.css','production.css','domain.mjs','workspace.mjs','demo.mjs','executive.mjs','analytics.mjs','analytics-view.mjs','catalog.mjs','commercial-core.mjs','recuperar.html','recuperar.js','complaints.html']
-results={'checked_at':datetime.now(timezone.utc).isoformat(),'base_url':base,'release':'2026-09-18-v2.6','assets':[],'logged_out_browser':False}
+results={'checked_at':datetime.now(timezone.utc).isoformat(),'base_url':base,'release':'2026-09-18-v2.7','assets':[],'logged_out_browser':False}
 def fetch(path):
  req=urllib.request.Request(base+('' if path=='index.html' else path)+'?verify='+str(int(time.time())),headers={'User-Agent':'Xicronix-release-verification/2.1','Cache-Control':'no-cache'})
  with urllib.request.urlopen(req,timeout=25) as response:return response.read(),response.status
