@@ -2,7 +2,7 @@
 // The database remains responsible for enforcing the authenticated account's permissions.
 export const ADMIN = 'admin';
 export const SELLER = 'seller';
-const operational = ['institutions', 'contacts', 'leads', 'opportunities', 'tasks', 'meetings', 'deliverables', 'activities', 'catalog_products'];
+const operational = ['institutions', 'contacts', 'leads', 'opportunities', 'tasks', 'meetings', 'deliverables', 'documents', 'activities', 'catalog_products'];
 export function effectiveWorkspace(profile, requested = ADMIN) {
   return profile?.role === 'ADMIN' && requested === ADMIN ? ADMIN : SELLER;
 }
@@ -35,13 +35,15 @@ export function scopeWorkspaceData(source, profile, userId, workspace) {
   const leadIds = new Set(result.leads.map(row => row.id));
   const opportunityIds = new Set(result.opportunities.map(row => row.id));
   result.deliverables = (organization.deliverables || []).filter(row => leadIds.has(row.lead_id));
+  result.documents = (organization.documents || []).filter(row => leadIds.has(row.lead_id));
+  result.document_versions = (organization.document_versions || []).filter(row => leadIds.has(row.lead_id));
   result.activities = (organization.activities || []).filter(row =>
     leadIds.has(row.lead_id) || opportunityIds.has(row.opportunity_id) ||
     (!row.lead_id && !row.opportunity_id && row.created_by === userId));
   result.scores = (organization.scores || []).filter(row => leadIds.has(row.lead_id) || opportunityIds.has(row.opportunity_id));
   result.catalog_products = organization.catalog_products || [];
   result.cost_profiles = [];
-  const linked = [...result.leads, ...result.opportunities, ...result.tasks, ...(result.meetings||[]), ...(result.deliverables||[]), ...result.activities];
+  const linked = [...result.leads, ...result.opportunities, ...result.tasks, ...(result.meetings||[]), ...(result.deliverables||[]), ...(result.documents||[]), ...result.activities];
   const contactIds = new Set(linked.map(row => row.contact_id).filter(Boolean));
   result.contacts = (organization.contacts || []).filter(row => row.created_by === userId || contactIds.has(row.id));
   const institutionIds = new Set([...linked, ...result.contacts].map(row => row.institution_id).filter(Boolean));

@@ -1,0 +1,17 @@
+-- Applied to production:
+-- crm_private_documents_and_versions_v1
+-- crm_document_status_sync_v1
+--
+-- Creates:
+--   private storage bucket crm-documents (public=false)
+--   public.documents
+--   public.document_versions
+--   organization-scoped RLS policies
+--   private.crm_register_document_version(...)
+--   private.crm_sync_document_status_to_current_version()
+--
+-- Path convention:
+-- <organization_id>/<lead_id>/<document_id>/v<version>/<timestamp>-<safe_filename>
+--
+-- Important semantic rule:
+-- uploading a file does not prove that it was sent, signed, invoiced or paid.

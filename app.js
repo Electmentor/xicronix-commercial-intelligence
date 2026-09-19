@@ -20,6 +20,8 @@ const enums = {
  meetingMode:{ONLINE:'Virtual',ONSITE:'Presencial',PHONE:'Llamada'},
  deliverableDirection:{XICRONIX_TO_CLIENT:'Xicronix → cliente',CLIENT_TO_XICRONIX:'Cliente → Xicronix'},
  deliverableStatus:{PENDING:'Pendiente',DELIVERED:'Entregado',RECEIVED:'Recibido',CANCELLED:'Cancelado'},
+ documentCategory:{REQUEST_DIAGNOSIS:'Solicitud y diagnóstico',PROPOSALS_QUOTES:'Propuestas y cotizaciones',CONTRACTS_AUTHORIZATIONS:'Contratos y autorizaciones',BILLING_PAYMENTS:'Facturación y pagos',IMPLEMENTATION_DELIVERY:'Implementación y entrega',MANUALS_POSTSALE:'Manuales y postventa'},
+ documentStatus:{DRAFT:'Borrador',CURRENT:'Vigente',SENT:'Enviado',SIGNED:'Firmado',REPLACED:'Reemplazado'},
  priority:{LOW:'Baja',MEDIUM:'Media',HIGH:'Alta',CRITICAL:'Crítica'},
  role:{ADMIN:'Administrador',MANAGER:'Responsable',SALES:'Comercial',VIEWER:'Solo lectura'},
  activityType:{WEB_FORM:'Formulario web',CALL:'Llamada',WHATSAPP:'WhatsApp',EMAIL:'Correo',MEETING:'Reunión',VISIT:'Visita',DEMO:'Demostración',PROPOSAL_SENT:'Propuesta enviada',FOLLOW_UP:'Seguimiento',NOTE:'Nota',OTHER:'Otro'},
@@ -29,6 +31,7 @@ const enums = {
  expenseCategory:{PERSONNEL:'Personal',MARKETING:'Marketing',OPERATIONS:'Operaciones',TECHNOLOGY:'Tecnología',OTHER:'Otros'}
 };
 const f=(key,label,type='text',required=false,options=null)=>({key,label,type,required,options});
+const transientFile={key:'_file',label:'Archivo / nueva versión',type:'file',required:false,transient:true};
 const institution=f('institution_id','Institución','relation');
 const contact=f('contact_id','Contacto','relation');
 const followUp=[f('next_action','Próxima acción'),f('next_action_date','Fecha de seguimiento','datetime-local')];
@@ -50,6 +53,7 @@ const modules={
  tasks:{label:'Tareas',singular:'tarea',filter:'status',options:enums.taskStatus,fields:[f('title','Título','text',true),f('lead_id','Prospecto','relation'),institution,contact,f('status','Estado','select',true,enums.taskStatus),f('priority','Importancia manual','select',true,enums.priority),f('due_at','Fecha límite','datetime-local'),assignee]},
  meetings:{label:'Agenda',singular:'reunión',filter:'status',options:enums.meetingStatus,fields:[f('title','Título','text',true),f('lead_id','Prospecto','relation'),institution,contact,f('status','Estado','select',true,enums.meetingStatus),f('attendee_status','Confirmación del cliente','select',true,enums.attendeeStatus),f('mode','Modalidad','select',true,enums.meetingMode),f('start_at','Inicio','datetime-local',true),f('end_at','Fin','datetime-local',true),f('location','Lugar / enlace'),owner,f('notes','Notas','textarea')]},
  deliverables:{label:'Entregables',singular:'entregable',filter:'status',options:enums.deliverableStatus,fields:[f('title','Entregable','text',true),f('lead_id','Prospecto','relation',true),institution,contact,f('direction','Responsable de entrega','select',true,enums.deliverableDirection),f('status','Estado','select',true,enums.deliverableStatus),f('due_at','Fecha comprometida','datetime-local'),f('completed_at','Fecha de entrega / recepción','datetime-local'),f('notes','Notas','textarea')]},
+ documents:{label:'Documentos',singular:'documento',filter:'status',options:enums.documentStatus,fields:[f('title','Documento','text',true),f('lead_id','Prospecto','relation',true),institution,contact,f('category','Carpeta','select',true,enums.documentCategory),f('status','Estado documental','select',true,enums.documentStatus),f('document_date','Fecha del documento','date'),f('notes','Notas','textarea'),transientFile]},
  activities:{label:'Movimientos',singular:'movimiento',filter:'action_code',options:MOVEMENT_ACTIONS,fields:[f('lead_id','Prospecto','relation',true),institution,contact,f('action_code','Acción realizada','select',false,MOVEMENT_ACTIONS),f('type','Canal','select',true,enums.activityType),f('subject','Asunto','text',true),f('outcome','Resultado','select',false,enums.activityOutcome),f('need_summary','Necesidad detectada','textarea'),f('decision_timeline','Horizonte de decisión'),f('budget_signal','Señal de presupuesto'),f('evidence_note','Evidencia / referencia','textarea'),f('notes','Notas','textarea'),f('occurred_at','Fecha y hora','datetime-local',true),f('next_action','Próxima acción'),f('next_action_date','Fecha de seguimiento','datetime-local')]},
  catalog_products:{label:'Catálogo',singular:'producto',filter:'category',options:{Fisica:'Física','Educacion STEM':'Educación STEM',Optica:'Óptica',Quimica:'Química',Robotica:'Robótica'},fields:[f('supplier_name','Proveedor','text',true),f('supplier_sku','SKU proveedor','text',true),f('name','Producto','text',true),f('category','Categoría','text',true),f('currency','Moneda','text',true),catalogPrice,f('price_valid_from','Vigencia desde','date'),f('price_valid_until','Vigencia hasta','date'),f('origin_country','País de origen','text',true),f('tariff_code','Subpartida peruana validada'),f('weight_kg','Peso (kg)','number'),f('volume_m3','Volumen (m³)','number'),f('reference_url','Referencia oficial','url'),f('active','Activo','checkbox'),f('notes','Fuente y condiciones','textarea')]},
  cost_profiles:{label:'Costos de importación',singular:'perfil de costos',filter:'destination_country',options:{Peru:'Perú'},fields:[f('name','Nombre','text',true),f('origin_country','Origen','text',true),f('destination_country','Destino','text',true),f('currency','Moneda','text',true),f('exchange_rate','Tipo de cambio','number',true),f('freight_international','Flete internacional','number'),f('insurance','Seguro','number'),f('ad_valorem_rate','Ad valorem (%)','number'),f('igv_rate','IGV (%)','number'),f('perception_rate','Percepción (%)','number'),f('customs_broker_fee','Agente de aduanas','number'),f('terminal_fee','Terminal','number'),f('storage_fee','Almacenaje','number'),f('inland_transport','Transporte interno','number'),f('installation_fee','Instalación','number'),f('contingency_rate','Contingencia (%)','number'),f('valid_from','Vigencia desde','date'),f('valid_until','Vigencia hasta','date'),f('notes','Notas','textarea')]},
@@ -60,11 +64,11 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-18-v2.7';
+const CRM_RELEASE='2026-09-18-v2.8';
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
 let entryRoute=readEntryRoute();
-const emptyData=()=>Object.fromEntries([...Object.keys(modules),'scores'].map(k=>[k,[]]));
+const emptyData=()=>Object.fromEntries([...Object.keys(modules),'scores','document_versions'].map(k=>[k,[]]));
 const writable=()=>profile && ['ADMIN','MANAGER','SALES'].includes(profile.role);
 let workspace=SELLER, workspaceIdentity=null, loading=false;
 let dataSource='live', sourceIdentity=null, demoData=null, demoSeller=DEMO_SELLERS[0].id, demoSaved=true, executiveFilter='', executiveOwner='';
@@ -152,8 +156,8 @@ function renderWorkspaceControls(){
  $('workspaceHint').textContent=admin?'Visión global: resultados, margen, metas y equipo.':'Mi cartera: prospectos, potencial, interacciones y próximas acciones.';
  $('workspaceLabel').textContent=admin?'DIRECCIÓN COMERCIAL':'MI ESPACIO DE VENTAS';
  $('appView').dataset.workspace=admin?ADMIN:SELLER;
- const labels=admin?{}:{leads:'Mi cartera',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
- const keys=admin?['dashboard',...Object.keys(modules)]:['leads','tasks','meetings','activities','opportunities','catalog_products','institutions','contacts'];
+ const labels=admin?{}:{leads:'Mi cartera',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',deliverables:'Mis entregables',documents:'Mis documentos',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
+ const keys=admin?['dashboard',...Object.keys(modules)]:['leads','tasks','meetings','deliverables','documents','activities','opportunities','catalog_products','institutions','contacts'];
  $('navigation').innerHTML=keys.filter(accessible).map((key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen ejecutivo')+'</button>').join('');
 }
 async function setWorkspace(next){
@@ -253,7 +257,7 @@ async function reload(){
  restoreWorkspace();restoreSource();
  $('userRole').textContent=enums.role[profile.role]||'Sin rol';$('welcome').textContent=profile.full_name||session.user.email;
  if(dataSource==='demo'){loadDemo();notice('');render();return;}
- const tables=[...Object.keys(modules).filter(accessible),'scores'];
+ const tables=[...Object.keys(modules).filter(accessible),'scores',...(accessible('documents')?['document_versions']:[])];
  const results=await Promise.allSettled(tables.map(k=>allRows(k,profile.organization_id)));
  if(version!==loadVersion)return;
  data=emptyData();failures={};tables.forEach((k,i)=>{if(results[i].status==='fulfilled')data[k]=results[i].value;else failures[k]=true;});
@@ -376,7 +380,7 @@ function renderSellerWorkspaceSummary(){
  const high=rows.filter(row=>Number(scores.find(score=>score.lead_id===row.id)?.total_score||0)>=75).length;
  return '<article class="seller-focus panel"><div><h2>Mi operación comercial</h2><p>Prioriza tus prospectos, registra cada interacción y trabaja la próxima acción sugerida.</p></div><div class="seller-focus-metrics"><span><b>'+active+'</b><small>Leads activos</small></span><span><b>'+high+'</b><small>Potencial alto</small></span><span><b>'+due+'</b><small>Seguimientos próximos</small></span></div></article>';
 }
-function filtered(){const config=modules[page];const rows=filterRecords(filterExecutiveRows(scopedRows(page),page,executiveFilter,executiveOwner),$('search').value,config.filter,$('filter').value,row=>[relatedName(row),relationName('lead_id',row),row.supplier_sku,row.supplier_name].filter(Boolean).join(' '));if(page==='tasks')return sortTasksByUrgency(rows,Date.now());if(page==='meetings')return rows.slice().sort((a,b)=>String(a.start_at||'').localeCompare(String(b.start_at||'')));return page==='expenses'?rows.slice().sort((a,b)=>String(b.expense_date||'').localeCompare(String(a.expense_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||''))):rows;}
+function filtered(){const config=modules[page];const rows=filterRecords(filterExecutiveRows(scopedRows(page),page,executiveFilter,executiveOwner),$('search').value,config.filter,$('filter').value,row=>[relatedName(row),relationName('lead_id',row),row.supplier_sku,row.supplier_name,enums.documentCategory[row.category]].filter(Boolean).join(' '));if(page==='tasks')return sortTasksByUrgency(rows,Date.now());if(page==='meetings')return rows.slice().sort((a,b)=>String(a.start_at||'').localeCompare(String(b.start_at||'')));return page==='expenses'?rows.slice().sort((a,b)=>String(b.expense_date||'').localeCompare(String(a.expense_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||''))):rows;}
 function urgencyCell(row){
  const u=taskUrgency(row,Date.now());
  const cls=['OVERDUE','TODAY'].includes(u.band)?'warn':['SOON','WEEK'].includes(u.band)?'active':'';
@@ -432,6 +436,37 @@ function openDeliverableForLead(leadId){
  closeLeadDetails(false);
  openEditor('deliverables',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',title:'',direction:'XICRONIX_TO_CLIENT',status:'PENDING'});
 }
+function openDocumentForLead(leadId){
+ const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
+ closeLeadDetails(false);
+ openEditor('documents',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',title:'',category:'REQUEST_DIAGNOSIS',status:'DRAFT'});
+}
+function currentDocumentVersion(documentId){
+ return (data.document_versions||[]).find(row=>row.document_id===documentId&&row.is_current)
+   ||(data.document_versions||[]).filter(row=>row.document_id===documentId).sort((a,b)=>Number(b.version_number)-Number(a.version_number))[0]
+   ||null;
+}
+async function openPrivateStoragePath(storagePath){
+ if(!storagePath){notice('Este documento todavía no tiene un archivo cargado.',true);return;}
+ const popup=window.open('about:blank','_blank','noopener,noreferrer');
+ try{
+  const {data:signed,error}=await sb.storage.from('crm-documents').createSignedUrl(storagePath,300);
+  if(error||!signed?.signedUrl)throw error||new Error('signed_url_failed');
+  if(popup)popup.location=signed.signedUrl;else window.open(signed.signedUrl,'_blank','noopener,noreferrer');
+ }catch(error){if(popup)popup.close();notice('No se pudo abrir el archivo privado. Actualiza e inténtalo nuevamente.',true);}
+}
+async function openDocumentFile(documentId){
+ const document=(data.documents||[]).find(row=>row.id===documentId);if(!document)return;
+ const version=currentDocumentVersion(documentId);
+ return openPrivateStoragePath(version?.storage_path);
+}
+async function openDocumentVersion(versionId){
+ const version=(data.document_versions||[]).find(row=>row.id===versionId);if(!version)return;
+ return openPrivateStoragePath(version.storage_path);
+}
+function safeStorageFileName(name){
+ return String(name||'archivo').normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g,'-').replace(/-+/g,'-').slice(0,120)||'archivo';
+}
 function commercialUrgency(tasks,meetings){
  const pending=tasks.filter(row=>!['COMPLETED','CANCELLED'].includes(row.status));
  const top=pending[0],u=top?taskUrgency(top,Date.now()):null;
@@ -481,16 +516,16 @@ function renderRecords(){
  $('exportBtn').disabled=!!failures[page]||!rows.length;
  $('pageNumber').textContent='Página '+(pageIndex+1)+' de '+max;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
  const config=modules[page],canEdit=writableFor(page);
- const secondHeader=isUsers?'Rol':isGoals?'Responsable':isExpenses?'Fecha del gasto':['tasks','meetings'].includes(page)?'Prospecto':page==='institutions'?'Ciudad':['catalog_products','cost_profiles'].includes(page)?'Origen / destino':'Institución';
- const detailHeader=isGoals?'Metas y presupuesto':isExpenses?'Importe':page==='tasks'?'Urgencia dinámica':page==='meetings'?'Fecha y modalidad':(['leads','opportunities'].includes(page)?'Valor estimado':page==='catalog_products'?'Precio proveedor':page==='cost_profiles'?'Tipo de cambio':'Detalle');
+ const secondHeader=isUsers?'Rol':isGoals?'Responsable':isExpenses?'Fecha del gasto':['tasks','meetings','deliverables','documents'].includes(page)?'Prospecto':page==='institutions'?'Ciudad':['catalog_products','cost_profiles'].includes(page)?'Origen / destino':'Institución';
+ const detailHeader=isGoals?'Metas y presupuesto':isExpenses?'Importe':page==='tasks'?'Urgencia dinámica':page==='meetings'?'Fecha y modalidad':page==='documents'?'Carpeta / versión':(['leads','opportunities'].includes(page)?'Valor estimado':page==='catalog_products'?'Precio proveedor':page==='cost_profiles'?'Tipo de cambio':'Detalle');
  const rowsMarkup=rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>{
-  const secondCell=isUsers?badge(row.role,page):isGoals?esc(relationName('owner_user_id',row)||'Organización'):isExpenses?esc(row.expense_date||'Sin fecha'):['tasks','meetings'].includes(page)?esc(relationName('lead_id',row)||'Sin prospecto vinculado'):page==='catalog_products'?esc(row.origin_country||'—')+' → Perú':page==='cost_profiles'?esc(row.origin_country||'—')+' → '+esc(row.destination_country||'—'):esc(page==='institutions'?row.city||'—':relatedName(row)||'Sin vincular');
+  const secondCell=isUsers?badge(row.role,page):isGoals?esc(relationName('owner_user_id',row)||'Organización'):isExpenses?esc(row.expense_date||'Sin fecha'):['tasks','meetings','deliverables','documents'].includes(page)?esc(relationName('lead_id',row)||'Sin prospecto vinculado'):page==='catalog_products'?esc(row.origin_country||'—')+' → Perú':page==='cost_profiles'?esc(row.origin_country||'—')+' → '+esc(row.destination_country||'—'):esc(page==='institutions'?row.city||'—':relatedName(row)||'Sin vincular');
   const stateCell=isGoals?'<span class="badge success">Meta definida</span>':page==='catalog_products'?(row.active===false?'<span class="badge warn">Inactivo</span>':'<span class="badge success">Activo</span>'):badge(row[config.filter],page);
-  const detail=isGoals?'Ventas '+money(row.target_won_value)+'<small>Margen bruto '+money(row.target_margin)+'</small><small>Gastos '+(row.target_expenses===null||row.target_expenses===undefined?'Sin presupuesto':money(row.target_expenses))+'</small>':isExpenses?money(row.amount):page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='catalog_products'?catalogMoney(row.supplier_unit_price):page==='cost_profiles'?Number(row.exchange_rate||0).toFixed(2):page==='tasks'?urgencyCell(row):page==='meetings'?('<strong>'+esc(date(row.start_at))+'</strong><small>'+esc(enums.meetingMode[row.mode]||row.mode)+' · '+esc(date(row.end_at))+'</small>'):page==='activities'?esc(date(row.occurred_at)):esc(row.phone||'—');
+  const detail=isGoals?'Ventas '+money(row.target_won_value)+'<small>Margen bruto '+money(row.target_margin)+'</small><small>Gastos '+(row.target_expenses===null||row.target_expenses===undefined?'Sin presupuesto':money(row.target_expenses))+'</small>':isExpenses?money(row.amount):page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='catalog_products'?catalogMoney(row.supplier_unit_price):page==='cost_profiles'?Number(row.exchange_rate||0).toFixed(2):page==='tasks'?urgencyCell(row):page==='meetings'?('<strong>'+esc(date(row.start_at))+'</strong><small>'+esc(enums.meetingMode[row.mode]||row.mode)+' · '+esc(date(row.end_at))+'</small>'):page==='documents'?('<strong>'+esc(enums.documentCategory[row.category]||row.category)+'</strong><small>Versión actual: v'+Number(row.current_version||0)+'</small>'):page==='activities'?esc(date(row.occurred_at)):esc(row.phone||'—');
   const actionLabel=canEdit?'Editar':'Ver';
   const rowName=page==='catalog_products'?catalogDisplayName(row):nameOf(row)||('Meta '+row.period_start);
   const subline=isGoals?(row.period_start+' → '+row.period_end):isExpenses?(row.currency||'PEN'):(row.email||row.next_action||row.job_title||row.category||row.notes||'');
-  return '<tr><td><strong>'+esc(rowName)+'</strong><small>'+esc(subline)+'</small></td><td>'+secondCell+'</td><td>'+stateCell+'</td><td>'+detail+'</td>'+(page==='leads'?'<td>'+maturityCell(row)+'</td>':'')+'<td><div class="row-actions">'+(page==='leads'?'<button class="primary" data-lead-detail="'+row.id+'">Abrir expediente comercial</button>':'')+'<button data-edit="'+row.id+'" data-table="'+page+'">'+actionLabel+'</button>'+(page==='leads'&&writable()?'<button data-activity-lead="'+row.id+'">Registrar movimiento</button>':'')+(!isUsers&&canDelete()?'<button class="danger-text" data-delete="'+row.id+'" data-table="'+page+'">Eliminar</button>':'')+'</div></td></tr>';
+  return '<tr><td><strong>'+esc(rowName)+'</strong><small>'+esc(subline)+'</small></td><td>'+secondCell+'</td><td>'+stateCell+'</td><td>'+detail+'</td>'+(page==='leads'?'<td>'+maturityCell(row)+'</td>':'')+'<td><div class="row-actions">'+(page==='leads'?'<button class="primary" data-lead-detail="'+row.id+'">Abrir expediente comercial</button>':'')+(page==='documents'&&Number(row.current_version)>0?'<button data-open-document="'+row.id+'">Abrir archivo</button>':'')+'<button data-edit="'+row.id+'" data-table="'+page+'">'+actionLabel+'</button>'+(page==='leads'&&writable()?'<button data-activity-lead="'+row.id+'">Registrar movimiento</button>':'')+(!isUsers&&canDelete()?'<button class="danger-text" data-delete="'+row.id+'" data-table="'+page+'">Eliminar</button>':'')+'</div></td></tr>';
  }).join('');
  $('recordList').innerHTML=failures[page]?'<div class="panel empty">No pudimos cargar estos registros. Pulsa Actualizar.</div>':!rows.length?`<div class="panel empty">${$('search').value||$('filter').value?'No hay coincidencias. Cambia la búsqueda o el filtro.':'Aún no hay registros. Crea el primero con el botón superior.'}</div>`:`<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>${secondHeader}</th><th>Estado / tipo</th><th>${detailHeader}</th>${page==='leads'?'<th>Madurez / potencial</th>':''}<th>Acción</th></tr></thead><tbody>${rowsMarkup}</tbody></table></div>`;
 }
@@ -525,7 +560,7 @@ function buildImport(table,rows){
  const errors=[],payloads=[];
  rows.forEach((source,index)=>{
   const payload={},prefix='Fila '+(index+2)+': ';
-  for(const field of fieldsFor(table)){
+  for(const field of fieldsFor(table)){if(field.transient)continue;
    const value=importValue(source,field);
    if(String(value).startsWith('__missing__:'))errors.push(prefix+'no se encontró '+field.label+' “'+String(value).slice(12)+'”.');
    if(field.required&&!String(value).trim())errors.push(prefix+'falta '+field.label+'.');
@@ -576,6 +611,10 @@ async function removeRecord(table,id){
  try{
   if(dataSource==='demo'){
    mutateDemo(demoData,table,'delete',null,{id,userId:currentActor(),org:profile.organization_id});persistDemo();loadDemo();notice(demoSavedMessage());return;
+  }
+  if(table==='documents'){
+   const paths=(data.document_versions||[]).filter(version=>version.document_id===id).map(version=>version.storage_path).filter(Boolean);
+   if(paths.length){const removed=await sb.storage.from('crm-documents').remove(paths);if(removed.error)throw removed.error;}
   }
   const {error}=await sb.from(databaseTable(table)).delete().eq('id',id).eq('organization_id',profile.organization_id);
   if(error)throw error;
@@ -643,6 +682,7 @@ function openEditor(table,id=null,initialValues={}){
  if(options)input=`<select ${attrs}><option value="" ${value===''?'selected':''}>${field.type==='relation'?'Sin vincular':field.required?'Selecciona una opción':'Sin registrar'}</option>${Object.entries(options).map(([k,v])=>`<option value="${esc(k)}" ${value===k?'selected':''}>${esc(v)}</option>`).join('')}</select>`;
  else if(field.type==='textarea')input=`<textarea ${attrs}>${esc(value)}</textarea>`;
  else if(field.type==='checkbox')input=`<input ${attrs} type="checkbox" ${value!==false?'checked':''}>`;
+ else if(field.type==='file')input=`<input ${attrs} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.txt,.csv">`;
  else input=`<input ${attrs} type="${field.type}" value="${esc(value)}" ${field.type==='number'?`min="0" step="${['score','probability','quantity',...costRateKeys].includes(field.key)?1:'0.01'}" ${['score','probability',...costRateKeys].includes(field.key)?'max="100"':''}`:''} ${field.key==='ruc'?'pattern="[0-9]{11}" title="Ingresa 11 dígitos"':''}>`;
  return `<div class="${field.type==='textarea'?'full':''}"><label for="field-${field.key}">${field.label}${field.required?' *':''}</label>${input}</div>`;
  }).join('');
@@ -660,7 +700,8 @@ function openEditor(table,id=null,initialValues={}){
   const scoreRecommendation=row.status==='CONVERTED'?(linkedOpportunity?'Lead convertido · continuar '+(enums.stage[linkedOpportunity.stage]||'oportunidad'):'Lead convertido · crear o vincular una oportunidad'):(leadScore?.recommendation||'Se calculará al guardar el lead y registrar su primera interacción.');
   $('fields').insertAdjacentHTML('beforeend','<section class="score-insight full" aria-live="polite"><div class="score-insight-head"><strong>'+scoreLabel+'</strong><b>'+(leadScore?scoreValue+'%':'Pendiente')+'</b></div><div class="score-track"><i style="width:'+scoreValue+'%"></i></div><p>'+esc(scoreRecommendation)+'</p><small>Motor explicable v1 · Fuente: '+(esc(leadScore?.recommendation_source||'RULES_V1'))+(row.status==='CONVERTED'?' · La conversión no reinicia este histórico':'')+'</small></section>');
  }
- if(['leads','activities','opportunities','tasks'].includes(table))$('fields').insertAdjacentHTML('beforeend','<p id="relationHelp" class="full muted" role="status">Institución y contacto deben corresponder entre sí. Al cambiar de institución se actualiza la lista de contactos.</p>');
+ if(['leads','activities','opportunities','tasks','meetings','deliverables','documents'].includes(table))$('fields').insertAdjacentHTML('beforeend','<p id="relationHelp" class="full muted" role="status">Institución y contacto deben corresponder entre sí. Al cambiar de institución se actualiza la lista de contactos.</p>');
+ if(table==='documents')$('fields').insertAdjacentHTML('beforeend','<p class="full muted">Cada archivo nuevo crea una versión adicional y conserva las anteriores. “Subido” no significa enviado, “firmado” no significa pagado y una factura cargada no acredita cobro.</p>');
  if(table==='activities'){
   $('fields').insertAdjacentHTML('beforeend','<section id="movementPreview" class="movement-preview full" aria-live="polite"></section><p class="full muted">Registra únicamente un movimiento que realmente ocurrió. Acción, canal y resultado son datos distintos. La próxima acción con fecha genera una tarea interna; no envía mensajes ni invitaciones.</p>');
   updateMovementPreview();
@@ -685,17 +726,18 @@ function updateQuotePreview(){
 }
 async function saveRecord(event){
  event.preventDefault();const canEdit=writableFor(editTable);if(busy||loading||!canEdit)return;
+ const selectedFile=editTable==='documents'?document.getElementById('field-_file')?.files?.[0]||null:null;
  if(editId&&!scopedRows(editTable).some(row=>row.id===editId))return;
  const payload={}, form=new FormData($('recordForm'));
  const original=editId?scopedRows(editTable).find(row=>row.id===editId):null;
  if(typeof $('recordForm').reportValidity==='function'&&!$('recordForm').reportValidity())return;
- for(const field of fieldsFor(editTable)){let value=field.type==='checkbox'?form.get(field.key)==='on':String(form.get(field.key)??'').trim();
+ for(const field of fieldsFor(editTable)){if(field.transient)continue;let value=field.type==='checkbox'?form.get(field.key)==='on':String(form.get(field.key)??'').trim();
  if(field.required&&!value){$('formMsg').textContent='Completa los campos obligatorios.';return;}
  if(field.type==='number'){value=value===''?(['estimated_cost','negotiated_unit_price','target_expenses'].includes(field.key)?null:field.key==='quantity'?1:0):Number(value);if(costRateKeys.has(field.key))value=value/100;}
  else if(field.type==='datetime-local'){if(value&&!Number.isFinite(Date.parse(value))){$('formMsg').textContent='Revisa la fecha de '+field.label+'.';return;}value=value?(original?.[field.key]&&value===localDateTime(original[field.key])?original[field.key]:new Date(value).toISOString()):null;}
  else if(field.type!=='checkbox')value=value||null;payload[field.key]=value;
  }
- for(const field of fieldsFor(editTable)){
+ for(const field of fieldsFor(editTable)){if(field.transient)continue;
   const value=payload[field.key];
   if(field.options&&value&&!Object.hasOwn(field.options,value)&&value!==original?.[field.key]){$('formMsg').textContent='Selecciona una opción válida para '+field.label+'.';return;}
   if(['score','probability','quantity'].includes(field.key)&&value!==null&&!Number.isInteger(value)){$('formMsg').textContent=field.label+' debe ser un número entero.';return;}
@@ -712,18 +754,37 @@ async function saveRecord(event){
  if(editTable==='meetings'&&payload.start_at&&payload.end_at&&Date.parse(payload.end_at)<=Date.parse(payload.start_at)){$('formMsg').textContent='La hora de fin debe ser posterior al inicio.';return;}
  if(editTable==='activities'&&!editId&&!payload.action_code){$('formMsg').textContent='Selecciona la acción realizada antes de guardar el movimiento.';return;}
  if(editTable==='activities'&&Boolean(payload.next_action)!==Boolean(payload.next_action_date)){$('formMsg').textContent='Para programar el seguimiento, completa la próxima acción y su fecha, o deja ambos campos vacíos.';return;}
+ if(editTable==='documents'&&!editId&&dataSource==='live'&&!selectedFile){$('formMsg').textContent='Selecciona el archivo inicial del documento.';return;}
+ if(editTable==='documents'&&selectedFile&&selectedFile.size>26214400){$('formMsg').textContent='El archivo supera el límite de 25 MB.';return;}
  busy=true;$('saveBtn').disabled=true;$('formMsg').textContent='Guardando…';
  const table=editTable,id=editId,org=profile.organization_id,userId=session.user.id,version=loadVersion;
+ let createdDocumentId=null,uploadedPath=null;
  try{
  if(dataSource==='demo'){
   mutateDemo(demoData,table,id?'update':'insert',payload,{id,userId:currentActor(),org});if(table==='activities')applyLocalMovementMilestone(payload);persistDemo();loadDemo();$('editor').close();render();notice(demoSavedMessage());return;
  }
  let query;if(id){if(table!=='users'&&table!=='activities'){payload.updated_at=new Date().toISOString();}query=sb.from(databaseTable(table)).update(payload).eq('id',id).eq('organization_id',org);if(table!=='users'&&table!=='activities'&&editingVersion)query=query.eq('updated_at',editingVersion);}
  else if(table!=='users')query=sb.from(databaseTable(table)).insert({...payload,organization_id:org,created_by:userId});else throw {code:'42501'};
- const {error}=await query.select('id').single();if(error)throw error;
+ const {data:saved,error}=await query.select('id').single();if(error)throw error;
+ if(table==='documents'){
+  createdDocumentId=saved?.id||id;
+  if(selectedFile&&createdDocumentId){
+   const nextVersion=Number(original?.current_version||0)+1;
+   const fileName=safeStorageFileName(selectedFile.name);
+   uploadedPath=org+'/'+payload.lead_id+'/'+createdDocumentId+'/v'+nextVersion+'/'+Date.now()+'-'+fileName;
+   const upload=await sb.storage.from('crm-documents').upload(uploadedPath,selectedFile,{contentType:selectedFile.type||undefined,upsert:false});
+   if(upload.error)throw upload.error;
+   const registered=await sb.rpc('crm_register_document_version',{p_document_id:createdDocumentId,p_storage_path:uploadedPath,p_file_name:selectedFile.name,p_mime_type:selectedFile.type||null,p_size_bytes:selectedFile.size,p_status:payload.status||'DRAFT',p_notes:payload.notes||null});
+   if(registered.error){await sb.storage.from('crm-documents').remove([uploadedPath]);uploadedPath=null;throw registered.error;}
+  }
+ }
  if(!session||session.user.id!==userId||version!==loadVersion)return;
  $('editor').close();busy=false;await reload();if(!failures[table])notice('Registro guardado correctamente.');
- }catch(error){$('formMsg').textContent=errorText(error);$('formMsg').className='error';}
+ }catch(error){
+  if(table==='documents'&&uploadedPath){try{await sb.storage.from('crm-documents').remove([uploadedPath]);}catch(_cleanup){}}
+  if(table==='documents'&&!id&&createdDocumentId){try{await sb.from('documents').delete().eq('id',createdDocumentId).eq('organization_id',org);}catch(_cleanup){}}
+  $('formMsg').textContent=errorText(error);$('formMsg').className='error';
+ }
  finally{busy=false;$('saveBtn').disabled=false;render();}
 }
 async function authenticate(event){
@@ -810,6 +871,7 @@ function openLeadDetails(id){
  const tasks=sortTasksByUrgency((data.tasks||[]).filter(row=>row.lead_id===id),Date.now());
  const meetings=(data.meetings||[]).filter(row=>row.lead_id===id).sort((a,b)=>String(a.start_at||'').localeCompare(String(b.start_at||'')));
  const deliverables=(data.deliverables||[]).filter(row=>row.lead_id===id).sort((a,b)=>String(a.due_at||'9999').localeCompare(String(b.due_at||'9999')));
+ const documents=(data.documents||[]).filter(row=>row.lead_id===id).sort((a,b)=>String(b.updated_at||'').localeCompare(String(a.updated_at||'')));
  const pending=tasks.filter(row=>!['COMPLETED','CANCELLED'].includes(row.status));
  const score=(data.scores||[]).find(row=>row.lead_id===id);
  const potential=score?Math.max(0,Math.min(100,Number(score.total_score)||0)):null;
@@ -826,14 +888,14 @@ function openLeadDetails(id){
  const need=activities.find(row=>row.need_summary)?.need_summary||'Pendiente de precisar';
  const budget=Number(lead.estimated_value)>0?money(lead.estimated_value):'Sin definir';
  const field=(label,value)=>'<div class="lead-detail-row"><dt>'+esc(label)+'</dt><dd>'+esc(value||'Sin registrar')+'</dd></div>';
- const buttons=writableFor('leads')?'<div class="lead-master-actions"><button type="button" data-edit-lead="'+lead.id+'">Editar prospecto</button><button type="button" class="primary" data-activity-lead="'+lead.id+'">Registrar movimiento</button><button type="button" data-create-task-lead="'+lead.id+'">Crear tarea</button><button type="button" data-create-meeting-lead="'+lead.id+'">Agendar reunión</button><button type="button" data-create-deliverable-lead="'+lead.id+'">Registrar entregable</button></div>':'';
+ const buttons=writableFor('leads')?'<div class="lead-master-actions"><button type="button" data-edit-lead="'+lead.id+'">Editar prospecto</button><button type="button" class="primary" data-activity-lead="'+lead.id+'">Registrar movimiento</button><button type="button" data-create-task-lead="'+lead.id+'">Crear tarea</button><button type="button" data-create-meeting-lead="'+lead.id+'">Agendar reunión</button><button type="button" data-create-deliverable-lead="'+lead.id+'">Registrar entregable</button><button type="button" data-create-document-lead="'+lead.id+'">Subir documento</button></div>':'';
  $('leadDetailTitle').textContent='Expediente Comercial · '+(institution?.name||lead.title||'Prospecto');
  $('leadDetailContent').innerHTML='<section class="lead-master commercial-dossier"><p class="muted">'+(dataSource==='demo'?'Demostración, sin datos reales.':'Radiografía comercial basada únicamente en los registros del expediente.')+'</p>'+buttons+
  '<section class="situation-action"><div><small>SITUACIÓN</small><h3>'+(latest?esc(latest.subject||MOVEMENT_ACTIONS[latest.action_code]||'Último movimiento registrado'):'Sin movimiento reciente')+'</h3><p>'+(latest?esc(latest.notes||latest.need_summary||'Movimiento registrado sin detalle adicional.'):'La oportunidad todavía no tiene actividad suficiente para resumir una situación previa.')+'</p></div><div><small>ACCIÓN</small><h3>'+esc(action)+'</h3><p>'+(nextDate?'Próximo compromiso: '+esc(date(nextDate)):'Aún no existe una fecha comprometida.')+'</p></div></section>'+
  '<div class="dossier-status-row"><span class="dossier-state '+health.className+'"><small>Estado actual</small><strong>'+health.label+'</strong></span><span class="dossier-state '+urgency.className+'"><small>Urgencia</small><strong>'+urgency.label+'</strong></span><span class="dossier-state '+potentialState.className+'"><small>Potencial</small><strong>'+potentialState.label+(potentialState.value!==undefined?' · '+potentialState.value+'%':'')+'</strong></span></div>'+
  '<section class="dossier-first-look"><article><small>Último movimiento</small><strong>'+esc(latest?date(latest.occurred_at):'Sin registro')+'</strong></article><article><small>Próxima fecha clave</small><strong>'+esc(nextDate?date(nextDate):'Sin fecha')+'</strong></article><article><small>Próxima reunión</small><strong>'+esc(nextMeeting?date(nextMeeting.start_at):'Sin reunión')+'</strong></article><article><small>Hito actual</small><strong>'+maturity+'% · '+esc(milestoneLabel(lead.commercial_milestone))+'</strong><div class="dossier-progress"><i style="width:'+maturity+'%"></i></div></article></section>'+
  '<section class="deliverable-radiography"><h3>Entregables</h3><div class="deliverable-grid"><article><small>Entregado por Xicronix</small><strong>'+xDelivered.length+'</strong><p>'+esc(xDelivered[0]?.title||'Sin entregas registradas')+'</p></article><article><small>Pendiente de Xicronix</small><strong>'+xPending.length+'</strong><p>'+esc(xPending[0]?.title||'Sin pendientes registrados')+'</p></article><article><small>Recibido del cliente</small><strong>'+cReceived.length+'</strong><p>'+esc(cReceived[0]?.title||'Sin recepciones registradas')+'</p></article><article><small>Pendiente del cliente</small><strong>'+cPending.length+'</strong><p>'+esc(cPending[0]?.title||'Sin pendientes registrados')+'</p></article></div></section>'+
- '<div class="lead-master-kpis"><article><small>Madurez comercial</small><strong>'+maturity+'%</strong><span>'+esc(milestoneLabel(lead.commercial_milestone))+'</span></article><article><small>Potencial calculado</small><strong>'+(potential===null?'—':potential+'%')+'</strong><span>Indicador separado de la madurez</span></article><article><small>Presupuesto estimado</small><strong>'+esc(budget)+'</strong><span>Pagos se controlarán en su módulo financiero</span></article><article><small>Tareas pendientes</small><strong>'+pending.length+'</strong><span>'+(pending[0]?.due_at?'Próxima: '+esc(date(pending[0].due_at)):'Sin vencimiento próximo')+'</span></article></div><div class="lead-master-grid"><section><h3>Ficha maestra</h3><dl>'+field('Estado',enums.status[lead.status]||lead.status)+field('Institución',institution?.name||'Pendiente de vincular')+field('Contacto',contact?nameOf(contact):'Pendiente de vincular')+(contact?field('Cargo',contact.job_title)+field('Correo',contact.email)+field('Teléfono',contact.phone):'')+field('Necesidad',need)+field('Canal de origen',enums.leadSource[lead.source]||lead.source)+field('Próxima acción',lead.next_action)+field('Fecha de seguimiento',date(lead.next_action_date))+'</dl></section><section><h3>Hitos comerciales</h3><ol class="milestone-rail">'+renderMilestoneRail(lead.commercial_milestone,esc)+'</ol><p class="muted">El porcentaje solo avanza por acciones que acreditan un hito; más correos o llamadas no lo incrementan por sí solos.</p></section></div><section><h3>Movimientos registrados</h3>'+(activities.length?activities.map(row=>'<article class="lead-note"><div class="movement-note-head"><h4>'+esc(row.subject||MOVEMENT_ACTIONS[row.action_code]||enums.activityType[row.type]||'Movimiento')+'</h4>'+(row.action_code?'<span class="badge">'+esc(MOVEMENT_ACTIONS[row.action_code]||row.action_code)+'</span>':'')+'</div><small>'+esc(enums.activityType[row.type]||row.type)+' · ocurrió '+esc(date(row.occurred_at))+' · registrado '+esc(date(row.created_at))+'</small><p>'+esc(row.notes||row.need_summary||'Sin notas adicionales')+'</p>'+(row.evidence_note?'<p><strong>Evidencia:</strong> '+esc(row.evidence_note)+'</p>':'')+(row.milestone_after?'<p class="milestone-evidence">Hito acreditado: '+esc(milestoneLabel(row.milestone_after))+' · '+Number(row.maturity_after||0)+'%</p>':'')+(writableFor('activities')?'<button type="button" data-edit-activity="'+row.id+'">Editar movimiento</button>':'')+'</article>').join(''):'<p class="muted">Todavía no hay movimientos vinculados a este prospecto.</p>')+ '</section><section><h3>Reuniones</h3>'+(meetings.length?meetings.map(row=>'<article class="lead-note"><strong>'+esc(row.title)+'</strong><p>'+esc(enums.meetingStatus[row.status]||row.status)+' · '+esc(date(row.start_at))+' → '+esc(date(row.end_at))+'</p><p>'+esc(enums.meetingMode[row.mode]||row.mode)+' · '+esc(enums.attendeeStatus[row.attendee_status]||row.attendee_status)+'</p></article>').join(''):'<p class="muted">Sin reuniones registradas.</p>')+'</section><section><h3>Tareas vinculadas</h3>'+(tasks.length?tasks.map(row=>'<article class="lead-note"><strong>'+esc(row.title)+'</strong><p>'+esc(enums.taskStatus[row.status]||row.status)+' · '+esc(enums.priority[row.priority]||row.priority)+' · '+esc(date(row.due_at))+'</p></article>').join(''):'<p class="muted">Sin tareas vinculadas.</p>')+'</section></section>';
+ '<div class="lead-master-kpis"><article><small>Madurez comercial</small><strong>'+maturity+'%</strong><span>'+esc(milestoneLabel(lead.commercial_milestone))+'</span></article><article><small>Potencial calculado</small><strong>'+(potential===null?'—':potential+'%')+'</strong><span>Indicador separado de la madurez</span></article><article><small>Presupuesto estimado</small><strong>'+esc(budget)+'</strong><span>Pagos se controlarán en su módulo financiero</span></article><article><small>Tareas pendientes</small><strong>'+pending.length+'</strong><span>'+(pending[0]?.due_at?'Próxima: '+esc(date(pending[0].due_at)):'Sin vencimiento próximo')+'</span></article></div><div class="lead-master-grid"><section><h3>Ficha maestra</h3><dl>'+field('Estado',enums.status[lead.status]||lead.status)+field('Institución',institution?.name||'Pendiente de vincular')+field('Contacto',contact?nameOf(contact):'Pendiente de vincular')+(contact?field('Cargo',contact.job_title)+field('Correo',contact.email)+field('Teléfono',contact.phone):'')+field('Necesidad',need)+field('Canal de origen',enums.leadSource[lead.source]||lead.source)+field('Próxima acción',lead.next_action)+field('Fecha de seguimiento',date(lead.next_action_date))+'</dl></section><section><h3>Hitos comerciales</h3><ol class="milestone-rail">'+renderMilestoneRail(lead.commercial_milestone,esc)+'</ol><p class="muted">El porcentaje solo avanza por acciones que acreditan un hito; más correos o llamadas no lo incrementan por sí solos.</p></section></div><section><h3>Movimientos registrados</h3>'+(activities.length?activities.map(row=>'<article class="lead-note"><div class="movement-note-head"><h4>'+esc(row.subject||MOVEMENT_ACTIONS[row.action_code]||enums.activityType[row.type]||'Movimiento')+'</h4>'+(row.action_code?'<span class="badge">'+esc(MOVEMENT_ACTIONS[row.action_code]||row.action_code)+'</span>':'')+'</div><small>'+esc(enums.activityType[row.type]||row.type)+' · ocurrió '+esc(date(row.occurred_at))+' · registrado '+esc(date(row.created_at))+'</small><p>'+esc(row.notes||row.need_summary||'Sin notas adicionales')+'</p>'+(row.evidence_note?'<p><strong>Evidencia:</strong> '+esc(row.evidence_note)+'</p>':'')+(row.milestone_after?'<p class="milestone-evidence">Hito acreditado: '+esc(milestoneLabel(row.milestone_after))+' · '+Number(row.maturity_after||0)+'%</p>':'')+(writableFor('activities')?'<button type="button" data-edit-activity="'+row.id+'">Editar movimiento</button>':'')+'</article>').join(''):'<p class="muted">Todavía no hay movimientos vinculados a este prospecto.</p>')+ '</section><section><h3>Documentos del expediente</h3>'+(documents.length?documents.map(row=>{const version=currentDocumentVersion(row.id);const versions=(data.document_versions||[]).filter(item=>item.document_id===row.id).sort((a,b)=>Number(b.version_number)-Number(a.version_number));return '<article class="lead-note document-note"><div><strong>'+esc(row.title)+'</strong><p>'+esc(enums.documentCategory[row.category]||row.category)+' · '+esc(enums.documentStatus[row.status]||row.status)+' · v'+Number(row.current_version||0)+'</p><small>'+(version?esc(version.file_name)+' · cargado '+esc(date(version.created_at)):'Sin archivo cargado')+'</small>'+(versions.length>1?'<details class="document-history"><summary>Historial de versiones ('+versions.length+')</summary>'+versions.map(item=>'<div><span>v'+Number(item.version_number)+' · '+esc(enums.documentStatus[item.status]||item.status)+' · '+esc(item.file_name)+'</span><button type="button" data-open-document-version="'+item.id+'">Abrir</button></div>').join('')+'</details>':'')+'</div>'+(version?'<button type="button" data-open-document="'+row.id+'">Abrir actual</button>':'')+'</article>';}).join(''):'<p class="muted">Sin documentos registrados.</p>')+'</section><section><h3>Reuniones</h3>'+(meetings.length?meetings.map(row=>'<article class="lead-note"><strong>'+esc(row.title)+'</strong><p>'+esc(enums.meetingStatus[row.status]||row.status)+' · '+esc(date(row.start_at))+' → '+esc(date(row.end_at))+'</p><p>'+esc(enums.meetingMode[row.mode]||row.mode)+' · '+esc(enums.attendeeStatus[row.attendee_status]||row.attendee_status)+'</p></article>').join(''):'<p class="muted">Sin reuniones registradas.</p>')+'</section><section><h3>Tareas vinculadas</h3>'+(tasks.length?tasks.map(row=>'<article class="lead-note"><strong>'+esc(row.title)+'</strong><p>'+esc(enums.taskStatus[row.status]||row.status)+' · '+esc(enums.priority[row.priority]||row.priority)+' · '+esc(date(row.due_at))+'</p></article>').join(''):'<p class="muted">Sin tareas vinculadas.</p>')+'</section></section>';
  rememberPage(id);$('leadDetailDialog').showModal();
 }
 
@@ -855,7 +917,7 @@ function init(){
  $('dateLabel').textContent=new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long'});
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  $('sidebarToggle').onclick=()=>applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
@@ -863,7 +925,7 @@ function init(){
  $('previous').onclick=()=>{pageIndex--;renderRecords();};$('next').onclick=()=>{pageIndex++;renderRecords();};
  const close=()=>{if(!busy)$('editor').close();};$('closeEditor').onclick=$('cancelEditor').onclick=close;$('editor').addEventListener('cancel',e=>{if(busy)e.preventDefault();});
  $('logoutBtn').onclick=async()=>{const {error}=await sb.auth.signOut();if(error){notice(errorText(error),true);return;}clearSession();setMode('login');};
- $('exportBtn').onclick=()=>{if(!accessible(page)||loading||busy||failures[page])return;const columns=fieldsFor(page).map(field=>({key:field.key,label:field.label}));const rows=filtered().map(row=>Object.fromEntries(columns.map(c=>{const field=modules[page].fields.find(f=>f.key===c.key);return [c.key,field.type==='relation'?relationName(c.key,row):costRateKeys.has(c.key)?Number(row[c.key])*100:field.options?.[row[c.key]]||row[c.key]];})));const url=URL.createObjectURL(new Blob([csv(rows,columns)],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`xicronix-${dataSource==='demo'?'SIMULADO-':''}${page}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+ $('exportBtn').onclick=()=>{if(!accessible(page)||loading||busy||failures[page])return;const columns=fieldsFor(page).filter(field=>!field.transient).map(field=>({key:field.key,label:field.label}));const rows=filtered().map(row=>Object.fromEntries(columns.map(c=>{const field=modules[page].fields.find(f=>f.key===c.key);return [c.key,field.type==='relation'?relationName(c.key,row):costRateKeys.has(c.key)?Number(row[c.key])*100:field.options?.[row[c.key]]||row[c.key]];})));const url=URL.createObjectURL(new Blob([csv(rows,columns)],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`xicronix-${dataSource==='demo'?'SIMULADO-':''}${page}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
  if(!window.supabase){$('authMsg').textContent='No se pudo cargar el servicio de acceso. Comprueba tu conexión y recarga la página.';$('authBtn').disabled=true;return;}
  sb=window.supabase.createClient('https://qzfprdhmcaucqcdqgqiz.supabase.co','sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
  sb.auth.onAuthStateChange(handleAuth);
