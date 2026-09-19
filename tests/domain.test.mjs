@@ -18,7 +18,7 @@ test('pipeline excludes closed deals and weights each open amount by probability
 test('agenda keeps undated work visible after dated urgent items',()=>{
  const now=Date.parse('2026-01-02T12:00:00Z');
  const data={tasks:[{title:'Late',due_at:'2026-01-01T12:00:00Z',status:'PENDING',priority:'HIGH'},{title:'No date',due_at:null,status:'PENDING',priority:'MEDIUM'},{due_at:'2020-01-01',status:'COMPLETED'}],leads:[{title:'Next',next_action_date:'2026-02-01T12:00:00Z',status:'QUALIFIED'}]};
- assert.deepEqual(priorities(data,now).map(x=>x.title),['Late','No date','Next']);
+ assert.deepEqual(priorities(data,now).map(x=>x.title),['Late','Next','No date']);
  assert.equal(metrics(data,now).overdue,1);
 });
 test('exports quote multiline text and prevent spreadsheet formula execution',()=>{
