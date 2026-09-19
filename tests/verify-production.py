@@ -7,8 +7,8 @@ root=Path(__file__).resolve().parents[1]
 base='https://xicronix-commercial-intelligence.vercel.app/'
 out=root/'review-artifacts'/'production';out.mkdir(parents=True,exist_ok=True)
 expected=(root/'index.html').read_bytes()
-files=['index.html','app.js','styles.css','executive.css','analytics.css','production.css','domain.mjs','workspace.mjs','demo.mjs','executive.mjs','analytics.mjs','analytics-view.mjs','catalog.mjs','recuperar.html','recuperar.js','complaints.html']
-results={'checked_at':datetime.now(timezone.utc).isoformat(),'base_url':base,'release':'2026-09-18-v2.2','assets':[],'logged_out_browser':False}
+files=['index.html','app.js','styles.css','executive.css','analytics.css','production.css','domain.mjs','workspace.mjs','demo.mjs','executive.mjs','analytics.mjs','analytics-view.mjs','catalog.mjs','commercial-core.mjs','recuperar.html','recuperar.js','complaints.html']
+results={'checked_at':datetime.now(timezone.utc).isoformat(),'base_url':base,'release':'2026-09-18-v2.3','assets':[],'logged_out_browser':False}
 def fetch(path):
  req=urllib.request.Request(base+('' if path=='index.html' else path)+'?verify='+str(int(time.time())),headers={'User-Agent':'Xicronix-release-verification/2.1','Cache-Control':'no-cache'})
  with urllib.request.urlopen(req,timeout=25) as response:return response.read(),response.status
@@ -41,4 +41,4 @@ try:
  results['passed']=True
 finally:
  (out/'verification.json').write_text(json.dumps(results,ensure_ascii=False,indent=2))
-print('16 production assets match reviewed commit; genuine signed-out login loads. No authenticated client data accessed.')
+print(f'{len(files)} production assets match reviewed commit; genuine signed-out login loads. No authenticated client data accessed.')
