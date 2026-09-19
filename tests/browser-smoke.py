@@ -35,7 +35,7 @@ with sync_playwright() as p:
  try:
   context,page=newpage();expect(page.locator('#workspaceControls')).to_be_visible()
   check('actual data is default',lambda:expect(page.locator('#sourceBadge')).to_have_text('DATOS REALES'))
-  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-18-v2.8'))
+  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-19-v2.9'))
   page.screenshot(path=str(out/'desktop-v2-fixture.png'),full_page=True)
   pages=['institutions','contacts','leads','opportunities','tasks','meetings','deliverables','documents','activities','catalog_products','cost_profiles','expenses','goals','users','dashboard']
   for target in pages:
@@ -79,6 +79,9 @@ with sync_playwright() as p:
    context,page=newpage({'role':role});expect(page.locator('#appView')).to_be_visible()
    check(role+' cannot select administrator mode',lambda:expect(page.locator('#adminModeBtn')).to_be_hidden())
    check(role+' cannot open admin routes',lambda:expect(page.locator('#navigation [data-page="users"]')).to_have_count(0))
+   check(role+' has seller dashboard',lambda:expect(page.locator('#dashboard')).to_contain_text('Qué está pasando y qué hacer ahora'))
+   check(role+' sees prospect progress',lambda:expect(page.locator('#dashboard')).to_contain_text('Institución de validación'))
+   page.locator('#navigation [data-page="leads"]').click()
    check(role+' sees only assigned leads',lambda:expect(page.locator('#recordList')).not_to_contain_text('Prospecto de otro vendedor'))
    if role=='VIEWER':check('viewer has no write control',lambda:expect(page.locator('#newBtn')).to_be_hidden())
    context.close()

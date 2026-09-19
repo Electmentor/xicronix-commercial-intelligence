@@ -7,6 +7,7 @@ import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executiv
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs';
+import {renderSellerDashboard} from './seller-dashboard.mjs';
 
 const $ = id => document.getElementById(id);
 const enums = {
@@ -64,7 +65,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-18-v2.8';
+const CRM_RELEASE='2026-09-19-v2.9';
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
 let entryRoute=readEntryRoute();
@@ -156,8 +157,8 @@ function renderWorkspaceControls(){
  $('workspaceHint').textContent=admin?'Visión global: resultados, margen, metas y equipo.':'Mi cartera: prospectos, potencial, interacciones y próximas acciones.';
  $('workspaceLabel').textContent=admin?'DIRECCIÓN COMERCIAL':'MI ESPACIO DE VENTAS';
  $('appView').dataset.workspace=admin?ADMIN:SELLER;
- const labels=admin?{}:{leads:'Mi cartera',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',deliverables:'Mis entregables',documents:'Mis documentos',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
- const keys=admin?['dashboard',...Object.keys(modules)]:['leads','tasks','meetings','deliverables','documents','activities','opportunities','catalog_products','institutions','contacts'];
+ const labels=admin?{dashboard:'Dashboard Ejecutivo'}:{dashboard:'Mi Dashboard',leads:'Mi cartera',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',deliverables:'Mis entregables',documents:'Mis documentos',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
+ const keys=admin?['dashboard',...Object.keys(modules)]:['dashboard','leads','tasks','meetings','deliverables','documents','activities','opportunities','catalog_products','institutions','contacts'];
  $('navigation').innerHTML=keys.filter(accessible).map((key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen ejecutivo')+'</button>').join('');
 }
 async function setWorkspace(next){
@@ -168,7 +169,7 @@ async function setWorkspace(next){
  workspace=effectiveWorkspace(profile,next);
  try{localStorage.setItem(workspaceIdentity,workspace);}catch(_error){}
  clearWorkspaceViews();
- navigate(workspace===ADMIN?'dashboard':'leads');
+ navigate('dashboard');
  await reload();
 }
 const THEME_STORAGE_KEY='xicronix-theme';
@@ -323,7 +324,7 @@ function openAttention(){
 function render(){
  renderWorkspaceControls();
  renderAttentionButton();
- if(!accessible(page)){page=canViewDashboard()?'dashboard':'leads';pageIndex=0;$('search').value='';$('filter').value='';}
+ if(!accessible(page)){page='dashboard';pageIndex=0;$('search').value='';$('filter').value='';}
  if($('filter').dataset.page!==page){
   $('filter').dataset.page=page;
   $('filter').innerHTML='<option value="">Todos los estados / tipos</option>'+Object.entries(modules[page]?.options||{}).map(([key,value])=>'<option value="'+key+'">'+value+'</option>').join('');
@@ -331,8 +332,8 @@ function render(){
  const admin=canViewDashboard();
  $('appView').dataset.page=page;$('appView').dataset.source=dataSource;
  $('dashboard').hidden=page!=='dashboard';$('records').hidden=page==='dashboard';
- $('pageTitle').textContent=page==='dashboard'?'Centro de decisiones':!admin&&page==='leads'?'Mi cartera de prospectos':modules[page].label;
- const target=page==='dashboard'?'institutions':page;
+ $('pageTitle').textContent=page==='dashboard'?(admin?'Dashboard Ejecutivo':'Mi Dashboard Comercial'):!admin&&page==='leads'?'Mi cartera de prospectos':modules[page].label;
+ const target=page==='dashboard'?(admin?'institutions':'leads'):page;
  $('newBtn').hidden=target==='users'||!writableFor(target);
  $('newBtn').textContent='+ Crear '+modules[target].singular;
  $('newBtn').disabled=loading||busy||!writableFor(target)||!!failures[target];
@@ -341,12 +342,11 @@ function render(){
   button.classList.toggle('active',button.dataset.page===page);
   if(button.dataset.page===page)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');
  });
- if(!admin)$('dashboard').replaceChildren();
  if(page==='dashboard')renderDashboard();else renderRecords();
 }
 function renderDashboard(){
- if(!canViewDashboard()){$('dashboard').replaceChildren();return;}
- $('dashboard').innerHTML=renderExecutive(data,{demo:dataSource==='demo',failures,analyticsPeriod});
+ const admin=canViewDashboard();
+ $('dashboard').innerHTML=admin?renderExecutive(data,{demo:dataSource==='demo',failures,analyticsPeriod}):renderSellerDashboard(data,{demo:dataSource==='demo',failures});
 }
 function setAnalyticsPeriod(period){
  if(!canViewDashboard()||loading||busy||!['month','quarter','year'].includes(period))return;

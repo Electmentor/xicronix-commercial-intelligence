@@ -64,8 +64,17 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  const headline=incomplete?'Datos incompletos: actualiza antes de decidir.':m.target===null?'Define la meta para orientar al equipo.':m.attainment>=100?'Meta alcanzada. Protege el margen del siguiente cierre.':'Faltan '+compactMoney(m.gap)+' para alcanzar la meta.';
  const kpi=(label,value,hint,view,tone='')=>'<button class="ceo-kpi '+tone+'" data-ceo-view="'+view+'"><span>'+label+'</span><strong>'+value+'</strong><small>'+esc(hint)+'</small></button>';
  const statusTitle=incomplete?'INFORMACIÓN PARCIAL':demo?'ESCENARIO SIMULADO':'LECTURA EJECUTIVA';
+ const storyItems=incomplete?[
+  'Hay módulos incompletos; actualiza antes de interpretar el desempeño.'
+ ]:[
+  m.pipeline>0?'La cartera abierta suma '+compactMoney(m.pipeline)+' en '+m.openCount+' oportunidades.':'Aún no hay cartera abierta registrada.',
+  m.atRisk.length?m.atRisk.length+' oportunidad(es) requieren atención por seguimiento vencido o margen bajo.':'No hay oportunidades abiertas clasificadas como riesgo por las reglas actuales.',
+  m.team[0]?(m.team[0].user.full_name+' lidera el avance del equipo'+(m.team[0].attainment===null?' sin meta comparable.':' con '+Math.round(m.team[0].attainment)+'% de su meta.')):'Aún no hay vendedores con resultados comparables.'
+ ];
+ const institutions=(data.institutions||[]).length;
+ const activeLeads=(data.leads||[]).filter(row=>!['CONVERTED','DISQUALIFIED'].includes(row.status)).length;
  const kpis=kpi('Ventas ganadas · mes',incomplete?'—':compactMoney(m.revenue),m.wonCount+' cierres · '+progress,'won')+
- kpi('Margen estimado · mes',incomplete?'—':compactMoney(m.grossMargin),m.unknownCosts?m.unknownCosts+' cierres sin costo · subtotal parcial':m.marginPercent===null?'Sin costos de cierres disponibles':m.marginPercent.toFixed(1)+'% sobre ventas con costo','won','margin')+
+ kpi('Instituciones en cartera',incomplete?'—':String(institutions),activeLeads+' prospectos activos','pipeline')+
  kpi('Cartera abierta',incomplete?'—':compactMoney(m.pipeline),m.openCount+' oportunidades · proyección mes '+compactMoney(m.forecast),'pipeline')+
  kpi('Cartera en riesgo',incomplete?'—':compactMoney(m.riskValue),m.overdue.length+' seguimientos atrasados · '+m.overdueTasks+' tareas vencidas','risk','risk');
  const decisions=incomplete?'<p class="ceo-empty">No se generan recomendaciones con módulos incompletos.</p>':m.decisions.length?m.decisions.map((item,index)=>'<article class="ceo-decision '+item.tone+'"><div class="ceo-decision-top"><span>0'+(index+1)+' / '+item.title+'</span><strong>'+compactMoney(item.exposure)+'</strong></div><h3 title="'+esc(item.detail)+'">'+esc(item.detail)+'</h3><p>'+esc(item.reason)+'</p><button data-edit="'+esc(item.id)+'" data-table="'+item.table+'">'+item.action+' <span aria-hidden="true">↗</span></button></article>').join(''):'<div class="ceo-empty"><strong>Sin alertas según las reglas actuales.</strong><span> Revisa la cartera o registra nuevas oportunidades.</span><button data-page="leads">Ver prospectos</button></div>';
@@ -76,6 +85,7 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  const activity=activities.map(row=>'<button class="ceo-event" data-edit="'+esc(row.id)+'" data-table="activities"><span class="ceo-event-dot"></span><span><strong>'+esc(row.subject||row.type)+'</strong><small>'+esc((data.users||[]).find(user=>user.id===row.created_by)?.full_name||'Equipo')+' · '+new Date(row.occurred_at).toLocaleDateString('es-PE',{day:'2-digit',month:'short'})+'</small></span><span aria-hidden="true">↗</span></button>').join('')||'<p class="ceo-empty">Aún no hay interacciones.</p>';
  return '<div class="ceo-dashboard ceo-dashboard--analytics"><section class="ceo-signal"><div><small>'+statusTitle+' · '+esc(now.toLocaleDateString('es-PE',{month:'long',year:'numeric'}))+'</small><h2>'+esc(headline)+'</h2></div><button id="ceoMethodBtn" class="ceo-method" title="Ver cómo se calculan los indicadores">Cómo se calcula</button></section>'+
  '<section class="ceo-kpis" aria-label="Indicadores ejecutivos">'+kpis+'</section>'+
+ '<section class="ceo-story"><header><small>LO MÁS IMPORTANTE AHORA</small><h2>Lectura del negocio</h2></header><div>'+storyItems.map((item,index)=>'<p><b>0'+(index+1)+'</b><span>'+esc(item)+'</span></p>').join('')+'</div></section>'+
  renderAnalytics(data,{now,period:analyticsPeriod,demo,failures})+
  '<section class="ceo-decisions" aria-label="Decisiones prioritarias">'+decisions+'</section>'+
  '<section class="ceo-bottom"><article class="ceo-panel"><header><h2>Equipo · avance contra meta</h2><button data-page="users">Ver equipo ↗</button></header>'+team+'<p class="ceo-caption">Orden: % de meta de ventas; desempate por ventas. No calcula bonos.</p></article>'+
