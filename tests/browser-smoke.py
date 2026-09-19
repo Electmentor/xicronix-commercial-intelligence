@@ -35,7 +35,7 @@ with sync_playwright() as p:
  try:
   context,page=newpage();expect(page.locator('#workspaceControls')).to_be_visible()
   check('actual data is default',lambda:expect(page.locator('#sourceBadge')).to_have_text('DATOS REALES'))
-  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-18-v2.2'))
+  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-18-v2.3'))
   page.screenshot(path=str(out/'desktop-v2-fixture.png'),full_page=True)
   pages=['institutions','contacts','leads','opportunities','tasks','activities','catalog_products','cost_profiles','expenses','goals','users','dashboard']
   for target in pages:
@@ -49,7 +49,7 @@ with sync_playwright() as p:
   check('original text escaped',lambda:expect(page.locator('#leadDetailContent em')).to_have_count(0))
   page.screenshot(path=str(out/'request-detail-fixture.png'),full_page=True)
   page.locator('#closeLeadDetail').click()
-  page.get_by_role('button',name='Registrar interacción').first.click();check('interaction form',lambda:expect(page.locator('#editor')).to_be_visible());page.locator('#cancelEditor').click()
+  page.get_by_role('button',name='Registrar movimiento').first.click();check('interaction form',lambda:expect(page.locator('#editor')).to_be_visible());page.locator('#cancelEditor').click()
   page.locator('#navigation [data-page="tasks"]').click();page.reload(wait_until='networkidle')
   check('page survives refresh',lambda:expect(page.locator('#appView')).to_have_attribute('data-page','tasks'))
   page.locator('#themeToggle').click();page.reload(wait_until='networkidle')
