@@ -27,3 +27,6 @@
 
 /* V2.4 dynamic task priority */
 .task-urgency{display:grid;gap:3px;min-width:150px}.task-urgency strong{font-size:.9rem}.task-urgency small{color:var(--muted);white-space:normal}.task-urgency.warn strong{font-weight:800}.task-urgency.active strong{font-weight:750}.task-focus p{max-width:720px}
+
+/* V2.5 attention center */
+.attention-button{display:inline-flex;align-items:center;gap:8px}.attention-button b{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;border:1px solid var(--line);font-size:.78rem}.attention-button.has-alerts b{font-weight:800}.attention-button.has-alerts{font-weight:700}#attentionDialog{width:min(820px,calc(100% - 24px));max-height:88vh;overflow:auto}.attention-list{display:grid;gap:10px}.attention-item{display:flex;justify-content:space-between;align-items:center;gap:16px;border:1px solid var(--line);border-radius:12px;padding:16px}.attention-item h3{margin:3px 0 6px}.attention-item p{margin:4px 0}.attention-item small{color:var(--muted);font-weight:700;letter-spacing:.05em}.attention-item.overdue{border-width:2px}.attention-actions{flex:none}@media(max-width:640px){.attention-item{align-items:stretch;flex-direction:column}.attention-actions button{width:100%}.attention-button span{display:none}}
