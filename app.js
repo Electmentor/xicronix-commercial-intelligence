@@ -612,6 +612,10 @@ async function removeRecord(table,id){
   if(dataSource==='demo'){
    mutateDemo(demoData,table,'delete',null,{id,userId:currentActor(),org:profile.organization_id});persistDemo();loadDemo();notice(demoSavedMessage());return;
   }
+  if(table==='documents'){
+   const paths=(data.document_versions||[]).filter(version=>version.document_id===id).map(version=>version.storage_path).filter(Boolean);
+   if(paths.length){const removed=await sb.storage.from('crm-documents').remove(paths);if(removed.error)throw removed.error;}
+  }
   const {error}=await sb.from(databaseTable(table)).delete().eq('id',id).eq('organization_id',profile.organization_id);
   if(error)throw error;
   busy=false;await reload();notice('Registro eliminado correctamente.');
