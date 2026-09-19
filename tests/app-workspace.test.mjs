@@ -9,6 +9,7 @@ import * as workspace from '../workspace.mjs';
 import * as demo from '../demo.mjs';
 import * as executive from '../executive.mjs';
 import * as analytics from '../analytics.mjs';
+import * as sellerDashboard from '../seller-dashboard.mjs';
 const source=readFileSync(new URL('../app.js',import.meta.url),'utf8').replace(/^import .*;$/gm,'');
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 function harness(role='ADMIN',saved=null,sourceChoice='live'){
@@ -74,7 +75,7 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
  const sb={from:table=>new Query(table),auth:{onAuthStateChange(){},signOut:async()=>({error:null})}};
  if(saved)storage.set(workspace.workspaceKey('me','org'),saved);
  if(sourceChoice)storage.set(workspace.workspaceKey('me','org')+':source-v'+demo.DEMO_VERSION,sourceChoice);
- const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,...analytics,console,document,window:{supabase:{createClient:()=>sb},confirm:()=>true},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
+ const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,...analytics,...sellerDashboard,console,document,window:{supabase:{createClient:()=>sb},confirm:()=>true},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
  const run=code=>vm.runInContext(code,context);
  run(source);run('init();session={user:{id:"me",email:"test@example.invalid"}};');
  return {run,nodes,db,queries,storage,downloads,boot:()=>run('reload()'),gate:promise=>{profileGate=promise;},click:id=>nodes.get(id).onclick()};
@@ -98,13 +99,13 @@ test('mode buttons switch both experiences, clear management data, reset filters
  assert.equal(h.run('workspace'),'seller');
  assert.equal(h.run('profile.role'),'ADMIN','never mutate the real account role');
  assert.equal(h.nodes.get('sellerModeBtn').getAttribute('aria-pressed'),'true');
- assert.equal(h.nodes.get('dashboard').innerHTML,'');
+ assert.match(h.nodes.get('dashboard').innerHTML,/Qué está pasando y qué hacer ahora/);
  assert.equal(h.nodes.get('search').value,'');
- assert.match(h.nodes.get('pageTitle').textContent,/Mi cartera/);
- assert.match(h.nodes.get('sellerSummary').innerHTML,/Mi operación comercial/);
- assert.match(h.nodes.get('recordList').innerHTML,/Prospecto propio/);
- assert.doesNotMatch(h.nodes.get('recordList').innerHTML,/Prospecto ajeno|Eliminar/);
- assert.doesNotMatch(h.nodes.get('navigation').innerHTML,/dashboard|users|goals/);
+ assert.match(h.nodes.get('pageTitle').textContent,/Mi Dashboard Comercial/);
+ assert.match(h.nodes.get('dashboard').innerHTML,/Prospecto propio/);
+ assert.doesNotMatch(h.nodes.get('dashboard').innerHTML,/Prospecto ajeno|Eliminar/);
+ assert.match(h.nodes.get('navigation').innerHTML,/data-page="dashboard"/);
+ assert.doesNotMatch(h.nodes.get('navigation').innerHTML,/data-page="users"|data-page="goals"/);
  assert.equal(h.run('data.users.length+data.goals.length'),0);
  assert.equal(h.run('data.opportunities[0].estimated_cost'),undefined);
  assert.equal(h.storage.get(workspace.workspaceKey('me','org')),'seller');
@@ -120,9 +121,12 @@ for(const role of ['SALES','MANAGER','VIEWER']){
   assert.equal(h.run('workspace'),'seller');
   assert.equal(h.nodes.get('adminModeBtn').hidden,true);
   await h.run('setWorkspace("admin")');
-  for(const page of ['dashboard','users','goals','unknown']){
+  h.run('navigate("dashboard")');
+  assert.equal(h.run('page'),'dashboard');
+  assert.match(h.nodes.get('dashboard').innerHTML,/Qué está pasando y qué hacer ahora/);
+  for(const page of ['users','goals','unknown']){
    h.run('navigate('+JSON.stringify(page)+')');
-   assert.equal(h.run('page'),'leads');
+   assert.equal(h.run('page'),'dashboard');
   }
   assert.equal(h.run('workspace'),'seller');
   assert.equal(h.queries.some(q=>q.table==='commercial_goals'),false);
