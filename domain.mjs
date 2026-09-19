@@ -42,7 +42,15 @@ export function priorities(data, now = Date.now()) {
     const scoreDifference=Number(b.derived_score??b.score??b.probability??0)-Number(a.derived_score??a.score??a.probability??0);
     return scoreDifference||Date.parse(a.due)-Date.parse(b.due);
   });
-  return [...taskRows,...commercial];
+  const scheduledTasks=taskRows.filter(row=>row.urgency?.hasDate),undatedTasks=taskRows.filter(row=>!row.urgency?.hasDate);
+  const agenda=[...scheduledTasks,...commercial].sort((a,b)=>{
+    const aDue=Date.parse(a.due),bDue=Date.parse(b.due);
+    const aOverdue=Number.isFinite(aDue)&&aDue<now,bOverdue=Number.isFinite(bDue)&&bDue<now;
+    if(aOverdue!==bOverdue)return aOverdue?-1:1;
+    if(aDue!==bDue)return aDue-bDue;
+    return Number(b.derived_score??b.score??b.probability??0)-Number(a.derived_score??a.score??a.probability??0);
+  });
+  return [...agenda,...undatedTasks];
 }
 export function metrics(data, now=Date.now()) {
   const open=(data.opportunities||[]).filter(isOpen);
