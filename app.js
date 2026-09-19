@@ -20,6 +20,8 @@ const enums = {
  meetingMode:{ONLINE:'Virtual',ONSITE:'Presencial',PHONE:'Llamada'},
  deliverableDirection:{XICRONIX_TO_CLIENT:'Xicronix → cliente',CLIENT_TO_XICRONIX:'Cliente → Xicronix'},
  deliverableStatus:{PENDING:'Pendiente',DELIVERED:'Entregado',RECEIVED:'Recibido',CANCELLED:'Cancelado'},
+ documentCategory:{REQUEST_DIAGNOSIS:'Solicitud y diagnóstico',PROPOSALS_QUOTES:'Propuestas y cotizaciones',CONTRACTS_AUTHORIZATIONS:'Contratos y autorizaciones',BILLING_PAYMENTS:'Facturación y pagos',IMPLEMENTATION_DELIVERY:'Implementación y entrega',MANUALS_POSTSALE:'Manuales y postventa'},
+ documentStatus:{DRAFT:'Borrador',CURRENT:'Vigente',SENT:'Enviado',SIGNED:'Firmado',REPLACED:'Reemplazado'},
  priority:{LOW:'Baja',MEDIUM:'Media',HIGH:'Alta',CRITICAL:'Crítica'},
  role:{ADMIN:'Administrador',MANAGER:'Responsable',SALES:'Comercial',VIEWER:'Solo lectura'},
  activityType:{WEB_FORM:'Formulario web',CALL:'Llamada',WHATSAPP:'WhatsApp',EMAIL:'Correo',MEETING:'Reunión',VISIT:'Visita',DEMO:'Demostración',PROPOSAL_SENT:'Propuesta enviada',FOLLOW_UP:'Seguimiento',NOTE:'Nota',OTHER:'Otro'},
@@ -29,6 +31,7 @@ const enums = {
  expenseCategory:{PERSONNEL:'Personal',MARKETING:'Marketing',OPERATIONS:'Operaciones',TECHNOLOGY:'Tecnología',OTHER:'Otros'}
 };
 const f=(key,label,type='text',required=false,options=null)=>({key,label,type,required,options});
+const transientFile={key:'_file',label:'Archivo / nueva versión',type:'file',required:false,transient:true};
 const institution=f('institution_id','Institución','relation');
 const contact=f('contact_id','Contacto','relation');
 const followUp=[f('next_action','Próxima acción'),f('next_action_date','Fecha de seguimiento','datetime-local')];
@@ -50,6 +53,7 @@ const modules={
  tasks:{label:'Tareas',singular:'tarea',filter:'status',options:enums.taskStatus,fields:[f('title','Título','text',true),f('lead_id','Prospecto','relation'),institution,contact,f('status','Estado','select',true,enums.taskStatus),f('priority','Importancia manual','select',true,enums.priority),f('due_at','Fecha límite','datetime-local'),assignee]},
  meetings:{label:'Agenda',singular:'reunión',filter:'status',options:enums.meetingStatus,fields:[f('title','Título','text',true),f('lead_id','Prospecto','relation'),institution,contact,f('status','Estado','select',true,enums.meetingStatus),f('attendee_status','Confirmación del cliente','select',true,enums.attendeeStatus),f('mode','Modalidad','select',true,enums.meetingMode),f('start_at','Inicio','datetime-local',true),f('end_at','Fin','datetime-local',true),f('location','Lugar / enlace'),owner,f('notes','Notas','textarea')]},
  deliverables:{label:'Entregables',singular:'entregable',filter:'status',options:enums.deliverableStatus,fields:[f('title','Entregable','text',true),f('lead_id','Prospecto','relation',true),institution,contact,f('direction','Responsable de entrega','select',true,enums.deliverableDirection),f('status','Estado','select',true,enums.deliverableStatus),f('due_at','Fecha comprometida','datetime-local'),f('completed_at','Fecha de entrega / recepción','datetime-local'),f('notes','Notas','textarea')]},
+ documents:{label:'Documentos',singular:'documento',filter:'status',options:enums.documentStatus,fields:[f('title','Documento','text',true),f('lead_id','Prospecto','relation',true),institution,contact,f('category','Carpeta','select',true,enums.documentCategory),f('status','Estado documental','select',true,enums.documentStatus),f('document_date','Fecha del documento','date'),f('notes','Notas','textarea'),transientFile]},
  activities:{label:'Movimientos',singular:'movimiento',filter:'action_code',options:MOVEMENT_ACTIONS,fields:[f('lead_id','Prospecto','relation',true),institution,contact,f('action_code','Acción realizada','select',false,MOVEMENT_ACTIONS),f('type','Canal','select',true,enums.activityType),f('subject','Asunto','text',true),f('outcome','Resultado','select',false,enums.activityOutcome),f('need_summary','Necesidad detectada','textarea'),f('decision_timeline','Horizonte de decisión'),f('budget_signal','Señal de presupuesto'),f('evidence_note','Evidencia / referencia','textarea'),f('notes','Notas','textarea'),f('occurred_at','Fecha y hora','datetime-local',true),f('next_action','Próxima acción'),f('next_action_date','Fecha de seguimiento','datetime-local')]},
  catalog_products:{label:'Catálogo',singular:'producto',filter:'category',options:{Fisica:'Física','Educacion STEM':'Educación STEM',Optica:'Óptica',Quimica:'Química',Robotica:'Robótica'},fields:[f('supplier_name','Proveedor','text',true),f('supplier_sku','SKU proveedor','text',true),f('name','Producto','text',true),f('category','Categoría','text',true),f('currency','Moneda','text',true),catalogPrice,f('price_valid_from','Vigencia desde','date'),f('price_valid_until','Vigencia hasta','date'),f('origin_country','País de origen','text',true),f('tariff_code','Subpartida peruana validada'),f('weight_kg','Peso (kg)','number'),f('volume_m3','Volumen (m³)','number'),f('reference_url','Referencia oficial','url'),f('active','Activo','checkbox'),f('notes','Fuente y condiciones','textarea')]},
  cost_profiles:{label:'Costos de importación',singular:'perfil de costos',filter:'destination_country',options:{Peru:'Perú'},fields:[f('name','Nombre','text',true),f('origin_country','Origen','text',true),f('destination_country','Destino','text',true),f('currency','Moneda','text',true),f('exchange_rate','Tipo de cambio','number',true),f('freight_international','Flete internacional','number'),f('insurance','Seguro','number'),f('ad_valorem_rate','Ad valorem (%)','number'),f('igv_rate','IGV (%)','number'),f('perception_rate','Percepción (%)','number'),f('customs_broker_fee','Agente de aduanas','number'),f('terminal_fee','Terminal','number'),f('storage_fee','Almacenaje','number'),f('inland_transport','Transporte interno','number'),f('installation_fee','Instalación','number'),f('contingency_rate','Contingencia (%)','number'),f('valid_from','Vigencia desde','date'),f('valid_until','Vigencia hasta','date'),f('notes','Notas','textarea')]},
@@ -60,11 +64,11 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-18-v2.7';
+const CRM_RELEASE='2026-09-18-v2.8';
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
 let entryRoute=readEntryRoute();
-const emptyData=()=>Object.fromEntries([...Object.keys(modules),'scores'].map(k=>[k,[]]));
+const emptyData=()=>Object.fromEntries([...Object.keys(modules),'scores','document_versions'].map(k=>[k,[]]));
 const writable=()=>profile && ['ADMIN','MANAGER','SALES'].includes(profile.role);
 let workspace=SELLER, workspaceIdentity=null, loading=false;
 let dataSource='live', sourceIdentity=null, demoData=null, demoSeller=DEMO_SELLERS[0].id, demoSaved=true, executiveFilter='', executiveOwner='';
@@ -152,8 +156,8 @@ function renderWorkspaceControls(){
  $('workspaceHint').textContent=admin?'Visión global: resultados, margen, metas y equipo.':'Mi cartera: prospectos, potencial, interacciones y próximas acciones.';
  $('workspaceLabel').textContent=admin?'DIRECCIÓN COMERCIAL':'MI ESPACIO DE VENTAS';
  $('appView').dataset.workspace=admin?ADMIN:SELLER;
- const labels=admin?{}:{leads:'Mi cartera',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
- const keys=admin?['dashboard',...Object.keys(modules)]:['leads','tasks','meetings','activities','opportunities','catalog_products','institutions','contacts'];
+ const labels=admin?{}:{leads:'Mi cartera',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',deliverables:'Mis entregables',documents:'Mis documentos',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
+ const keys=admin?['dashboard',...Object.keys(modules)]:['leads','tasks','meetings','deliverables','documents','activities','opportunities','catalog_products','institutions','contacts'];
  $('navigation').innerHTML=keys.filter(accessible).map((key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen ejecutivo')+'</button>').join('');
 }
 async function setWorkspace(next){
@@ -253,7 +257,7 @@ async function reload(){
  restoreWorkspace();restoreSource();
  $('userRole').textContent=enums.role[profile.role]||'Sin rol';$('welcome').textContent=profile.full_name||session.user.email;
  if(dataSource==='demo'){loadDemo();notice('');render();return;}
- const tables=[...Object.keys(modules).filter(accessible),'scores'];
+ const tables=[...Object.keys(modules).filter(accessible),'scores',...(accessible('documents')?['document_versions']:[])];
  const results=await Promise.allSettled(tables.map(k=>allRows(k,profile.organization_id)));
  if(version!==loadVersion)return;
  data=emptyData();failures={};tables.forEach((k,i)=>{if(results[i].status==='fulfilled')data[k]=results[i].value;else failures[k]=true;});
@@ -431,6 +435,29 @@ function openDeliverableForLead(leadId){
  const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
  closeLeadDetails(false);
  openEditor('deliverables',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',title:'',direction:'XICRONIX_TO_CLIENT',status:'PENDING'});
+}
+function openDocumentForLead(leadId){
+ const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
+ closeLeadDetails(false);
+ openEditor('documents',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',title:'',category:'REQUEST_DIAGNOSIS',status:'DRAFT'});
+}
+function currentDocumentVersion(documentId){
+ return (data.document_versions||[]).find(row=>row.document_id===documentId&&row.is_current)
+   ||(data.document_versions||[]).filter(row=>row.document_id===documentId).sort((a,b)=>Number(b.version_number)-Number(a.version_number))[0]
+   ||null;
+}
+async function openDocumentFile(documentId){
+ const document=(data.documents||[]).find(row=>row.id===documentId);if(!document)return;
+ const version=currentDocumentVersion(documentId);if(!version?.storage_path){notice('Este documento todavía no tiene un archivo cargado.',true);return;}
+ const popup=window.open('about:blank','_blank','noopener,noreferrer');
+ try{
+  const {data:signed,error}=await sb.storage.from('crm-documents').createSignedUrl(version.storage_path,300);
+  if(error||!signed?.signedUrl)throw error||new Error('signed_url_failed');
+  if(popup)popup.location=signed.signedUrl;else window.open(signed.signedUrl,'_blank','noopener,noreferrer');
+ }catch(error){if(popup)popup.close();notice('No se pudo abrir el archivo privado. Actualiza e inténtalo nuevamente.',true);}
+}
+function safeStorageFileName(name){
+ return String(name||'archivo').normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g,'-').replace(/-+/g,'-').slice(0,120)||'archivo';
 }
 function commercialUrgency(tasks,meetings){
  const pending=tasks.filter(row=>!['COMPLETED','CANCELLED'].includes(row.status));
