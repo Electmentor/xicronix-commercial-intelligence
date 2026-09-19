@@ -552,7 +552,7 @@ function buildImport(table,rows){
  const errors=[],payloads=[];
  rows.forEach((source,index)=>{
   const payload={},prefix='Fila '+(index+2)+': ';
-  for(const field of fieldsFor(table)){
+  for(const field of fieldsFor(table)){if(field.transient)continue;
    const value=importValue(source,field);
    if(String(value).startsWith('__missing__:'))errors.push(prefix+'no se encontró '+field.label+' “'+String(value).slice(12)+'”.');
    if(field.required&&!String(value).trim())errors.push(prefix+'falta '+field.label+'.');
@@ -670,6 +670,7 @@ function openEditor(table,id=null,initialValues={}){
  if(options)input=`<select ${attrs}><option value="" ${value===''?'selected':''}>${field.type==='relation'?'Sin vincular':field.required?'Selecciona una opción':'Sin registrar'}</option>${Object.entries(options).map(([k,v])=>`<option value="${esc(k)}" ${value===k?'selected':''}>${esc(v)}</option>`).join('')}</select>`;
  else if(field.type==='textarea')input=`<textarea ${attrs}>${esc(value)}</textarea>`;
  else if(field.type==='checkbox')input=`<input ${attrs} type="checkbox" ${value!==false?'checked':''}>`;
+ else if(field.type==='file')input=`<input ${attrs} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.txt,.csv">`;
  else input=`<input ${attrs} type="${field.type}" value="${esc(value)}" ${field.type==='number'?`min="0" step="${['score','probability','quantity',...costRateKeys].includes(field.key)?1:'0.01'}" ${['score','probability',...costRateKeys].includes(field.key)?'max="100"':''}`:''} ${field.key==='ruc'?'pattern="[0-9]{11}" title="Ingresa 11 dígitos"':''}>`;
  return `<div class="${field.type==='textarea'?'full':''}"><label for="field-${field.key}">${field.label}${field.required?' *':''}</label>${input}</div>`;
  }).join('');
@@ -687,7 +688,8 @@ function openEditor(table,id=null,initialValues={}){
   const scoreRecommendation=row.status==='CONVERTED'?(linkedOpportunity?'Lead convertido · continuar '+(enums.stage[linkedOpportunity.stage]||'oportunidad'):'Lead convertido · crear o vincular una oportunidad'):(leadScore?.recommendation||'Se calculará al guardar el lead y registrar su primera interacción.');
   $('fields').insertAdjacentHTML('beforeend','<section class="score-insight full" aria-live="polite"><div class="score-insight-head"><strong>'+scoreLabel+'</strong><b>'+(leadScore?scoreValue+'%':'Pendiente')+'</b></div><div class="score-track"><i style="width:'+scoreValue+'%"></i></div><p>'+esc(scoreRecommendation)+'</p><small>Motor explicable v1 · Fuente: '+(esc(leadScore?.recommendation_source||'RULES_V1'))+(row.status==='CONVERTED'?' · La conversión no reinicia este histórico':'')+'</small></section>');
  }
- if(['leads','activities','opportunities','tasks'].includes(table))$('fields').insertAdjacentHTML('beforeend','<p id="relationHelp" class="full muted" role="status">Institución y contacto deben corresponder entre sí. Al cambiar de institución se actualiza la lista de contactos.</p>');
+ if(['leads','activities','opportunities','tasks','meetings','deliverables','documents'].includes(table))$('fields').insertAdjacentHTML('beforeend','<p id="relationHelp" class="full muted" role="status">Institución y contacto deben corresponder entre sí. Al cambiar de institución se actualiza la lista de contactos.</p>');
+ if(table==='documents')$('fields').insertAdjacentHTML('beforeend','<p class="full muted">Cada archivo nuevo crea una versión adicional y conserva las anteriores. “Subido” no significa enviado, “firmado” no significa pagado y una factura cargada no acredita cobro.</p>');
  if(table==='activities'){
   $('fields').insertAdjacentHTML('beforeend','<section id="movementPreview" class="movement-preview full" aria-live="polite"></section><p class="full muted">Registra únicamente un movimiento que realmente ocurrió. Acción, canal y resultado son datos distintos. La próxima acción con fecha genera una tarea interna; no envía mensajes ni invitaciones.</p>');
   updateMovementPreview();
@@ -712,17 +714,18 @@ function updateQuotePreview(){
 }
 async function saveRecord(event){
  event.preventDefault();const canEdit=writableFor(editTable);if(busy||loading||!canEdit)return;
+ const selectedFile=editTable==='documents'?document.getElementById('field-_file')?.files?.[0]||null:null;
  if(editId&&!scopedRows(editTable).some(row=>row.id===editId))return;
  const payload={}, form=new FormData($('recordForm'));
  const original=editId?scopedRows(editTable).find(row=>row.id===editId):null;
  if(typeof $('recordForm').reportValidity==='function'&&!$('recordForm').reportValidity())return;
- for(const field of fieldsFor(editTable)){let value=field.type==='checkbox'?form.get(field.key)==='on':String(form.get(field.key)??'').trim();
+ for(const field of fieldsFor(editTable)){if(field.transient)continue;let value=field.type==='checkbox'?form.get(field.key)==='on':String(form.get(field.key)??'').trim();
  if(field.required&&!value){$('formMsg').textContent='Completa los campos obligatorios.';return;}
  if(field.type==='number'){value=value===''?(['estimated_cost','negotiated_unit_price','target_expenses'].includes(field.key)?null:field.key==='quantity'?1:0):Number(value);if(costRateKeys.has(field.key))value=value/100;}
  else if(field.type==='datetime-local'){if(value&&!Number.isFinite(Date.parse(value))){$('formMsg').textContent='Revisa la fecha de '+field.label+'.';return;}value=value?(original?.[field.key]&&value===localDateTime(original[field.key])?original[field.key]:new Date(value).toISOString()):null;}
  else if(field.type!=='checkbox')value=value||null;payload[field.key]=value;
  }
- for(const field of fieldsFor(editTable)){
+ for(const field of fieldsFor(editTable)){if(field.transient)continue;
   const value=payload[field.key];
   if(field.options&&value&&!Object.hasOwn(field.options,value)&&value!==original?.[field.key]){$('formMsg').textContent='Selecciona una opción válida para '+field.label+'.';return;}
   if(['score','probability','quantity'].includes(field.key)&&value!==null&&!Number.isInteger(value)){$('formMsg').textContent=field.label+' debe ser un número entero.';return;}
@@ -739,18 +742,37 @@ async function saveRecord(event){
  if(editTable==='meetings'&&payload.start_at&&payload.end_at&&Date.parse(payload.end_at)<=Date.parse(payload.start_at)){$('formMsg').textContent='La hora de fin debe ser posterior al inicio.';return;}
  if(editTable==='activities'&&!editId&&!payload.action_code){$('formMsg').textContent='Selecciona la acción realizada antes de guardar el movimiento.';return;}
  if(editTable==='activities'&&Boolean(payload.next_action)!==Boolean(payload.next_action_date)){$('formMsg').textContent='Para programar el seguimiento, completa la próxima acción y su fecha, o deja ambos campos vacíos.';return;}
+ if(editTable==='documents'&&!editId&&dataSource==='live'&&!selectedFile){$('formMsg').textContent='Selecciona el archivo inicial del documento.';return;}
+ if(editTable==='documents'&&selectedFile&&selectedFile.size>26214400){$('formMsg').textContent='El archivo supera el límite de 25 MB.';return;}
  busy=true;$('saveBtn').disabled=true;$('formMsg').textContent='Guardando…';
  const table=editTable,id=editId,org=profile.organization_id,userId=session.user.id,version=loadVersion;
+ let createdDocumentId=null,uploadedPath=null;
  try{
  if(dataSource==='demo'){
   mutateDemo(demoData,table,id?'update':'insert',payload,{id,userId:currentActor(),org});if(table==='activities')applyLocalMovementMilestone(payload);persistDemo();loadDemo();$('editor').close();render();notice(demoSavedMessage());return;
  }
  let query;if(id){if(table!=='users'&&table!=='activities'){payload.updated_at=new Date().toISOString();}query=sb.from(databaseTable(table)).update(payload).eq('id',id).eq('organization_id',org);if(table!=='users'&&table!=='activities'&&editingVersion)query=query.eq('updated_at',editingVersion);}
  else if(table!=='users')query=sb.from(databaseTable(table)).insert({...payload,organization_id:org,created_by:userId});else throw {code:'42501'};
- const {error}=await query.select('id').single();if(error)throw error;
+ const {data:saved,error}=await query.select('id').single();if(error)throw error;
+ if(table==='documents'){
+  createdDocumentId=saved?.id||id;
+  if(selectedFile&&createdDocumentId){
+   const nextVersion=Number(original?.current_version||0)+1;
+   const fileName=safeStorageFileName(selectedFile.name);
+   uploadedPath=org+'/'+payload.lead_id+'/'+createdDocumentId+'/v'+nextVersion+'/'+Date.now()+'-'+fileName;
+   const upload=await sb.storage.from('crm-documents').upload(uploadedPath,selectedFile,{contentType:selectedFile.type||undefined,upsert:false});
+   if(upload.error)throw upload.error;
+   const registered=await sb.rpc('crm_register_document_version',{p_document_id:createdDocumentId,p_storage_path:uploadedPath,p_file_name:selectedFile.name,p_mime_type:selectedFile.type||null,p_size_bytes:selectedFile.size,p_status:payload.status||'DRAFT',p_notes:payload.notes||null});
+   if(registered.error){await sb.storage.from('crm-documents').remove([uploadedPath]);uploadedPath=null;throw registered.error;}
+  }
+ }
  if(!session||session.user.id!==userId||version!==loadVersion)return;
  $('editor').close();busy=false;await reload();if(!failures[table])notice('Registro guardado correctamente.');
- }catch(error){$('formMsg').textContent=errorText(error);$('formMsg').className='error';}
+ }catch(error){
+  if(table==='documents'&&uploadedPath){try{await sb.storage.from('crm-documents').remove([uploadedPath]);}catch(_cleanup){}}
+  if(table==='documents'&&!id&&createdDocumentId){try{await sb.from('documents').delete().eq('id',createdDocumentId).eq('organization_id',org);}catch(_cleanup){}}
+  $('formMsg').textContent=errorText(error);$('formMsg').className='error';
+ }
  finally{busy=false;$('saveBtn').disabled=false;render();}
 }
 async function authenticate(event){
