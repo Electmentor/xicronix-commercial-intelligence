@@ -41,6 +41,7 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
   leads:[row('own-lead',{title:'Prospecto propio',owner_user_id:'me',institution_id:'institution',contact_id:'contact',status:'NEW'}),row('other-lead',{title:'Prospecto ajeno',created_by:'colleague',owner_user_id:'colleague',status:'NEW'})],
   opportunities:[row('own-opp',{name:'Oportunidad propia',value:1000,estimated_cost:500,owner_user_id:'me',stage:'WON'}),row('other-opp',{name:'Oportunidad ajena',created_by:'colleague',owner_user_id:'colleague',value:2000,stage:'PROPOSAL'})],
   tasks:[row('own-task',{title:'Tarea propia',assigned_to:'me',status:'PENDING'})],
+  meetings:[],deliverables:[],documents:[],document_versions:[],
   activities:[row('activity',{lead_id:'own-lead',subject:'Interacción propia',type:'CALL',occurred_at:'2026-09-09T12:00:00Z'})],
   catalog_products:[row('catalog-product',{supplier_name:'Proveedor demo',supplier_sku:'SKU-001',name:'Kit demo',category:'Fisica',currency:'USD',supplier_unit_price:680,origin_country:'Brasil',active:true})],
   cost_profiles:[row('cost-profile',{name:'Perfil demo',origin_country:'Brasil',destination_country:'Peru',currency:'USD',exchange_rate:3.78,igv_rate:.18})],
@@ -138,7 +139,7 @@ for(const role of ['SALES','MANAGER','VIEWER']){
 }
 test('admin can create/edit all wired modules; seller cannot open another owner or admin form',async()=>{
  const h=harness();await h.boot();
- for(const table of ['institutions','contacts','leads','opportunities','tasks','activities','catalog_products','cost_profiles','goals']){
+ for(const table of ['institutions','contacts','leads','opportunities','tasks','meetings','deliverables','documents','activities','catalog_products','cost_profiles','goals']){
   h.run('openEditor('+JSON.stringify(table)+')');
   assert.equal(h.nodes.get('editor').open,true,table);
   assert.equal(h.nodes.get('saveBtn').hidden,false,table);
