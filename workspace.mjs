@@ -2,7 +2,7 @@
 // The database remains responsible for enforcing the authenticated account's permissions.
 export const ADMIN = 'admin';
 export const SELLER = 'seller';
-const operational = ['institutions', 'contacts', 'leads', 'opportunities', 'tasks', 'activities', 'catalog_products'];
+const operational = ['institutions', 'contacts', 'leads', 'opportunities', 'tasks', 'meetings', 'activities', 'catalog_products'];
 export function effectiveWorkspace(profile, requested = ADMIN) {
   return profile?.role === 'ADMIN' && requested === ADMIN ? ADMIN : SELLER;
 }
@@ -29,7 +29,7 @@ export function scopeWorkspaceData(source, profile, userId, workspace) {
   ]));
   if (effectiveWorkspace(profile, workspace) === ADMIN) return organization;
   const own = row => assignedUserId(row) === userId;
-  for (const table of ['leads','opportunities','tasks']) result[table] = (organization[table] || []).filter(own);
+  for (const table of ['leads','opportunities','tasks','meetings']) result[table] = (organization[table] || []).filter(own);
   // Management cost data is not part of the seller experience.
   result.opportunities = result.opportunities.map(({estimated_cost, ...row}) => row);
   const leadIds = new Set(result.leads.map(row => row.id));
@@ -40,7 +40,7 @@ export function scopeWorkspaceData(source, profile, userId, workspace) {
   result.scores = (organization.scores || []).filter(row => leadIds.has(row.lead_id) || opportunityIds.has(row.opportunity_id));
   result.catalog_products = organization.catalog_products || [];
   result.cost_profiles = [];
-  const linked = [...result.leads, ...result.opportunities, ...result.tasks, ...result.activities];
+  const linked = [...result.leads, ...result.opportunities, ...result.tasks, ...(result.meetings||[]), ...result.activities];
   const contactIds = new Set(linked.map(row => row.contact_id).filter(Boolean));
   result.contacts = (organization.contacts || []).filter(row => row.created_by === userId || contactIds.has(row.id));
   const institutionIds = new Set([...linked, ...result.contacts].map(row => row.institution_id).filter(Boolean));

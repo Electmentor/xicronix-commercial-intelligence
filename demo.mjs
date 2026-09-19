@@ -20,7 +20,7 @@ export function createDemoData(org,now=new Date()){
  const base=(id,owner='demo-seller-1')=>({id,organization_id:org,created_by:owner,created_at:day(-25),updated_at:stamp,is_simulated:true,notes:'[SIMULADO] Caso ficticio para explorar el sistema. No representa ventas, personas ni pagos reales.'});
  const sectors=['Universidad Aurora','Colegio Horizonte','Instituto Nova','Centro Andino de Investigación','Clínica Boreal','Universidad del Pacífico Sur','Colegio Arquímedes','Instituto TecnoSur','Laboratorio Prisma','Hospital Nueva Vida','Universidad Altamira','Colegio Robótica','Instituto Vector','Centro Científico Delta','Clínica Meridiano','Universidad Lumen','Colegio Galileo','Instituto Futura','Centro de Innovación Quasar','Hospital Horizonte'];
  const offerings=['Laboratorio de física','Aula STEM','Analítica e IA','Laboratorio de química','Equipamiento de investigación','Automatización de procesos'];
- const data={institutions:[],contacts:[],leads:[],opportunities:[],tasks:[],activities:[],catalog_products:[],cost_profiles:[],scores:[],users:[],goals:[]};
+ const data={institutions:[],contacts:[],leads:[],opportunities:[],tasks:[],meetings:[],activities:[],catalog_products:[],cost_profiles:[],scores:[],users:[],goals:[]};
  data.users=DEMO_SELLERS.map(user=>({...base(user.id,user.id),...user}));
  data.institutions=sectors.map((name,index)=>({...base('demo-institution-'+index,DEMO_SELLERS[index%5].id),name:name+' [SIMULADO]',type:['UNIVERSITY','SCHOOL','INSTITUTE','RESEARCH_CENTER','CLINIC'][index%5],city:['Lima','Arequipa','Trujillo','Cusco'][index%4],country:'Perú',email:'institucion'+index+'@example.invalid',website:'https://example.invalid'}));
  data.contacts=Array.from({length:30},(_,index)=>({...base('demo-contact-'+index,DEMO_SELLERS[index%5].id),first_name:['Marina','Álvaro','Sofía','Nicolás','Elena'][index%5],last_name:'Contacto demo '+(index+1),institution_id:data.institutions[index%20].id,job_title:['Dirección académica','Jefatura de laboratorio','Gerencia de innovación'][index%3],decision_level:index%3?'DECISION_MAKER':'INFLUENCER',email:'contacto'+index+'@example.invalid'}));
@@ -113,7 +113,7 @@ export function refreshDemoScores(data,now=new Date()){
 export function mutateDemo(data,table,operation,payload,{id,userId,org,now=new Date()}){
  if(!Array.isArray(data[table])||table==='scores')throw Error('Módulo demo no válido');
  if(operation==='delete'){
-  for(const [other,fields] of Object.entries({contacts:['institution_id'],leads:['institution_id','contact_id','owner_user_id'],opportunities:['institution_id','contact_id','lead_id','owner_user_id'],tasks:['institution_id','contact_id','lead_id','opportunity_id','assigned_to'],activities:['institution_id','contact_id','lead_id','opportunity_id'],goals:['owner_user_id']})){
+  for(const [other,fields] of Object.entries({contacts:['institution_id'],leads:['institution_id','contact_id','owner_user_id'],opportunities:['institution_id','contact_id','lead_id','owner_user_id'],tasks:['institution_id','contact_id','lead_id','opportunity_id','assigned_to'],meetings:['institution_id','contact_id','lead_id','opportunity_id','owner_user_id'],activities:['institution_id','contact_id','lead_id','opportunity_id'],goals:['owner_user_id']})){
    if(data[other].some(row=>fields.some(field=>row[field]===id)))throw Error('El caso tiene registros vinculados. Reasígnalos antes de eliminarlo.');
   }
   data[table]=data[table].filter(row=>row.id!==id);
