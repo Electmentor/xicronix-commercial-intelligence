@@ -24,3 +24,6 @@
 .commercial-progress-head{display:grid;gap:3px;margin-bottom:5px}.commercial-progress-head small{white-space:normal}
 @media(max-width:820px){.lead-master-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.lead-master-grid{grid-template-columns:1fr}}
 @media(max-width:480px){.lead-master-kpis{grid-template-columns:1fr}.lead-master-actions>*{flex:1 1 100%}}
+
+/* V2.4 dynamic task priority */
+.task-urgency{display:grid;gap:3px;min-width:150px}.task-urgency strong{font-size:.9rem}.task-urgency small{color:var(--muted);white-space:normal}.task-urgency.warn strong{font-weight:800}.task-urgency.active strong{font-weight:750}.task-focus p{max-width:720px}

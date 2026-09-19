@@ -1,4 +1,4 @@
-import {escapeHTML as esc, filterRecords, money, metrics, priorities, csv, parseCsv, normalize} from './domain.mjs';
+import {escapeHTML as esc, filterRecords, money, metrics, priorities, taskUrgency, sortTasksByUrgency, csv, parseCsv, normalize} from './domain.mjs';
 
 import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWriteModule, assignedUserId, scopeWorkspaceData} from './workspace.mjs';
 
@@ -42,7 +42,7 @@ const modules={
  contacts:{label:'Contactos',singular:'contacto',filter:'decision_level',options:enums.decision_level,fields:[f('first_name','Nombres','text',true),f('last_name','Apellidos'),institution,f('job_title','Cargo'),f('decision_level','Nivel de decisión','select',true,enums.decision_level),f('email','Correo','email'),f('phone','Teléfono','tel'),f('notes','Notas','textarea')]},
  leads:{label:'Prospectos',singular:'prospecto',filter:'status',options:enums.status,fields:[f('title','Título','text',true),institution,contact,f('source','Canal de origen','select',false,enums.leadSource),f('status','Estado','select',true,enums.status),f('estimated_value','Valor estimado (S/)','number'),f('score','Calificación manual (0–100)','number'),owner,...followUp]},
  opportunities:{label:'Oportunidades',singular:'oportunidad',filter:'stage',options:enums.stage,fields:[f('name','Nombre','text',true),institution,contact,catalogProduct,costProfile,quantity,discount,negotiatedPrice,f('stage','Etapa','select',true,enums.stage),f('value','Valor (S/)','number'),cost,owner,f('probability','Probabilidad manual (%)','number'),f('expected_close_date','Cierre esperado','date'),...followUp]},
- tasks:{label:'Tareas',singular:'tarea',filter:'status',options:enums.taskStatus,fields:[f('title','Título','text',true),f('lead_id','Prospecto','relation'),institution,contact,f('status','Estado','select',true,enums.taskStatus),f('priority','Prioridad','select',true,enums.priority),f('due_at','Fecha límite','datetime-local'),assignee]},
+ tasks:{label:'Tareas',singular:'tarea',filter:'status',options:enums.taskStatus,fields:[f('title','Título','text',true),f('lead_id','Prospecto','relation'),institution,contact,f('status','Estado','select',true,enums.taskStatus),f('priority','Importancia manual','select',true,enums.priority),f('due_at','Fecha límite','datetime-local'),assignee]},
  activities:{label:'Movimientos',singular:'movimiento',filter:'action_code',options:MOVEMENT_ACTIONS,fields:[f('lead_id','Prospecto','relation',true),institution,contact,f('action_code','Acción realizada','select',false,MOVEMENT_ACTIONS),f('type','Canal','select',true,enums.activityType),f('subject','Asunto','text',true),f('outcome','Resultado','select',false,enums.activityOutcome),f('need_summary','Necesidad detectada','textarea'),f('decision_timeline','Horizonte de decisión'),f('budget_signal','Señal de presupuesto'),f('evidence_note','Evidencia / referencia','textarea'),f('notes','Notas','textarea'),f('occurred_at','Fecha y hora','datetime-local',true),f('next_action','Próxima acción'),f('next_action_date','Fecha de seguimiento','datetime-local')]},
  catalog_products:{label:'Catálogo',singular:'producto',filter:'category',options:{Fisica:'Física','Educacion STEM':'Educación STEM',Optica:'Óptica',Quimica:'Química',Robotica:'Robótica'},fields:[f('supplier_name','Proveedor','text',true),f('supplier_sku','SKU proveedor','text',true),f('name','Producto','text',true),f('category','Categoría','text',true),f('currency','Moneda','text',true),catalogPrice,f('price_valid_from','Vigencia desde','date'),f('price_valid_until','Vigencia hasta','date'),f('origin_country','País de origen','text',true),f('tariff_code','Subpartida peruana validada'),f('weight_kg','Peso (kg)','number'),f('volume_m3','Volumen (m³)','number'),f('reference_url','Referencia oficial','url'),f('active','Activo','checkbox'),f('notes','Fuente y condiciones','textarea')]},
  cost_profiles:{label:'Costos de importación',singular:'perfil de costos',filter:'destination_country',options:{Peru:'Perú'},fields:[f('name','Nombre','text',true),f('origin_country','Origen','text',true),f('destination_country','Destino','text',true),f('currency','Moneda','text',true),f('exchange_rate','Tipo de cambio','number',true),f('freight_international','Flete internacional','number'),f('insurance','Seguro','number'),f('ad_valorem_rate','Ad valorem (%)','number'),f('igv_rate','IGV (%)','number'),f('perception_rate','Percepción (%)','number'),f('customs_broker_fee','Agente de aduanas','number'),f('terminal_fee','Terminal','number'),f('storage_fee','Almacenaje','number'),f('inland_transport','Transporte interno','number'),f('installation_fee','Instalación','number'),f('contingency_rate','Contingencia (%)','number'),f('valid_from','Vigencia desde','date'),f('valid_until','Vigencia hasta','date'),f('notes','Notas','textarea')]},
@@ -53,7 +53,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-18-v2.3';
+const CRM_RELEASE='2026-09-18-v2.4';
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
 let entryRoute=readEntryRoute();
@@ -319,6 +319,15 @@ function scopedRows(table){
  if(!accessible(table)&&table!=='scores')return [];
  return scopeWorkspaceData(data,profile,currentActor(),workspace)[table]||[];
 }
+function renderTaskPrioritySummary(){
+ if(canViewDashboard()||page!=='tasks')return '';
+ const rows=sortTasksByUrgency(scopedRows('tasks').filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)),Date.now());
+ const overdue=rows.filter(row=>taskUrgency(row).band==='OVERDUE').length;
+ const next72=rows.filter(row=>['TODAY','SOON'].includes(taskUrgency(row).band)).length;
+ const unscheduled=rows.filter(row=>taskUrgency(row).band==='UNSCHEDULED').length;
+ const top=rows[0];
+ return '<article class="seller-focus panel task-focus"><div><h2>Qué atender primero</h2><p>'+(top?'Primero: '+esc(top.title)+(taskUrgency(top).hasDate?' · '+esc(date(top.due_at)):' · sin fecha definida'):'No hay tareas abiertas.')+'</p></div><div class="seller-focus-metrics"><span><b>'+overdue+'</b><small>Vencidas</small></span><span><b>'+next72+'</b><small>Próximas 72 h</small></span><span><b>'+unscheduled+'</b><small>Sin fecha</small></span></div></article>';
+}
 function renderSellerWorkspaceSummary(){
  if(canViewDashboard()||page!=='leads')return '';
  const rows=scopedRows('leads'),scores=data.scores||[],now=Date.now();
@@ -327,7 +336,12 @@ function renderSellerWorkspaceSummary(){
  const high=rows.filter(row=>Number(scores.find(score=>score.lead_id===row.id)?.total_score||0)>=75).length;
  return '<article class="seller-focus panel"><div><h2>Mi operación comercial</h2><p>Prioriza tus prospectos, registra cada interacción y trabaja la próxima acción sugerida.</p></div><div class="seller-focus-metrics"><span><b>'+active+'</b><small>Leads activos</small></span><span><b>'+high+'</b><small>Potencial alto</small></span><span><b>'+due+'</b><small>Seguimientos próximos</small></span></div></article>';
 }
-function filtered(){const config=modules[page];const rows=filterRecords(filterExecutiveRows(scopedRows(page),page,executiveFilter,executiveOwner),$('search').value,config.filter,$('filter').value,row=>[relatedName(row),row.supplier_sku,row.supplier_name].filter(Boolean).join(' '));return page==='expenses'?rows.slice().sort((a,b)=>String(b.expense_date||'').localeCompare(String(a.expense_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||''))):rows;}
+function filtered(){const config=modules[page];const rows=filterRecords(filterExecutiveRows(scopedRows(page),page,executiveFilter,executiveOwner),$('search').value,config.filter,$('filter').value,row=>[relatedName(row),relationName('lead_id',row),row.supplier_sku,row.supplier_name].filter(Boolean).join(' '));if(page==='tasks')return sortTasksByUrgency(rows,Date.now());return page==='expenses'?rows.slice().sort((a,b)=>String(b.expense_date||'').localeCompare(String(a.expense_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||''))):rows;}
+function urgencyCell(row){
+ const u=taskUrgency(row,Date.now());
+ const cls=['OVERDUE','TODAY'].includes(u.band)?'warn':['SOON','WEEK'].includes(u.band)?'active':'';
+ return '<div class="task-urgency '+cls+'"><strong>'+esc(u.label)+'</strong><small>Importancia: '+esc(enums.priority[row.priority]||row.priority||'Sin definir')+'</small><small>'+(u.hasDate?esc(date(row.due_at)):'Debe definirse una fecha')+'</small></div>';
+}
 function maturityCell(row){
  const score=(data.scores||[]).find(item=>item.lead_id===row.id);
  const potential=score?Math.max(0,Math.min(100,Number(score.total_score)||0)):null;
@@ -367,18 +381,18 @@ function renderRecords(){
  $('recordContext').hidden=!executiveFilter&&!executiveOwner;
  $('recordContextLabel').textContent=[{won:'Ganadas con cierre previsto este mes',pipeline:'Cartera abierta',risk:'Cartera en riesgo'}[executiveFilter],executiveOwner?'Vendedor: '+(data.users.find(row=>row.id===executiveOwner)?.full_name||'seleccionado'):''].filter(Boolean).join(' · ');
  $('importBtn').hidden=isUsers||isGoals||!writableFor(page);$('importBtn').disabled=loading||busy||!!failures[page];$('importHelp').hidden=isUsers||isGoals||!writableFor(page);
- $('sellerSummary').hidden=canViewDashboard()||page!=='leads';$('sellerSummary').innerHTML=renderSellerWorkspaceSummary();
+ $('sellerSummary').hidden=canViewDashboard()||!['leads','tasks'].includes(page);$('sellerSummary').innerHTML=page==='tasks'?renderTaskPrioritySummary():renderSellerWorkspaceSummary();
  const rows=filtered();const max=Math.max(1,Math.ceil(rows.length/size));pageIndex=Math.min(pageIndex,max-1);
  $('recordCount').textContent=failures[page]?'Información no disponible':rows.length+' registros';
  $('exportBtn').disabled=!!failures[page]||!rows.length;
  $('pageNumber').textContent='Página '+(pageIndex+1)+' de '+max;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
  const config=modules[page],canEdit=writableFor(page);
- const secondHeader=isUsers?'Rol':isGoals?'Responsable':isExpenses?'Fecha del gasto':page==='institutions'?'Ciudad':['catalog_products','cost_profiles'].includes(page)?'Origen / destino':'Institución';
- const detailHeader=isGoals?'Metas y presupuesto':isExpenses?'Importe':(['leads','opportunities'].includes(page)?'Valor estimado':page==='catalog_products'?'Precio proveedor':page==='cost_profiles'?'Tipo de cambio':'Detalle');
+ const secondHeader=isUsers?'Rol':isGoals?'Responsable':isExpenses?'Fecha del gasto':page==='tasks'?'Prospecto':page==='institutions'?'Ciudad':['catalog_products','cost_profiles'].includes(page)?'Origen / destino':'Institución';
+ const detailHeader=isGoals?'Metas y presupuesto':isExpenses?'Importe':page==='tasks'?'Urgencia dinámica':(['leads','opportunities'].includes(page)?'Valor estimado':page==='catalog_products'?'Precio proveedor':page==='cost_profiles'?'Tipo de cambio':'Detalle');
  const rowsMarkup=rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>{
-  const secondCell=isUsers?badge(row.role,page):isGoals?esc(relationName('owner_user_id',row)||'Organización'):isExpenses?esc(row.expense_date||'Sin fecha'):page==='catalog_products'?esc(row.origin_country||'—')+' → Perú':page==='cost_profiles'?esc(row.origin_country||'—')+' → '+esc(row.destination_country||'—'):esc(page==='institutions'?row.city||'—':relatedName(row)||'Sin vincular');
+  const secondCell=isUsers?badge(row.role,page):isGoals?esc(relationName('owner_user_id',row)||'Organización'):isExpenses?esc(row.expense_date||'Sin fecha'):page==='tasks'?esc(relationName('lead_id',row)||'Sin prospecto vinculado'):page==='catalog_products'?esc(row.origin_country||'—')+' → Perú':page==='cost_profiles'?esc(row.origin_country||'—')+' → '+esc(row.destination_country||'—'):esc(page==='institutions'?row.city||'—':relatedName(row)||'Sin vincular');
   const stateCell=isGoals?'<span class="badge success">Meta definida</span>':page==='catalog_products'?(row.active===false?'<span class="badge warn">Inactivo</span>':'<span class="badge success">Activo</span>'):badge(row[config.filter],page);
-  const detail=isGoals?'Ventas '+money(row.target_won_value)+'<small>Margen bruto '+money(row.target_margin)+'</small><small>Gastos '+(row.target_expenses===null||row.target_expenses===undefined?'Sin presupuesto':money(row.target_expenses))+'</small>':isExpenses?money(row.amount):page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='catalog_products'?catalogMoney(row.supplier_unit_price):page==='cost_profiles'?Number(row.exchange_rate||0).toFixed(2):page==='tasks'?esc(date(row.due_at)):page==='activities'?esc(date(row.occurred_at)):esc(row.phone||'—');
+  const detail=isGoals?'Ventas '+money(row.target_won_value)+'<small>Margen bruto '+money(row.target_margin)+'</small><small>Gastos '+(row.target_expenses===null||row.target_expenses===undefined?'Sin presupuesto':money(row.target_expenses))+'</small>':isExpenses?money(row.amount):page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='catalog_products'?catalogMoney(row.supplier_unit_price):page==='cost_profiles'?Number(row.exchange_rate||0).toFixed(2):page==='tasks'?urgencyCell(row):page==='activities'?esc(date(row.occurred_at)):esc(row.phone||'—');
   const actionLabel=canEdit?'Editar':'Ver';
   const rowName=page==='catalog_products'?catalogDisplayName(row):nameOf(row)||('Meta '+row.period_start);
   const subline=isGoals?(row.period_start+' → '+row.period_end):isExpenses?(row.currency||'PEN'):(row.email||row.next_action||row.job_title||row.category||row.notes||'');
@@ -694,7 +708,7 @@ function openLeadDetails(id){
  const contact=(data.contacts||[]).find(row=>row.id===lead.contact_id);
  const institution=(data.institutions||[]).find(row=>row.id===lead.institution_id);
  const activities=(data.activities||[]).filter(row=>row.lead_id===id).sort((a,b)=>String(b.occurred_at||'').localeCompare(String(a.occurred_at||'')));
- const tasks=(data.tasks||[]).filter(row=>row.lead_id===id).sort((a,b)=>String(a.due_at||'9999').localeCompare(String(b.due_at||'9999')));
+ const tasks=sortTasksByUrgency((data.tasks||[]).filter(row=>row.lead_id===id),Date.now());
  const pending=tasks.filter(row=>!['COMPLETED','CANCELLED'].includes(row.status));
  const score=(data.scores||[]).find(row=>row.lead_id===id);
  const potential=score?Math.max(0,Math.min(100,Number(score.total_score)||0)):null;
