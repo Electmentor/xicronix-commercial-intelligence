@@ -41,9 +41,10 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f database/crm-dev-minimum-bootstrap-v1.sql
       - name: Apply Prospect Intelligence backend
         run: psql -v ON_ERROR_STOP=1 -f database/prospect-intelligence-backend-v1.sql
-      - name: Apply PI transition and DEV performance migrations
+      - name: Apply PI transition, idempotency and DEV performance migrations
         run: |
           psql -v ON_ERROR_STOP=1 -f database/prospect-intelligence-transition-v1.sql
+          psql -v ON_ERROR_STOP=1 -f database/prospect-intelligence-transfer-idempotency-v1.sql
           psql -v ON_ERROR_STOP=1 -f database/crm-dev-performance-v1.sql
       - name: Run end-to-end PI to CRM integration and RLS smoke
         run: psql -v ON_ERROR_STOP=1 -f database/prospect-intelligence-e2e-v1.sql
