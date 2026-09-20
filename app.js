@@ -841,7 +841,7 @@ async function signInWithEmailLink(){
   if(result.error)throw result.error;
   rememberEmailChoice();
   startMagicCooldown(60);
-  $('authMsg').textContent='Te envié un enlace de acceso al correo seleccionado. Ábrelo en este mismo navegador para entrar al CRM DEV sin contraseña.';
+  $('authMsg').textContent='Te envié un enlace de acceso al correo seleccionado. Si al abrirlo Supabase te lleva a localhost, reemplaza solo http://localhost:3000 por '+PUBLIC_APP_URL+' y conserva todo lo que aparece después del símbolo #.';
  }catch(error){
   $('authMsg').className='error';
   $('authMsg').textContent=errorText(error);
