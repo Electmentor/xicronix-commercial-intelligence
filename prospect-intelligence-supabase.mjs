@@ -23,6 +23,24 @@ export function createPiRepository(supabaseFactory,config){
   return {
     validation,
     client,
+    async currentContext(){
+      const {data:{session},error:sessionError}=await client.auth.getSession();
+      if(sessionError)throw sessionError;
+      if(!session?.user?.id)return null;
+      const {data:profile,error:profileError}=await client.from('profiles').select('id,organization_id,full_name,role').eq('id',session.user.id).maybeSingle();
+      if(profileError)throw profileError;
+      if(!profile?.organization_id)return {session,profile:null};
+      return {session,profile};
+    },
+    async crmSnapshot(organizationId){
+      const [institutions,leads,opportunities]=await Promise.all([
+        client.from('institutions').select('id,name,ruc,website').eq('organization_id',organizationId),
+        client.from('leads').select('id,organization_id,institution_id,status,title').eq('organization_id',organizationId),
+        client.from('opportunities').select('id,organization_id,institution_id,stage,name').eq('organization_id',organizationId)
+      ]);
+      for(const result of [institutions,leads,opportunities])if(result.error)throw result.error;
+      return {organizations:institutions.data||[],leads:leads.data||[],opportunities:opportunities.data||[]};
+    },
     async listCases(organizationId){
       const {data,error}=await client.from('pi_cases').select('*').eq('organization_id',organizationId).order('updated_at',{ascending:false});
       if(error)throw error;
@@ -45,6 +63,11 @@ export function createPiRepository(supabaseFactory,config){
     },
     async prepareTransfer(caseId){
       const {data,error}=await client.rpc('pi_prepare_transfer',{target_case:caseId});
+      if(error)throw error;
+      return data;
+    },
+    async transition(caseId,state){
+      const {data,error}=await client.rpc('pi_transition_case',{target_case:caseId,target_state:state});
       if(error)throw error;
       return data;
     },
