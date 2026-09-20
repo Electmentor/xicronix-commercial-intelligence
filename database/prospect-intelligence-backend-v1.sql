@@ -363,3 +363,6 @@ revoke all on function public.pi_execute_transfer(uuid) from public,anon;
 grant execute on function public.pi_readiness(uuid) to authenticated;
 grant execute on function public.pi_prepare_transfer(uuid) to authenticated;
 grant execute on function public.pi_execute_transfer(uuid) to authenticated;
+
+
+grant select,insert,update,delete on public.pi_cases,public.pi_signals,public.pi_evidence,public.pi_transfers to authenticated;
