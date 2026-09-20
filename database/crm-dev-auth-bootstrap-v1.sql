@@ -26,7 +26,7 @@ begin
     raise exception 'CRM DEV organization missing';
   end if;
 
-  normalized_email_hash:=encode(digest(lower(trim(coalesce(new.email,''))),'sha256'),'hex');
+  normalized_email_hash:=pg_catalog.encode(extensions.digest(lower(trim(coalesce(new.email,''))),'sha256'),'hex');
   assigned_role:=case
     when normalized_email_hash='7eda60bed52d00b54243246aa3351dceaa2a65c7ced0d77ef224ff947ffc80cb' then 'ADMIN'
     else 'VIEWER'
