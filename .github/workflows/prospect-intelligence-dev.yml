@@ -1,0 +1,32 @@
+name: Prospect Intelligence DEV validation
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  validate-pi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate Prospect Intelligence syntax
+        run: |
+          node --check prospect-intelligence-domain.mjs
+          node --check prospect-intelligence.mjs
+      - name: Run Prospect Intelligence domain tests
+        run: node --test tests/prospect-intelligence-domain.test.mjs
+      - name: Verify production isolation guard
+        run: |
+          if grep -Eq 'qzfprdhmcaucqcdqgqiz|supabase\.co|sb_publishable_|service_role' prospect-intelligence.html prospect-intelligence.mjs prospect-intelligence-domain.mjs; then
+            echo "Prospect Intelligence DEV must not contain production Supabase endpoints or keys"
+            exit 1
+          fi
+          grep -q 'datos sintéticos' prospect-intelligence.html
