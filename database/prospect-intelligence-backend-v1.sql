@@ -116,7 +116,7 @@ returns integer language sql stable security definer set search_path='' as $$
 $$;
 
 create or replace function private.pi_duplicate_resolution(target_case uuid)
-returns jsonb language plpgsql stable security definer set search_path='' as $$
+returns jsonb language plpgsql stable security invoker set search_path='' as $
 declare
   c public.pi_cases%rowtype;
   inst public.institutions%rowtype;
@@ -228,7 +228,7 @@ end
 $$;
 
 create or replace function public.pi_prepare_transfer(target_case uuid)
-returns jsonb language plpgsql security definer set search_path='' as $$
+returns jsonb language plpgsql security invoker set search_path='' as $
 declare
   c public.pi_cases%rowtype;
   gate jsonb;
@@ -358,6 +358,7 @@ begin
   end loop;
 end $$;
 
+revoke all on function public.pi_readiness(uuid) from public,anon;
 revoke all on function public.pi_prepare_transfer(uuid) from public,anon;
 revoke all on function public.pi_execute_transfer(uuid) from public,anon;
 grant execute on function public.pi_readiness(uuid) to authenticated;
