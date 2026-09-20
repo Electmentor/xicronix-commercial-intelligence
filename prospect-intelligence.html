@@ -7,6 +7,7 @@
 <meta name="description" content="Xicronix Prospect Intelligence — prototipo funcional DEV sin escritura en CRM.">
 <title>Xicronix Prospect Intelligence DEV</title>
 <link rel="stylesheet" href="prospect-intelligence.css">
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="module" src="prospect-intelligence.mjs"></script>
 </head>
 <body>
@@ -22,15 +23,15 @@
       <a href="#prioritized">Priorizados</a>
       <a href="#transfers">Transferencias</a>
       <a href="#learning">Aprendizaje</a>
-      <span class="badge">CRM DEV pendiente de backend aislado</span>
+      <a href="index.html">← Abrir CRM DEV</a>
     </nav>
-    <div class="dev-card"><b>ENTORNO DEV</b><small>Este prototipo usa datos sintéticos y localStorage. No escribe en Supabase ni modifica PRODUCCIÓN.</small></div>
+    <div class="dev-card"><b>ENTORNO DEV</b><small id="backendStatus">Inicializando Prospect Intelligence…</small></div>
     <button id="resetPrototype">Restablecer prototipo</button>
   </aside>
   <main class="main">
     <header class="top">
       <div><div class="eyebrow">A009 / PROSPECT INTELLIGENCE</div><h1>Centro de inteligencia prospectiva</h1><p>Señales → evidencia → hipótesis → prioridad → transferencia controlada al CRM.</p></div>
-      <span class="badge">PRODUCCIÓN no se modifica</span>
+      <a class="btn" href="index.html">Abrir CRM DEV</a>
     </header>
     <section id="kpis" class="kpis"></section>
     <section class="workspace">
@@ -64,7 +65,7 @@
 <dialog id="transferDialog">
   <div class="dialog-head"><div><div class="eyebrow">CONTRATO PI → CRM v0.1</div><h2>Transferencia preparada</h2><p>Resolución: <strong id="transferDecision"></strong></p></div><button id="closeTransfer" class="btn">Cerrar</button></div>
   <div class="dialog-body"><pre id="transferPayload"></pre></div>
-  <div class="dialog-actions"><button id="copyTransfer" class="btn primary">Copiar payload</button></div>
+  <div class="dialog-actions"><button id="executeTransfer" class="btn" hidden>Ejecutar en CRM DEV</button><button id="copyTransfer" class="btn primary">Copiar payload</button></div>
 </dialog>
 </body>
 </html>
