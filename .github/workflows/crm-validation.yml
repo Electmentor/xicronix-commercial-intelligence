@@ -28,7 +28,9 @@ jobs:
           node --check tests/browser-fixture.js
           for file in *.mjs; do node --check "$file"; done
       - name: Unit and interface contract tests
+        shell: bash
         run: |
+          set -o pipefail
           mkdir -p review-artifacts
           node --test tests/*.test.mjs | tee review-artifacts/unit-tests.txt
       - name: Install isolated browser runtime
