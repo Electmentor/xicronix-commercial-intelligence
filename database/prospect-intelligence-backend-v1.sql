@@ -367,3 +367,13 @@ grant execute on function public.pi_execute_transfer(uuid) to authenticated;
 
 
 grant select,insert,update,delete on public.pi_cases,public.pi_signals,public.pi_evidence,public.pi_transfers to authenticated;
+
+
+grant usage on schema private to authenticated;
+grant execute on function private.is_org_member(uuid) to authenticated;
+grant execute on function private.can_write_org(uuid) to authenticated;
+grant execute on function private.is_org_admin(uuid) to authenticated;
+grant execute on function private.pi_dim_value(jsonb,text) to authenticated;
+grant execute on function private.pi_dimension_score(jsonb) to authenticated;
+grant execute on function private.pi_confidence_score(uuid) to authenticated;
+grant execute on function private.pi_duplicate_resolution(uuid) to authenticated;
