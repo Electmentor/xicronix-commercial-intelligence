@@ -10,6 +10,7 @@ import * as demo from '../demo.mjs';
 import * as executive from '../executive.mjs';
 import * as analytics from '../analytics.mjs';
 import * as sellerDashboard from '../seller-dashboard.mjs';
+import * as commercialCore from '../commercial-core.mjs';
 const source=readFileSync(new URL('../app.js',import.meta.url),'utf8').replace(/^import .*;$/gm,'');
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 function harness(role='ADMIN',saved=null,sourceChoice='live'){
@@ -75,7 +76,7 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
  const sb={from:table=>new Query(table),auth:{onAuthStateChange(){},signOut:async()=>({error:null})}};
  if(saved)storage.set(workspace.workspaceKey('me','org'),saved);
  if(sourceChoice)storage.set(workspace.workspaceKey('me','org')+':source-v'+demo.DEMO_VERSION,sourceChoice);
- const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,...analytics,...sellerDashboard,console,document,window:{supabase:{createClient:()=>sb},confirm:()=>true},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
+ const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,...analytics,...sellerDashboard,...commercialCore,console,document,window:{supabase:{createClient:()=>sb},confirm:()=>true},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
  const run=code=>vm.runInContext(code,context);
  run(source);run('init();session={user:{id:"me",email:"test@example.invalid"}};');
  return {run,nodes,db,queries,storage,downloads,boot:()=>run('reload()'),gate:promise=>{profileGate=promise;},click:id=>nodes.get(id).onclick()};
