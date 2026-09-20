@@ -386,6 +386,8 @@ test('prospect dossier keeps context across linked actions and returns after can
  h.run('navigate("leads");openLeadDetails("own-lead")');
  assert.equal(h.nodes.get('leadDetailDialog').open,true);
  assert.match(h.nodes.get('leadDetailContent').innerHTML,/data-related-table="tasks"/);
+ assert.match(h.nodes.get('leadDetailContent').innerHTML,/data-related-table="institutions"/);
+ assert.match(h.nodes.get('leadDetailContent').innerHTML,/data-related-table="contacts"/);
  h.run('openTaskForLead("own-lead")');
  assert.equal(h.nodes.get('leadDetailDialog').open,false);
  assert.equal(h.nodes.get('editor').open,true);
