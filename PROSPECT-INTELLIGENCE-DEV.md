@@ -38,3 +38,27 @@ Las entidades CRM existentes siguen siendo canónicas para Organization/Institut
 ## Revisión
 
 Draft PR #12 abierto contra `main` exclusivamente para revisión y Preview. No fusionar sin Human Gate.
+
+
+## Backend DEV persistente — bloqueo externo verificado
+
+Se intentó crear `Xicronix Commercial Intelligence DEV` en la organización Supabase actual, región `sa-east-1`.
+
+- costo informado por Supabase: 0 / mes;
+- creación rechazada por límite del plan Free: 2 proyectos activos por propietario/administrador;
+- proyectos activos actuales: CRM PRODUCCIÓN y `xicronix-core-dev`;
+- no se pausó ni modificó ninguno de los dos proyectos.
+
+### Fallback seguro implementado
+
+Mientras el backend persistente está bloqueado, la rama `dev` dispone de:
+
+- bootstrap mínimo reproducible de CRM DEV;
+- backend Prospect Intelligence v0.1;
+- RLS por rol;
+- adapter protegido contra el project ref de PRODUCCIÓN;
+- integración PostgreSQL efímera en CI;
+- prueba extremo a extremo PI → preparación → ejecución → Lead NEW + Activity + Task;
+- prueba VIEWER read-only.
+
+Este fallback valida arquitectura y migraciones, pero **no sustituye** un Supabase CRM DEV persistente para pruebas reales de Auth/Storage/Edge Functions.
