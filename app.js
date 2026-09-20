@@ -195,12 +195,16 @@ function errorText(error){
  if(code==='invalid_credentials')return 'Correo o contraseña incorrectos.';
  if(['otp_expired','invalid_token','bad_jwt'].includes(code))return 'El enlace de recuperación venció o ya fue utilizado. Solicita uno nuevo y ábrelo una sola vez.';
  if(code==='email_not_confirmed')return 'Confirma tu correo antes de ingresar.';
+ if(code==='signup_disabled')return 'El alta automática por correo está deshabilitada en Supabase Auth DEV.';
+ if(code==='email_provider_disabled')return 'El proveedor de correo está deshabilitado en Supabase Auth DEV.';
+ if(code==='email_address_invalid')return 'Supabase rechazó el correo como no válido.';
  if(code==='over_email_send_rate_limit'||error?.status===429)return 'Se alcanzó el límite de intentos. Espera unos minutos y vuelve a intentar.';
  if(code==='weak_password')return 'Usa una contraseña única de al menos 12 caracteres.';
  if(code==='same_password')return 'Elige una contraseña diferente a la anterior.';
  if(code==='23505')return 'Ya existe un registro con esos datos.';
  if(code==='42501')return 'Tu cuenta no tiene permiso para esta operación.';
  if(code==='PGRST116')return 'El registro cambió o ya no está disponible. Actualiza e intenta nuevamente.';
+ if(IS_DEV_PREVIEW&&error?.message)return 'CRM DEV · '+String(error.message).slice(0,240)+(code?' ['+code+']':'');
  return 'No se pudo completar la operación. Comprueba tu conexión e inténtalo nuevamente.';
 }
 function setMode(next){
