@@ -8,6 +8,7 @@
 
 /* V2.3 commercial core */
 #leadDetailDialog{width:min(1040px,calc(100% - 24px))}
+.lead-detail-action{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .lead-master-actions{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 18px}
 .lead-master-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:14px 0 20px}
 .lead-master-kpis article{border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
