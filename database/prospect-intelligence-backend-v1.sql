@@ -171,7 +171,7 @@ end
 $$;
 
 create or replace function public.pi_readiness(target_case uuid)
-returns jsonb language plpgsql stable security definer set search_path='' as $$
+returns jsonb language plpgsql stable security invoker set search_path='' as $
 declare
   c public.pi_cases%rowtype;
   potential integer;
@@ -278,7 +278,7 @@ end
 $$;
 
 create or replace function public.pi_execute_transfer(target_transfer uuid)
-returns jsonb language plpgsql security definer set search_path='' as $$
+returns jsonb language plpgsql security invoker set search_path='' as $
 declare
   t public.pi_transfers%rowtype;
   c public.pi_cases%rowtype;
