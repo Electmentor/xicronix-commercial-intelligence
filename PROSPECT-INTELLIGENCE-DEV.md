@@ -34,3 +34,7 @@ Crear un Supabase CRM DEV independiente, aplicar migraciones allí y sustituir e
 REUTILIZAR → EXTENDER → COMPONER → CREAR.
 
 Las entidades CRM existentes siguen siendo canónicas para Organization/Institution, Contacts, Leads, Opportunities, Activities, Tasks y Scores. PI no crea un CRM paralelo.
+
+## Revisión
+
+Draft PR #12 abierto contra `main` exclusivamente para revisión y Preview. No fusionar sin Human Gate.
