@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="description" content="Xicronix Prospect Intelligence — prototipo funcional DEV sin escritura en CRM.">
+<title>Xicronix Prospect Intelligence DEV</title>
+<link rel="stylesheet" href="prospect-intelligence.css">
+<script type="module" src="prospect-intelligence.mjs"></script>
+</head>
+<body>
+<div class="pi-shell">
+  <aside class="sidebar">
+    <div class="brand">XICRONIX<span>PROSPECT INTELLIGENCE · DEV</span></div>
+    <nav>
+      <a class="active" href="#overview">Overview</a>
+      <a href="#signals">Señales</a>
+      <a href="#discovery">Discovery</a>
+      <a href="#organizations">Organizaciones</a>
+      <a href="#hypotheses">Hipótesis</a>
+      <a href="#prioritized">Priorizados</a>
+      <a href="#transfers">Transferencias</a>
+      <a href="#learning">Aprendizaje</a>
+      <a href="index.html">← Volver al CRM</a>
+    </nav>
+    <div class="dev-card"><b>ENTORNO DEV</b><small>Este prototipo usa datos sintéticos y localStorage. No escribe en Supabase ni modifica PRODUCCIÓN.</small></div>
+    <button id="resetPrototype">Restablecer prototipo</button>
+  </aside>
+  <main class="main">
+    <header class="top">
+      <div><div class="eyebrow">A009 / PROSPECT INTELLIGENCE</div><h1>Centro de inteligencia prospectiva</h1><p>Señales → evidencia → hipótesis → prioridad → transferencia controlada al CRM.</p></div>
+      <a class="btn" href="index.html">Abrir CRM</a>
+    </header>
+    <section id="kpis" class="kpis"></section>
+    <section class="workspace">
+      <article class="panel">
+        <header class="panel-head"><h2>Organizaciones priorizadas</h2><div class="filters"><button class="active" data-filter="ALL">Todas</button><button data-filter="RESEARCHING">Investigando</button><button data-filter="QUALIFIED">Calificados</button><button data-filter="PRIORITIZED">Priorizados</button><button data-filter="READY_FOR_CRM">Listos CRM</button></div></header>
+        <div id="prospectList" class="prospect-list"></div>
+      </article>
+      <article class="panel detail">
+        <header class="org-head"><div><div class="eyebrow">EXPEDIENTE DE INTELIGENCIA</div><h2 id="orgName"></h2><p id="orgMeta"></p></div><div id="stateHolder"></div></header>
+        <div class="detail-body">
+          <section class="callout"><h3>¿Por qué puede ser una oportunidad?</h3><p id="why"></p></section>
+          <section><h3 class="section-title">Las 6 dimensiones explicables</h3><div id="dimensions" class="dimensions"></div></section>
+          <section class="metrics4">
+            <article class="mini"><small>Potencial comercial</small><strong id="potential"></strong></article>
+            <article class="mini"><small>Confianza global</small><strong id="confidence"></strong></article>
+            <article class="mini"><small>Nivel de evidencia</small><strong id="evidenceLevel"></strong></article>
+            <article class="mini"><small>Estado PI</small><strong id="piState"></strong></article>
+          </section>
+          <section><h3 class="section-title">Cadena de razonamiento comercial</h3><div id="reasoning" class="reasoning"></div></section>
+          <section class="gate-grid">
+            <article class="gate-card"><h3 class="section-title">Gate LISTO PARA CRM</h3><div id="gateStatus"></div><ul id="gateChecks"></ul><div id="duplicateResult" class="duplicate"></div></article>
+            <article class="evidence-card"><h3 class="section-title">Evidencia</h3><div id="evidence" class="evidence"></div></article>
+          </section>
+          <section class="callout"><h3>Siguiente acción propuesta</h3><p id="nextAction"></p></section>
+          <div class="actions"><button id="advanceBtn" class="btn"></button><button id="readyBtn" class="btn">Marcar LISTO PARA CRM</button><button id="transferBtn" class="btn primary">Preparar transferencia a CRM</button></div>
+        </div>
+      </article>
+    </section>
+  </main>
+</div>
+<dialog id="transferDialog">
+  <div class="dialog-head"><div><div class="eyebrow">CONTRATO PI → CRM v0.1</div><h2>Transferencia preparada</h2><p>Resolución: <strong id="transferDecision"></strong></p></div><button id="closeTransfer" class="btn">Cerrar</button></div>
+  <div class="dialog-body"><pre id="transferPayload"></pre></div>
+  <div class="dialog-actions"><button id="copyTransfer" class="btn primary">Copiar payload</button></div>
+</dialog>
+</body>
+</html>
