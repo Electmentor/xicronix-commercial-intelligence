@@ -96,7 +96,7 @@ returns integer language sql immutable set search_path='' as $$
 $$;
 
 create or replace function private.pi_confidence_score(target_case uuid)
-returns integer language sql stable security definer set search_path='' as $$
+returns integer language sql stable security invoker set search_path='' as $$
   with e as (
     select
       count(*) filter (where evidence_type in ('FACT','CONFIRMATION') and nullif(btrim(source),'') is not null and nullif(btrim(source_url),'') is not null) as traceable,
@@ -116,7 +116,7 @@ returns integer language sql stable security definer set search_path='' as $$
 $$;
 
 create or replace function private.pi_duplicate_resolution(target_case uuid)
-returns jsonb language plpgsql stable security invoker set search_path='' as $
+returns jsonb language plpgsql stable security invoker set search_path='' as $$
 declare
   c public.pi_cases%rowtype;
   inst public.institutions%rowtype;
@@ -171,7 +171,7 @@ end
 $$;
 
 create or replace function public.pi_readiness(target_case uuid)
-returns jsonb language plpgsql stable security invoker set search_path='' as $
+returns jsonb language plpgsql stable security invoker set search_path='' as $$
 declare
   c public.pi_cases%rowtype;
   potential integer;
@@ -228,7 +228,7 @@ end
 $$;
 
 create or replace function public.pi_prepare_transfer(target_case uuid)
-returns jsonb language plpgsql security invoker set search_path='' as $
+returns jsonb language plpgsql security invoker set search_path='' as $$
 declare
   c public.pi_cases%rowtype;
   gate jsonb;
@@ -278,7 +278,7 @@ end
 $$;
 
 create or replace function public.pi_execute_transfer(target_transfer uuid)
-returns jsonb language plpgsql security invoker set search_path='' as $
+returns jsonb language plpgsql security invoker set search_path='' as $$
 declare
   t public.pi_transfers%rowtype;
   c public.pi_cases%rowtype;
