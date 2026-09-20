@@ -209,3 +209,8 @@ begin
     execute format('create policy %I_delete_admin on public.%I for delete to authenticated using (private.is_org_admin(organization_id))',t,t);
   end loop;
 end $$;
+
+
+grant usage on schema public to authenticated;
+grant select on public.organizations,public.profiles,public.institutions,public.contacts,public.leads,public.opportunities,public.activities,public.tasks,public.scores to authenticated;
+grant insert,update,delete on public.profiles,public.institutions,public.contacts,public.leads,public.opportunities,public.activities,public.tasks,public.scores to authenticated;
