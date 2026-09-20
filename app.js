@@ -64,8 +64,16 @@ const modules={
 };
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
-const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-19-v2.9';
+const IS_DEV_PREVIEW=location.hostname.includes('-git-dev-')&&location.hostname.endsWith('.vercel.app');
+const PROD_SUPABASE_URL='https://qzfprdhmcaucqcdqgqiz.supabase.co';
+const PROD_SUPABASE_KEY='sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK';
+const DEV_SUPABASE_URL='https://rmximatxuaczhpqbcuho.supabase.co';
+const DEV_SUPABASE_KEY='sb_publishable_pqqyMTcBovUi4sbp2Cn6yw_sL0_Xs__';
+const CRM_SUPABASE_URL=IS_DEV_PREVIEW?DEV_SUPABASE_URL:PROD_SUPABASE_URL;
+const CRM_SUPABASE_KEY=IS_DEV_PREVIEW?DEV_SUPABASE_KEY:PROD_SUPABASE_KEY;
+const PUBLIC_APP_URL=IS_DEV_PREVIEW?'https://xicronix-commercial-intelligence-git-dev-xicronix.vercel.app/':'https://xicronix-commercial-intelligence.vercel.app/';
+const CRM_RELEASE=IS_DEV_PREVIEW?'2026-09-20-dev-crm-v0.1':'2026-09-19-v2.9';
+const DEV_SUPPORTED_MODULES=new Set(['dashboard','institutions','contacts','leads','opportunities','tasks','activities']);
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
 let entryRoute=readEntryRoute();
@@ -127,7 +135,7 @@ const canViewDashboard=()=>!!profile && effectiveWorkspace(profile,workspace)===
 const canManageUsers=canViewDashboard;
 const canManageGoals=canViewDashboard;
 const canDelete=canViewDashboard;
-const accessible=table=>canAccessPage(profile,workspace,table);
+const accessible=table=>(!IS_DEV_PREVIEW||DEV_SUPPORTED_MODULES.has(table))&&canAccessPage(profile,workspace,table);
 const writableFor=table=>canWriteModule(profile,workspace,table);
 const fieldsFor=table=>(modules[table]?.fields||[]).filter(field=>!field.adminOnly||canViewDashboard());
 const databaseTable=table=>({users:'profiles',goals:'commercial_goals',expenses:'commercial_expenses'})[table]||table;
@@ -154,7 +162,7 @@ function renderWorkspaceControls(){
  $('adminModeBtn').setAttribute('aria-pressed',String(admin));
  $('sellerModeBtn').setAttribute('aria-pressed',String(!admin));
  $('adminModeBtn').disabled=$('sellerModeBtn').disabled=loading||busy;
- $('workspaceHint').textContent=admin?'Visión global: resultados, margen, metas y equipo.':'Mi cartera: prospectos, potencial, interacciones y próximas acciones.';
+ $('workspaceHint').textContent=IS_DEV_PREVIEW?'CRM DEV aislado · datos de prueba y evolución funcional.':admin?'Visión global: resultados, margen, metas y equipo.':'Mi cartera: prospectos, potencial, interacciones y próximas acciones.';
  $('workspaceLabel').textContent=admin?'DIRECCIÓN COMERCIAL':'MI ESPACIO DE VENTAS';
  $('appView').dataset.workspace=admin?ADMIN:SELLER;
  const labels=admin?{dashboard:'Dashboard Ejecutivo'}:{dashboard:'Mi Dashboard',leads:'Mi cartera',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',deliverables:'Mis entregables',documents:'Mis documentos',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
@@ -927,7 +935,7 @@ function init(){
  $('logoutBtn').onclick=async()=>{const {error}=await sb.auth.signOut();if(error){notice(errorText(error),true);return;}clearSession();setMode('login');};
  $('exportBtn').onclick=()=>{if(!accessible(page)||loading||busy||failures[page])return;const columns=fieldsFor(page).filter(field=>!field.transient).map(field=>({key:field.key,label:field.label}));const rows=filtered().map(row=>Object.fromEntries(columns.map(c=>{const field=modules[page].fields.find(f=>f.key===c.key);return [c.key,field.type==='relation'?relationName(c.key,row):costRateKeys.has(c.key)?Number(row[c.key])*100:field.options?.[row[c.key]]||row[c.key]];})));const url=URL.createObjectURL(new Blob([csv(rows,columns)],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`xicronix-${dataSource==='demo'?'SIMULADO-':''}${page}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
  if(!window.supabase){$('authMsg').textContent='No se pudo cargar el servicio de acceso. Comprueba tu conexión y recarga la página.';$('authBtn').disabled=true;return;}
- sb=window.supabase.createClient('https://qzfprdhmcaucqcdqgqiz.supabase.co','sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+ sb=window.supabase.createClient(CRM_SUPABASE_URL,CRM_SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
  sb.auth.onAuthStateChange(handleAuth);
  const params=new URLSearchParams(location.hash.slice(1));if(params.has('error')){setRecovery(false);setMode('reset');$('authMsg').textContent='El enlace de acceso venció o no es válido. Solicita uno nuevo.';history.replaceState(null,'',location.pathname);}
  if(typeof sb.auth.getSession==='function')sb.auth.getSession().then(({data,error})=>{if(!error)handleAuth('INITIAL_SESSION',data.session);}).catch(()=>{$('authMsg').textContent='No se pudo verificar la sesión. Recarga la página.';});
