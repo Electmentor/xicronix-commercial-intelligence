@@ -25,8 +25,9 @@ jobs:
         run: node --test tests/prospect-intelligence-domain.test.mjs
       - name: Verify production isolation guard
         run: |
-          if grep -Eq 'qzfprdhmcaucqcdqgqiz|supabase\.co|sb_publishable_|service_role' prospect-intelligence.html prospect-intelligence.mjs prospect-intelligence-domain.mjs; then
-            echo "Prospect Intelligence DEV must not contain production Supabase endpoints or keys"
+          if grep -Eq 'qzfprdhmcaucqcdqgqiz|sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK|service_role' prospect-intelligence.html prospect-intelligence.mjs prospect-intelligence-domain.mjs prospect-intelligence-supabase.mjs; then
+            echo "Prospect Intelligence DEV must not reference production Supabase credentials or project ref"
             exit 1
           fi
-          grep -q 'datos sintéticos' prospect-intelligence.html
+          grep -q 'rmximatxuaczhpqbcuho' prospect-intelligence.mjs
+          grep -q 'ENTORNO DEV' prospect-intelligence.html
