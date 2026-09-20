@@ -380,6 +380,21 @@ test('original web request and tasks are readable without modifying a prospect',
  assert.equal(h.queries.some(query=>query.operation!=='select'),false);
  h.run('closeLeadDetails()');assert.equal(h.nodes.get('leadDetailDialog').open,false);
 });
+
+test('prospect dossier keeps context across linked actions and returns after cancel',async()=>{
+ const h=harness();h.db.tasks[0].lead_id='own-lead';await h.boot();
+ h.run('navigate("leads");openLeadDetails("own-lead")');
+ assert.equal(h.nodes.get('leadDetailDialog').open,true);
+ assert.match(h.nodes.get('leadDetailContent').innerHTML,/data-related-table="tasks"/);
+ h.run('openTaskForLead("own-lead")');
+ assert.equal(h.nodes.get('leadDetailDialog').open,false);
+ assert.equal(h.nodes.get('editor').open,true);
+ assert.equal(h.run('editorReturnLeadId'),'own-lead');
+ h.nodes.get('editor').close();
+ assert.equal(h.nodes.get('leadDetailDialog').open,true);
+ assert.equal(h.run('editorReturnLeadId'),null);
+ assert.match(h.nodes.get('leadDetailTitle').textContent,/Institución propia/);
+});
 test('seller cannot open another owner request details',async()=>{
  const h=harness('SALES');await h.boot();h.run('openLeadDetails("other-lead")');
  assert.equal(h.nodes.get('leadDetailDialog').open,false);
