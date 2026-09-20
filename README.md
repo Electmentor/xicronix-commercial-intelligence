@@ -101,3 +101,4 @@ Documentación consultada: [recuperación](https://supabase.com/docs/reference/j
 - Un lead convertido conserva su puntuación histórica para explicar la calidad con la que se convirtió. La tabla y el editor cambian la etiqueta a «Potencial al convertir» y muestran el siguiente paso de la oportunidad, en vez de recomendar convertir nuevamente el lead.
 - La puntuación representa potencial comercial calculado con señales disponibles; no es un porcentaje de avance del estado. El estado y la oportunidad vinculada son la fuente de verdad para saber si ya fue convertido.
 
+<!-- redeploy: 2026-09-19 after Vercel Pro upgrade -->
