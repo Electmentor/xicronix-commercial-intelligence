@@ -39,7 +39,7 @@ export function createPiRepository(supabaseFactory,config){
         client.from('opportunities').select('id,organization_id,institution_id,stage,name').eq('organization_id',organizationId)
       ]);
       for(const result of [institutions,leads,opportunities])if(result.error)throw result.error;
-      return {organizations:institutions.data||[],leads:leads.data||[],opportunities:opportunities.data||[]};
+      return {organizations:institutions.data||[],leads:(leads.data||[]).map(row=>({...row,organization_id:row.institution_id})),opportunities:(opportunities.data||[]).map(row=>({...row,organization_id:row.institution_id}))};
     },
     async listCases(organizationId){
       const {data,error}=await client.from('pi_cases').select('*').eq('organization_id',organizationId).order('updated_at',{ascending:false});
