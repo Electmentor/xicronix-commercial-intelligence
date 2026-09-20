@@ -3,11 +3,14 @@ import {
   dimensionScore,confidenceScore,resolveDuplicate,evaluateReadiness,
   createTransferEnvelope,summarizeKpis,transitionProspect,canTransition
 } from './prospect-intelligence-domain.mjs';
+import {createPiRepository} from './prospect-intelligence-supabase.mjs';
 
 const STORAGE_KEY='xicronix.pi.dev.prototype.v1';
 const $=id=>document.getElementById(id);
+const DEV_CONFIG={url:'https://rmximatxuaczhpqbcuho.supabase.co',publishableKey:'sb_publishable_pqqyMTcBovUi4sbp2Cn6yw_sL0_Xs__'};
+let repository=null,backendMode=false,backendContext=null,pendingTransferId=null;
 
-const CRM_SNAPSHOT={
+let CRM_SNAPSHOT={
   organizations:[
     {id:'org-demo-1',name:'Instituto Horizonte',ruc:'20111111111',website:'https://institutohorizonte.example'}
   ],
@@ -92,6 +95,70 @@ const seed=[
   }
 ];
 
+function backendCase(row,signals,evidence){
+  return {
+    id:row.id,
+    state:row.state,
+    organization:{
+      name:row.organization_name,
+      type:row.organization_type,
+      ruc:row.organization_ruc,
+      website:row.organization_website,
+      city:row.organization_city,
+      country:row.organization_country
+    },
+    sector:row.sector||'Sin sector',
+    hypothesis:row.hypothesis||'Sin hipótesis registrada.',
+    dimensions:row.dimensions||{F:0,N:0,C:0,T:0,A:0,E:0},
+    potential:row.potential_score,
+    confidence:row.confidence_score,
+    signals:(signals||[]).map(item=>({label:item.label,isNew:item.is_new,source:item.source,url:item.source_url})),
+    evidence:(evidence||[]).map(item=>({type:item.evidence_type,source:item.source,url:item.source_url,note:item.note,critical:item.critical})),
+    decisionMakers:[],
+    missingData:(evidence||[]).filter(item=>item.evidence_type==='MISSING_DATA').map(item=>item.note),
+    nextAction:row.next_action||'Definir siguiente acción.',
+    nextActionDate:row.next_action_date,
+    transferReason:row.transfer_reason||'',
+    analysisVersion:row.analysis_version||'pi-rules-v0.1'
+  };
+}
+
+async function loadBackend(){
+  if(!window.supabase){
+    $('backendStatus').textContent='Supabase DEV no está disponible; mostrando prototipo sintético local.';
+    return false;
+  }
+  try{
+    repository=createPiRepository(window.supabase,DEV_CONFIG);
+    const context=await repository.currentContext();
+    if(!context?.session){
+      $('backendStatus').textContent='Backend CRM DEV listo. Inicia sesión en CRM DEV para trabajar con persistencia real.';
+      return false;
+    }
+    if(!context.profile){
+      $('backendStatus').textContent='Sesión DEV detectada, pero el perfil todavía no está vinculado.';
+      return false;
+    }
+    backendContext=context;
+    const orgId=context.profile.organization_id;
+    const [cases,snapshot]=await Promise.all([repository.listCases(orgId),repository.crmSnapshot(orgId)]);
+    CRM_SNAPSHOT=snapshot;
+    prospects=await Promise.all(cases.map(async row=>{
+      const [signals,evidence]=await Promise.all([repository.listSignals(row.id),repository.listEvidence(row.id)]);
+      return backendCase(row,signals,evidence);
+    }));
+    backendMode=true;
+    selectedId=prospects.some(row=>row.id===selectedId)?selectedId:prospects[0]?.id;
+    $('backendStatus').textContent='Conectado a Supabase CRM DEV · '+(context.profile.role||'sin rol')+' · persistencia real.';
+    $('resetPrototype').textContent='Recargar backend DEV';
+    return true;
+  }catch(error){
+    console.error(error);
+    $('backendStatus').textContent='No se pudo abrir el backend DEV; se mantiene el prototipo sintético local.';
+    return false;
+  }
+}
+
 function clone(value){return JSON.parse(JSON.stringify(value));}
 function load(){
   try{
@@ -104,7 +171,7 @@ let prospects=load();
 let selectedId=prospects[0]?.id;
 let stateFilter='ALL';
 
-function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(prospects));}
+function save(){if(!backendMode)localStorage.setItem(STORAGE_KEY,JSON.stringify(prospects));}
 function current(){return prospects.find(p=>p.id===selectedId)||prospects[0];}
 function score(p){return p.potential??dimensionScore(p);}
 function confidence(p){return p.confidence??confidenceScore(p);}
@@ -116,8 +183,8 @@ function metric(label,value,sub=''){return '<article class="metric"><span>'+labe
 function renderKpis(){
   const k=summarizeKpis(prospects);
   $('kpis').innerHTML=[
-    metric('Organizaciones observadas',k.observed,'universo DEV'),
-    metric('Nuevas señales',k.newSignals,'periodo simulado'),
+    metric('Organizaciones observadas',k.observed,backendMode?'Supabase DEV':'prototipo local'),
+    metric('Nuevas señales',k.newSignals,backendMode?'señales persistidas':'periodo simulado'),
     metric('Investigando',k.researching,'estado PI'),
     metric('Priorizados',k.prioritized,'estado PI'),
     metric('Listos para CRM',k.ready,'gate superado')
@@ -191,29 +258,59 @@ function renderDetail(){
   const nextMap={DETECTED:'RESEARCHING',RESEARCHING:'QUALIFIED',QUALIFIED:'PRIORITIZED',PRIORITIZED:'READY_FOR_CRM'};
   const next=nextMap[p.state];
   $('advanceBtn').hidden=!next;$('advanceBtn').textContent=next?'Avanzar a '+PI_STATE_LABELS[next]:'';
-  $('advanceBtn').onclick=()=>{
-    if(next&&canTransition(p.state,next)){
-      try{prospects=prospects.map(row=>row.id===p.id?transitionProspect(row,next):row);save();render();}
-      catch(error){alert(error.message);}
-    }
+  $('advanceBtn').onclick=async()=>{
+    if(!next||!canTransition(p.state,next))return;
+    try{
+      if(backendMode){
+        await repository.transition(p.id,next);
+        await loadBackend();
+      }else{
+        prospects=prospects.map(row=>row.id===p.id?transitionProspect(row,next):row);
+        save();
+      }
+      render();
+    }catch(error){alert(error.message||'No se pudo avanzar el estado.');}
   };
 }
 
-function openTransfer(){
+async function openTransfer(){
   const p=current(),dup=duplicate(p);
   try{
-    const envelope=createTransferEnvelope(p,dup);
-    $('transferPayload').textContent=JSON.stringify(envelope,null,2);
-    $('transferDecision').textContent=dup.action;
+    if(backendMode){
+      const prepared=await repository.prepareTransfer(p.id);
+      pendingTransferId=prepared.transfer_id;
+      $('transferPayload').textContent=JSON.stringify(prepared.payload,null,2);
+      $('transferDecision').textContent=prepared.gate?.duplicate_resolution?.action||dup.action;
+      $('executeTransfer').hidden=false;
+      await loadBackend();
+      render();
+    }else{
+      const envelope=createTransferEnvelope(p,dup);
+      pendingTransferId=null;
+      $('transferPayload').textContent=JSON.stringify(envelope,null,2);
+      $('transferDecision').textContent=dup.action;
+      $('executeTransfer').hidden=true;
+    }
     $('transferDialog').showModal();
-  }catch(error){alert(error.message);}
+  }catch(error){alert(error.message||'No se pudo preparar la transferencia.');}
 }
 
-function markReady(){
+async function markReady(){
   const p=current(),gate=evaluateReadiness(p,duplicate(p));
   if(!gate.ready)return;
   if(p.state==='PRIORITIZED'&&canTransition(p.state,'READY_FOR_CRM')){
-    prospects=prospects.map(row=>row.id===p.id?transitionProspect(row,'READY_FOR_CRM'):row);save();render();
+    try{
+      if(backendMode){
+        const serverGate=await repository.readiness(p.id);
+        if(!serverGate?.ready)throw new Error('El backend DEV no considera el caso listo para CRM.');
+        await repository.transition(p.id,'READY_FOR_CRM');
+        await loadBackend();
+      }else{
+        prospects=prospects.map(row=>row.id===p.id?transitionProspect(row,'READY_FOR_CRM'):row);
+        save();
+      }
+      render();
+    }catch(error){alert(error.message||'No se pudo marcar el caso como listo para CRM.');}
   }
 }
 
@@ -225,14 +322,35 @@ function render(){
 document.querySelectorAll('[data-filter]').forEach(btn=>btn.onclick=()=>{stateFilter=btn.dataset.filter;render();});
 $('transferBtn').onclick=openTransfer;
 $('readyBtn').onclick=markReady;
-$('closeTransfer').onclick=()=>$('transferDialog').close();
+$('closeTransfer').onclick=()=>{$('transferDialog').close();pendingTransferId=null;};
+$('executeTransfer').onclick=async()=>{
+  if(!backendMode||!pendingTransferId)return;
+  if(!confirm('¿Ejecutar esta transferencia en CRM DEV? No afecta PRODUCCIÓN.'))return;
+  $('executeTransfer').disabled=true;
+  try{
+    const result=await repository.executeTransfer(pendingTransferId);
+    pendingTransferId=null;
+    $('transferDialog').close();
+    await loadBackend();
+    render();
+    alert('Transferencia ejecutada en CRM DEV: '+(result?.status||'EXECUTED'));
+  }catch(error){alert(error.message||'No se pudo ejecutar la transferencia.');}
+  finally{$('executeTransfer').disabled=false;}
+};
 $('copyTransfer').onclick=async()=>{
   await navigator.clipboard.writeText($('transferPayload').textContent);
   $('copyTransfer').textContent='Copiado';setTimeout(()=>$('copyTransfer').textContent='Copiar payload',1200);
 };
-$('resetPrototype').onclick=()=>{
+$('resetPrototype').onclick=async()=>{
+  if(backendMode){
+    await loadBackend();
+    render();
+    return;
+  }
   if(confirm('¿Restablecer el prototipo DEV? Solo se borra el estado local de este navegador.')){
     prospects=clone(seed);selectedId=prospects[0].id;save();render();
   }
 };
+
 render();
+loadBackend().then(connected=>{if(connected)render();});
