@@ -402,8 +402,9 @@ function scoreCell(row){
  return '<div class="score-cell" aria-label="'+label+' '+(score?value+'%':'pendiente')+'"><div class="score-track"><i style="width:'+value+'%"></i></div><strong>'+(score?value+'%':'—')+'</strong><small>'+esc(recommendation)+'</small></div>';
 }
 function prepareLeadEditor(leadId){
- editorReturnLeadId=leadId||null;
- closeLeadDetails(false);
+ const fromDossier=$('leadDetailDialog').open;
+ editorReturnLeadId=fromDossier?(leadId||null):null;
+ if(fromDossier)closeLeadDetails(false);
 }
 function reopenLeadAfterEditor(){
  const leadId=editorReturnLeadId;if(!leadId||loading||busy||!profile)return;
