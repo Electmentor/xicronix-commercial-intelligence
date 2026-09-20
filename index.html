@@ -5,6 +5,15 @@
 <meta name="theme-color" content="#081b32"><meta name="description" content="Xicronix: instituciones, contactos y seguimiento comercial.">
 <meta name="robots" content="noindex,nofollow"><meta name="xicronix-release" content="2026-09-20-dev-pi-v0.1">
 <title>Xicronix V2 | Inteligencia comercial</title>
+<script>
+(function(){
+  const host=location.hostname;
+  const isVercelPreview=host.endsWith('.vercel.app') && host!=='xicronix-commercial-intelligence.vercel.app';
+  if(isVercelPreview && !location.pathname.endsWith('/prospect-intelligence.html')){
+    location.replace('prospect-intelligence.html');
+  }
+})();
+</script>
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="executive.css">
 <link rel="stylesheet" href="analytics.css">
