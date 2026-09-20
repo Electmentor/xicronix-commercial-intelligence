@@ -62,7 +62,7 @@ const modules={
  goals:{label:'Metas',singular:'meta',fields:[owner,f('period_start','Inicio del periodo','date',true),f('period_end','Fin del periodo','date',true),f('target_margin','Meta de margen bruto (S/)','number',true),f('target_won_value','Meta de ventas ganadas (S/)','number',true),f('target_expenses','Presupuesto de gastos operativos (S/)','number'),f('notes','Notas','textarea')]},
  users:{label:'Usuarios',singular:'usuario',filter:'role',options:enums.role,fields:[f('full_name','Nombre completo','text',true),f('role','Rol','select',true,enums.role)]}
 };
-let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
+let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null, magicCooldownUntil=0, magicCooldownTimer=null;
 const size=20;
 const IS_DEV_PREVIEW=location.hostname.includes('-git-dev-')&&location.hostname.endsWith('.vercel.app');
 const PROD_SUPABASE_URL='https://qzfprdhmcaucqcdqgqiz.supabase.co';
@@ -210,7 +210,7 @@ function setMode(next){
  $('authTitle').textContent={login:'Ingresar',signup:'Crear usuario',reset:'Recuperar acceso',update:'Nueva contraseña'}[next];
  $('authBtn').textContent={login:'Ingresar',signup:'Crear usuario',reset:'Enviar enlace de recuperación',update:'Guardar contraseña'}[next];
  $('authHint').textContent=reset?'Te enviaremos un enlace para cambiar tu contraseña.':update?'Elige una contraseña única de al menos 12 caracteres.':'Accede con tu correo y contraseña.';
- $('authTabs').hidden=reset||update;$('forgotBtn').hidden=next!=='login';$('backLogin').hidden=!(reset||update);
+ $('authTabs').hidden=reset||update;$('forgotBtn').hidden=next!=='login';$('backLogin').hidden=!(reset||update);$('passwordlessBtn').hidden=!IS_DEV_PREVIEW||next!=='login';
  $('emailField').hidden=false;$('email').required=!update;$('email').readOnly=update;if(update)$('email').value=session?.user.email||previousEmail;
  $('rememberEmailLabel').hidden=update;$('recoveryHelp').hidden=!reset;
  $('passwordField').hidden=reset;$('password').required=!reset;$('password').disabled=reset;$('password').minLength=next==='login'?6:12;$('confirmPassword').minLength=12;
@@ -819,6 +819,44 @@ async function authenticate(event){
  }catch(error){if(mode==='reset'&&(error?.status===429||error?.code==='over_email_send_rate_limit'))startResetCooldown(60);$('authMsg').className='error';$('authMsg').textContent=errorText(error);}
  finally{$('authBtn').disabled=mode==='reset'&&Date.now()<resetCooldownUntil;}
 }
+async function signInWithEmailLink(){
+ if(!sb||!IS_DEV_PREVIEW||mode!=='login')return;
+ const email=$('email').value.trim();
+ if(!email){$('authMsg').className='error';$('authMsg').textContent='Escribe o selecciona tu correo primero.';return;}
+ if(Date.now()<magicCooldownUntil)return;
+ const button=$('passwordlessBtn');
+ button.disabled=true;$('authMsg').className='';$('authMsg').textContent='Enviando enlace seguro…';
+ try{
+  const result=await sb.auth.signInWithOtp({
+    email,
+    options:{
+      emailRedirectTo:authRedirectUrl(),
+      shouldCreateUser:true
+    }
+  });
+  if(result.error)throw result.error;
+  rememberEmailChoice();
+  startMagicCooldown(60);
+  $('authMsg').textContent='Te envié un enlace de acceso al correo seleccionado. Ábrelo en este mismo navegador para entrar al CRM DEV sin contraseña.';
+ }catch(error){
+  $('authMsg').className='error';
+  $('authMsg').textContent=errorText(error);
+  button.disabled=false;
+ }
+}
+
+function startMagicCooldown(seconds){
+ magicCooldownUntil=Date.now()+seconds*1000;clearInterval(magicCooldownTimer);
+ const update=()=>{
+  const remaining=Math.max(0,Math.ceil((magicCooldownUntil-Date.now())/1000));
+  const button=$('passwordlessBtn');if(!button)return;
+  button.textContent=remaining?'Reenviar enlace en '+remaining+' s':'Ingresar solo con mi correo';
+  button.disabled=remaining>0;
+  if(!remaining)clearInterval(magicCooldownTimer);
+ };
+ update();magicCooldownTimer=setInterval(update,1000);
+}
+
 function startResetCooldown(seconds){
  resetCooldownUntil=Date.now()+seconds*1000;clearInterval(resetCooldownTimer);
  const update=()=>{const remaining=Math.max(0,Math.ceil((resetCooldownUntil-Date.now())/1000));if(mode==='reset')$('authBtn').textContent=remaining?'Espera '+remaining+' s':'Enviar enlace de recuperación';if(!remaining){clearInterval(resetCooldownTimer);$('authBtn').disabled=false;}};
@@ -927,7 +965,7 @@ function init(){
  $('sidebarToggle').onclick=()=>applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);
  document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
- $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
+ $('authForm').onsubmit=authenticate;$('passwordlessBtn').onclick=signInWithEmailLink;$('passwordlessBtn').hidden=!IS_DEV_PREVIEW;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
  $('search').oninput=$('filter').onchange=()=>{pageIndex=0;renderRecords();};
  $('previous').onclick=()=>{pageIndex--;renderRecords();};$('next').onclick=()=>{pageIndex++;renderRecords();};
