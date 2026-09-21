@@ -41,7 +41,7 @@ Estas publicaciones permiten investigar colaboración; no acreditan presupuesto 
 - 5 pruebas seleccionadas del harness CRM pasan: edición según rol, conservación de formulario, separación de demostración, importación y guardado de movimiento después de seleccionar acción.
 - tests/pi-discovery-dev.sql ejecutado en Supabase DEV bajo authenticated y UID del administrador existente, dentro de BEGIN/ROLLBACK. Comprueba preparación repetida, rechazo de cambios no revisados, revisión sustituida, bloqueo por contradicción, ejecución repetida, propietario del prospecto, una tarea por transferencia, actualización de tarea por movimiento y conservación de tareas terminadas. Sin residuos de prueba.
 - Navegador: carga de la interfaz, demostración explícita, búsqueda sin resultados, vista de señales y bloqueo de escritura sin sesión verificados.
-- No se afirma E2E autenticado completo del navegador: la sesión de la aplicación instalada del usuario no está disponible en el navegador del agente. Base de datos y UI se verificaron por separado.
+- Estado previo: no había sesión disponible en el navegador del agente y base de datos/UI se verificaron por separado. Actualización posterior del 21 septiembre: ya se dispuso de sesión autenticada y se completó captura, edición, evidencia, transiciones, revisión, transferencia y apertura del expediente CRM. La nueva evidencia y sus límites están en [DEV-FORM-VALIDATION-20260921.md](DEV-FORM-VALIDATION-20260921.md).
 - La suite histórica completa del CRM conserva siete fallos previos de expectativas de títulos/textos/versión, documentados en MOVEMENT-DEV-FIX.md; no se declara aprobada.
 
 ## Dependencias y límites
