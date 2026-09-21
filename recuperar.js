@@ -2,13 +2,22 @@
 (() => {
  'use strict';
  const $ = id => document.getElementById(id);
- const authHost = 'qzfprdhmcaucqcdqgqiz.supabase.co';
+ const isDev = location.hostname === 'xicronix-commercial-intelligence-git-dev-xicronix.vercel.app';
+ const isProduction = location.hostname === 'xicronix-commercial-intelligence.vercel.app';
+ if (!isDev && !isProduction) {
+  $('continue').disabled = true;
+  $('status').textContent = 'Abre la recuperación desde la dirección oficial del CRM correspondiente a tu entorno.';
+  return;
+ }
+ const authHost = isDev ? 'rmximatxuaczhpqbcuho.supabase.co' : 'qzfprdhmcaucqcdqgqiz.supabase.co';
+ const authKey = isDev ? 'sb_publishable_pqqyMTcBovUi4sbp2Cn6yw_sL0_Xs__' : 'sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK';
+ if (isDev) document.title = 'Recuperar acceso — DEV | Xicronix';
  let token = new URLSearchParams(location.hash.slice(1)).get('recovery_token_hash') || '';
  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
  $('paste').hidden = !!token;
  let accountId = null;
  let busy = false;
- const client = window.supabase.createClient('https://' + authHost, 'sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK', {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:'xicronix-recovery-session'}});
+ const client = window.supabase.createClient('https://' + authHost, authKey, {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:'xicronix-recovery-session'}});
  const message = (text,error=false) => { $('status').textContent=text; $('status').className=error?'error':''; };
  function parseLink(value) {
   const url = new URL(value);
