@@ -1,3 +1,18 @@
+function movementActionRequired(table, id) {
+ return table === 'activities' && !id;
+}
+function validateMovementAction(table, id, field, message) {
+ if (!movementActionRequired(table, id) || field?.value?.trim()) return true;
+ message.textContent = 'Selecciona la acción realizada antes de guardar el movimiento.';
+ message.className = 'error';
+ if (field) {
+  field.required = true;
+  field.scrollIntoView({block:'center'});
+  field.focus();
+  field.reportValidity();
+ }
+ return false;
+}
 import {escapeHTML as esc, filterRecords, money, metrics, priorities, taskUrgency, sortTasksByUrgency, csv, parseCsv, normalize} from './domain.mjs';
 
 import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWriteModule, assignedUserId, scopeWorkspaceData} from './workspace.mjs';
@@ -690,13 +705,14 @@ function openEditor(table,id=null,initialValues={}){
  let options=field.options;if(field.type==='relation')options=Object.fromEntries(editorRelationRows(field.key,row).map(r=>[r.id,nameOf(r)]));
  if(options&&value&&!Object.hasOwn(options,value))options={...options,[value]:'Valor actual: '+String(value)+' (revisar)'};
  let input;
- const attrs=`id="field-${field.key}" name="${field.key}" ${field.required?'required':''} ${!writableFor(editTable)?'disabled':''}`;
- if(options)input=`<select ${attrs}><option value="" ${value===''?'selected':''}>${field.type==='relation'?'Sin vincular':field.required?'Selecciona una opción':'Sin registrar'}</option>${Object.entries(options).map(([k,v])=>`<option value="${esc(k)}" ${value===k?'selected':''}>${esc(v)}</option>`).join('')}</select>`;
+ const required=field.required||(field.key==='action_code'&&movementActionRequired(table,id));
+ const attrs=`id="field-${field.key}" name="${field.key}" ${required?'required':''} ${!writableFor(editTable)?'disabled':''}`;
+ if(options)input=`<select ${attrs}><option value="" ${value===''?'selected':''}>${field.type==='relation'?'Sin vincular':required?'Selecciona una opción':'Sin registrar'}</option>${Object.entries(options).map(([k,v])=>`<option value="${esc(k)}" ${value===k?'selected':''}>${esc(v)}</option>`).join('')}</select>`;
  else if(field.type==='textarea')input=`<textarea ${attrs}>${esc(value)}</textarea>`;
  else if(field.type==='checkbox')input=`<input ${attrs} type="checkbox" ${value!==false?'checked':''}>`;
  else if(field.type==='file')input=`<input ${attrs} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.txt,.csv">`;
  else input=`<input ${attrs} type="${field.type}" value="${esc(value)}" ${field.type==='number'?`min="0" step="${['score','probability','quantity',...costRateKeys].includes(field.key)?1:'0.01'}" ${['score','probability',...costRateKeys].includes(field.key)?'max="100"':''}`:''} ${field.key==='ruc'?'pattern="[0-9]{11}" title="Ingresa 11 dígitos"':''}>`;
- return `<div class="${field.type==='textarea'?'full':''}"><label for="field-${field.key}">${field.label}${field.required?' *':''}</label>${input}</div>`;
+ return `<div class="${field.type==='textarea'?'full':''}"><label for="field-${field.key}">${field.label}${required?' *':''}</label>${input}</div>`;
  }).join('');
  if(table==='expenses')$('fields').insertAdjacentHTML('beforeend','<p class="full muted">Registra gastos operativos en soles. Los costos directos de las ventas se toman del costo estimado de cada oportunidad; no los registres aquí otra vez. Un gasto con fecha futura se incluirá cuando llegue esa fecha.</p>');
  if(table==='goals')$('fields').insertAdjacentHTML('beforeend','<p class="full muted">Para el tablero general, deja el responsable sin vincular. El presupuesto de gastos corresponde al periodo completo; vacío significa sin presupuesto y 0 significa que no se prevén gastos. La meta de margen bruto se calcula antes de gastos operativos. El avance a la fecha se distribuye por días calendario.</p>');
@@ -742,6 +758,7 @@ async function saveRecord(event){
  if(editId&&!scopedRows(editTable).some(row=>row.id===editId))return;
  const payload={}, form=new FormData($('recordForm'));
  const original=editId?scopedRows(editTable).find(row=>row.id===editId):null;
+ if(!validateMovementAction(editTable,editId,editTable==='activities'?$('field-action_code'):null,$('formMsg')))return;
  if(typeof $('recordForm').reportValidity==='function'&&!$('recordForm').reportValidity())return;
  for(const field of fieldsFor(editTable)){if(field.transient)continue;let value=field.type==='checkbox'?form.get(field.key)==='on':String(form.get(field.key)??'').trim();
  if(field.required&&!value){$('formMsg').textContent='Completa los campos obligatorios.';return;}

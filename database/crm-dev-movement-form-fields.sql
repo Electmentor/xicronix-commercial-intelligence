@@ -1,0 +1,2 @@
+do $$ begin if not exists (select 1 from public.organizations where slug='xicronix-commercial-intelligence-dev') then raise exception 'DEV only'; end if; end $$;
+alter table public.activities add column if not exists need_summary text, add column if not exists decision_timeline text, add column if not exists budget_signal text;

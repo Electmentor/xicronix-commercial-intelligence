@@ -10,6 +10,8 @@ import * as demo from '../demo.mjs';
 import * as executive from '../executive.mjs';
 import * as analytics from '../analytics.mjs';
 import * as sellerDashboard from '../seller-dashboard.mjs';
+import * as commercialCore from '../commercial-core.mjs';
+import * as catalog from '../catalog.mjs';
 const source=readFileSync(new URL('../app.js',import.meta.url),'utf8').replace(/^import .*;$/gm,'');
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 function harness(role='ADMIN',saved=null,sourceChoice='live'){
@@ -27,6 +29,9 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
   showModal(){this.open=true;}
   close(){this.open=false;this._listeners?.close?.();}
   reset(){}
+  focus(){this.focused=true;}
+  scrollIntoView(){this.scrolled=true;}
+  reportValidity(){return this.id==='recordForm'||!!this.value;}
   click(){if(this.download)downloads.push({filename:this.download,url:this.href});}
   querySelectorAll(){return [];}
   closest(){return this;}
@@ -75,7 +80,7 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
  const sb={from:table=>new Query(table),auth:{onAuthStateChange(){},signOut:async()=>({error:null})}};
  if(saved)storage.set(workspace.workspaceKey('me','org'),saved);
  if(sourceChoice)storage.set(workspace.workspaceKey('me','org')+':source-v'+demo.DEMO_VERSION,sourceChoice);
- const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,...analytics,...sellerDashboard,console,document,window:{supabase:{createClient:()=>sb},confirm:()=>true},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
+ const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,...analytics,...sellerDashboard,...commercialCore,...catalog,console,document,window:{supabase:{createClient:()=>sb},confirm:()=>true},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
  const run=code=>vm.runInContext(code,context);
  run(source);run('init();session={user:{id:"me",email:"test@example.invalid"}};');
  return {run,nodes,db,queries,storage,downloads,boot:()=>run('reload()'),gate:promise=>{profileGate=promise;},click:id=>nodes.get(id).onclick()};
@@ -390,3 +395,22 @@ test('complaints console is linked only for a real administrator workspace',asyn
  await h.click('sourceToggle');assert.equal(h.nodes.get('complaintsLink').hidden,true);
  await h.click('sourceToggle');await h.click('sellerModeBtn');assert.equal(h.nodes.get('complaintsLink').hidden,true);
 });
+
+test('movement form marks action required, preserves draft on error, and saves after selection',async()=>{
+ const h=harness();await h.boot();h.run("openEditor('activities')");
+ assert.match(h.nodes.get('fields').innerHTML,/name="action_code" required/);
+ assert.match(h.nodes.get('fields').innerHTML,/Acción realizada \*/);
+ for(const [k,v] of Object.entries({lead_id:'own-lead',type:'NOTE',subject:'[DEV TEST] Movimiento',notes:'Conservar borrador',occurred_at:'2026-09-21T17:10'}))h.nodes.get('field-'+k).value=v;
+ await h.run('saveRecord({preventDefault(){}})');
+ assert.equal(h.nodes.get('field-action_code').focused,true);
+ assert.equal(h.nodes.get('field-notes').value,'Conservar borrador');
+ assert.equal(h.db.activities.length,1);
+ h.nodes.get('field-action_code').value='REQUEST_REVIEWED';
+ await h.run('saveRecord({preventDefault(){}})');
+ assert.equal(h.db.activities.length,2);
+ assert.equal(h.db.activities[1].action_code,'REQUEST_REVIEWED');
+ assert.equal(h.db.activities[1].notes,'Conservar borrador');
+});
+
+
+
