@@ -1,6 +1,6 @@
 # Web → CRM DEV — integración comercial
 
-Estado: implementación DEV; validación del navegador en curso. No fusionar en main.
+Estado: implementado y validado en DEV con datos sintéticos. No fusionar en main.
 
 ## Inspección y decisión
 
@@ -34,7 +34,9 @@ Salida interna: ok, synced, duplicate, reference, leadId, opportunityId, taskId.
 
 - node --test tests/contact-dev.test.cjs: 8/8 PASS, con transporte sustituido; no equivale a E2E.
 - CRM tests/web-crm-dev.sql ejecutado en el proyecto DEV real: PASS, con rollback de fixtures. Cubre reintento, conflicto, reutilización, trazabilidad, reapertura de tarea, oportunidad cerrada, rechazo de entorno incorrecto, contacto no sintético, RLS y privilegios.
-- Build/typecheck y formulario Preview: consultar el informe de cierre y comprobaciones del PR.
+- Build/typecheck, CI general y regresión de navegador: PASS en el commit Web 1727aa422ff9553be256f15a850121107dcf059c.
+- E2E real desde el formulario Preview: PASS. Dos envíos válidos dejaron 1 prospecto, 1 oportunidad, 1 tarea y 2 actividades; se comprobó rechazo sin registros y corrección conservando el texto. Referencias: 4f7f5cc0-6d47-41d9-9085-426ec0f28753 y ea6ec1c6-df70-4d96-bdeb-6ec9a7c47e67.
+- Evidencia y estado de entornos: [PR Web #14](https://github.com/Electmentor/xicronix-web/pull/14) y [PR CRM #13](https://github.com/Electmentor/xicronix-commercial-intelligence/pull/13). Los fixtures E2E se conservaron como datos sintéticos. La UI autenticada del CRM no fue probada; las relaciones se verificaron directamente en su base DEV.
 
 ## Riesgos y límites
 
