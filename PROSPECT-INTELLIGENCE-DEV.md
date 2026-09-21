@@ -2,6 +2,9 @@
 
 Primera versión operativa inspirada en las referencias visuales: lista de organizaciones con expediente lateral, señales con fuentes y fechas, evidencia clasificada, evaluación manual explicable y revisión de transferencia al CRM.
 
+
+Antecedente preservado en [PROSPECT-INTELLIGENCE-DEV-20260920.md](PROSPECT-INTELLIGENCE-DEV-20260920.md). El bloqueo de infraestructura allí descrito ya no aplica: CRM DEV está activo y Core DEV permanece pausado bajo autorización previa. El prototipo local fue sustituido por persistencia DEV.
+
 ## Alcance y reutilización
 
 - Entorno exclusivo: CRM DEV, proyecto Supabase rmximatxuaczhpqbcuho; rama dev. Producción y permisos permanecen sin cambios.
