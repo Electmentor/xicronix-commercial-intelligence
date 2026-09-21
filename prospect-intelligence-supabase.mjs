@@ -11,7 +11,7 @@ export function validateDevConfig(config){
   if(!config?.url||!config?.publishableKey)return {enabled:false,reason:'DEV_CONFIG_MISSING'};
   const ref=projectRef(config.url);
   if(!ref)return {enabled:false,reason:'DEV_URL_INVALID'};
-  if(ref===PROD_REF)throw new Error('Prospect Intelligence DEV refuses the production Supabase project.');
+  if(config.url!=='https://rmximatxuaczhpqbcuho.supabase.co')throw new Error('Prospect Intelligence solo admite CRM DEV.');
   return {enabled:true,ref};
 }
 
@@ -23,6 +23,21 @@ export function createPiRepository(supabaseFactory,config){
   return {
     validation,
     client,
+    async saveCase(values,id){
+      const context=await this.currentContext();
+      if(!context?.profile)throw new Error('Inicia sesión en CRM DEV.');
+      let query;
+      if(id)query=client.from('pi_cases').update({...values,updated_at:new Date().toISOString()}).eq('id',id).eq('organization_id',context.profile.organization_id);
+      else query=client.from('pi_cases').insert({...values,organization_id:context.profile.organization_id,created_by:context.session.user.id});
+      const {data,error}=await query.select().single();if(error)throw error;return data;
+    },
+    async addObservation(table,caseId,values){
+      if(!['pi_signals','pi_evidence'].includes(table))throw new Error('Registro no permitido');
+      const context=await this.currentContext();
+      if(!context?.profile)throw new Error('Inicia sesión en CRM DEV.');
+      const {data,error}=await client.from(table).insert({...values,case_id:caseId,organization_id:context.profile.organization_id,created_by:context.session.user.id}).select().single();
+      if(error)throw error;return data;
+    },
     async currentContext(){
       const {data:{session},error:sessionError}=await client.auth.getSession();
       if(sessionError)throw sessionError;
