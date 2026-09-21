@@ -2,7 +2,6 @@
 
 Primera versión operativa inspirada en las referencias visuales: lista de organizaciones con expediente lateral, señales con fuentes y fechas, evidencia clasificada, evaluación manual explicable y revisión de transferencia al CRM.
 
-
 Antecedente preservado en [PROSPECT-INTELLIGENCE-DEV-20260920.md](PROSPECT-INTELLIGENCE-DEV-20260920.md). El bloqueo de infraestructura allí descrito ya no aplica: CRM DEV está activo y Core DEV permanece pausado bajo autorización previa. El prototipo local fue sustituido por persistencia DEV.
 
 ## Alcance y reutilización
@@ -46,6 +45,10 @@ Estas publicaciones permiten investigar colaboración; no acreditan presupuesto 
 - La suite histórica completa del CRM conserva siete fallos previos de expectativas de títulos/textos/versión, documentados en MOVEMENT-DEV-FIX.md; no se declara aprobada.
 
 ## Dependencias y límites
+
+La publicación Vercel y la carga del dominio DEV fueron verificadas. Los checks antiguos del adaptador se actualizaron para exigir el proyecto DEV exacto; se conserva el rechazo explícito de producción. La integración PostgreSQL efímera anterior falla por falta de acceso al esquema auth en su emulador, antes de aplicar la nueva migración; no equivale a un fallo en el Supabase DEV real donde pasó la prueba transaccional. No se ampliaron permisos para resolver ese emulador.
+
+El asesor de seguridad de Supabase no informó nuevas incidencias de tablas/RLS/funciones. Conserva una advertencia de configuración Auth: [protección frente a contraseñas filtradas deshabilitada](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection). No se cambió la configuración de acceso.
 
 Supabase JS v2 desde CDN, sesión/perfil existente, RLS vigente, RPC PI previos y restricción única de tareas por organización/automation_key. No requiere nuevas credenciales ni ampliar acceso.
 

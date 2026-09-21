@@ -66,3 +66,4 @@ Mientras el backend persistente está bloqueado, la rama `dev` dispone de:
 - prueba VIEWER read-only.
 
 Este fallback valida arquitectura y migraciones, pero **no sustituye** un Supabase CRM DEV persistente para pruebas reales de Auth/Storage/Edge Functions.
+

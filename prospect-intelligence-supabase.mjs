@@ -11,6 +11,7 @@ export function validateDevConfig(config){
   if(!config?.url||!config?.publishableKey)return {enabled:false,reason:'DEV_CONFIG_MISSING'};
   const ref=projectRef(config.url);
   if(!ref)return {enabled:false,reason:'DEV_URL_INVALID'};
+  if(ref===PROD_REF)throw new Error('Prospect Intelligence no admite PRODUCCIÓN.');
   if(config.url!=='https://rmximatxuaczhpqbcuho.supabase.co')throw new Error('Prospect Intelligence solo admite CRM DEV.');
   return {enabled:true,ref};
 }
