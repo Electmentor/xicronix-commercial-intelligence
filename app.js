@@ -152,7 +152,8 @@ const canManageGoals=canViewDashboard;
 const canDelete=canViewDashboard;
 const accessible=table=>(!IS_DEV_PREVIEW||DEV_SUPPORTED_MODULES.has(table))&&canAccessPage(profile,workspace,table);
 const writableFor=table=>canWriteModule(profile,workspace,table);
-const fieldsFor=table=>(modules[table]?.fields||[]).filter(field=>!field.adminOnly||canViewDashboard());
+const DEV_UNAVAILABLE_OPPORTUNITY_FIELDS=new Set(['catalog_product_id','cost_profile_id','quantity','discount_pct','negotiated_unit_price','estimated_cost']);
+const fieldsFor=table=>(modules[table]?.fields||[]).filter(field=>(!field.adminOnly||canViewDashboard())&&(!IS_DEV_PREVIEW||table!=='opportunities'||!DEV_UNAVAILABLE_OPPORTUNITY_FIELDS.has(field.key)));
 const databaseTable=table=>({users:'profiles',goals:'commercial_goals',expenses:'commercial_expenses'})[table]||table;
 function restoreWorkspace(){
  const identity=workspaceKey(session.user.id,profile.organization_id);
@@ -285,7 +286,7 @@ async function reload(){
  restoreWorkspace();restoreSource();
  $('userRole').textContent=enums.role[profile.role]||'Sin rol';$('welcome').textContent=profile.full_name||session.user.email;
  if(dataSource==='demo'){loadDemo();notice('');render();return;}
- const tables=[...Object.keys(modules).filter(accessible),'scores',...(accessible('documents')?['document_versions']:[])];
+ const tables=[...Object.keys(modules).filter(k=>accessible(k)||(k==='users'&&canViewDashboard())),'scores',...(accessible('documents')?['document_versions']:[])];
  const results=await Promise.allSettled(tables.map(k=>allRows(k,profile.organization_id)));
  if(version!==loadVersion)return;
  data=emptyData();failures={};tables.forEach((k,i)=>{if(results[i].status==='fulfilled')data[k]=results[i].value;else failures[k]=true;});
@@ -387,7 +388,7 @@ function exportAnalytics(){
  const link=document.createElement('a');link.href=url;link.download='xicronix-rendimiento-'+(dataSource==='demo'?'SIMULADO-':'')+analyticsPeriod+'-'+new Date().toISOString().slice(0,10)+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function scopedRows(table){
- if(!accessible(table)&&table!=='scores')return [];
+ if(!accessible(table)&&table!=='scores'&&!(table==='users'&&canViewDashboard()))return [];
  return scopeWorkspaceData(data,profile,currentActor(),workspace)[table]||[];
 }
 function renderTaskPrioritySummary(){
@@ -702,7 +703,7 @@ function openEditor(table,id=null,initialValues={}){
  $('editorTitle').textContent=table==='activities'&&!id?'Registrar movimiento':`${id?(writableFor(table)?'Editar':'Ver'):'Crear'} ${modules[table].singular}`;$('formMsg').textContent='';
  $('fields').innerHTML=fieldsFor(table).map(field=>{
  let value=row[field.key]??({country:'Peru',type:table==='activities'?'':'OTHER',priority:'MEDIUM',score:0,value:0,estimated_value:0,estimated_cost:'',probability:10,target_margin:0,target_won_value:0,active:true,quantity:1,discount_pct:0,negotiated_unit_price:''}[field.key]??'');if(field.type==='datetime-local')value=localDateTime(value);if(costRateKeys.has(field.key)&&value!=='')value=Number(value)*100;
- let options=field.options;if(field.type==='relation')options=Object.fromEntries(editorRelationRows(field.key,row).map(r=>[r.id,nameOf(r)]));
+ let options=field.options;if(field.type==='relation')options=Object.fromEntries(editorRelationRows(field.key,row).map(r=>[r.id,nameOf(r)||(r.id===session?.user?.id?session.user.email:'Registro '+r.id.slice(0,8))]));
  if(options&&value&&!Object.hasOwn(options,value))options={...options,[value]:'Valor actual: '+String(value)+' (revisar)'};
  let input;
  const required=field.required||(field.key==='action_code'&&movementActionRequired(table,id));
@@ -717,7 +718,7 @@ function openEditor(table,id=null,initialValues={}){
  if(table==='expenses')$('fields').insertAdjacentHTML('beforeend','<p class="full muted">Registra gastos operativos en soles. Los costos directos de las ventas se toman del costo estimado de cada oportunidad; no los registres aquí otra vez. Un gasto con fecha futura se incluirá cuando llegue esa fecha.</p>');
  if(table==='goals')$('fields').insertAdjacentHTML('beforeend','<p class="full muted">Para el tablero general, deja el responsable sin vincular. El presupuesto de gastos corresponde al periodo completo; vacío significa sin presupuesto y 0 significa que no se prevén gastos. La meta de margen bruto se calcula antes de gastos operativos. El avance a la fecha se distribuye por días calendario.</p>');
  const leadScore=id&&table==='leads'?(data.scores||[]).find(item=>item.lead_id===id):null;
- if(table==='opportunities'&&canViewDashboard()){
+ if(table==='opportunities'&&canViewDashboard()&&!IS_DEV_PREVIEW){
   $('fields').insertAdjacentHTML('beforeend','<section id="quotePreview" class="quote-insight full" aria-live="polite"></section>');
   updateQuotePreview();
  }
@@ -955,7 +956,7 @@ function openLeadDetails(id){
  const need=activities.find(row=>row.need_summary)?.need_summary||'Pendiente de precisar';
  const budget=Number(lead.estimated_value)>0?money(lead.estimated_value):'Sin definir';
  const field=(label,value)=>'<div class="lead-detail-row"><dt>'+esc(label)+'</dt><dd>'+esc(value||'Sin registrar')+'</dd></div>';
- const buttons=writableFor('leads')?'<div class="lead-master-actions"><button type="button" data-edit-lead="'+lead.id+'">Editar prospecto</button><button type="button" class="primary" data-activity-lead="'+lead.id+'">Registrar movimiento</button><button type="button" data-create-task-lead="'+lead.id+'">Crear tarea</button><button type="button" data-create-meeting-lead="'+lead.id+'">Agendar reunión</button><button type="button" data-create-deliverable-lead="'+lead.id+'">Registrar entregable</button><button type="button" data-create-document-lead="'+lead.id+'">Subir documento</button></div>':'';
+ const buttons=writableFor('leads')?'<div class="lead-master-actions"><button type="button" data-edit-lead="'+lead.id+'">Editar prospecto</button><button type="button" class="primary" data-activity-lead="'+lead.id+'">Registrar movimiento</button><button type="button" data-create-task-lead="'+lead.id+'">Crear tarea</button><button type="button" '+(!accessible('meetings')?'disabled title="Agenda aún no disponible en DEV" ':'')+'data-create-meeting-lead="'+lead.id+'">Agendar reunión</button><button type="button" '+(!accessible('deliverables')?'disabled title="Entregables aún no disponible en DEV" ':'')+'data-create-deliverable-lead="'+lead.id+'">Registrar entregable</button><button type="button" '+(!accessible('documents')?'disabled title="Documentos aún no disponible en DEV" ':'')+'data-create-document-lead="'+lead.id+'">Subir documento</button></div>':'';
  $('leadDetailTitle').textContent='Expediente Comercial · '+(institution?.name||lead.title||'Prospecto');
  $('leadDetailContent').innerHTML='<section class="lead-master commercial-dossier"><p class="muted">'+(dataSource==='demo'?'Demostración, sin datos reales.':'Radiografía comercial basada únicamente en los registros del expediente.')+'</p>'+buttons+
  '<section class="situation-action"><div><small>SITUACIÓN</small><h3>'+(latest?esc(latest.subject||MOVEMENT_ACTIONS[latest.action_code]||'Último movimiento registrado'):'Sin movimiento reciente')+'</h3><p>'+(latest?esc(latest.notes||latest.need_summary||'Movimiento registrado sin detalle adicional.'):'La oportunidad todavía no tiene actividad suficiente para resumir una situación previa.')+'</p></div><div><small>ACCIÓN</small><h3>'+esc(action)+'</h3><p>'+(nextDate?'Próximo compromiso: '+esc(date(nextDate)):'Aún no existe una fecha comprometida.')+'</p></div></section>'+
@@ -1001,4 +1002,3 @@ function init(){
 }
 // Both the SDK's defer script and module execution finish before DOMContentLoaded.
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
-

@@ -1,6 +1,6 @@
 import {PI_STATE_LABELS,DIMENSIONS,EVIDENCE_LABELS,dimensionScore,confidenceScore,canTransition} from './prospect-intelligence-domain.mjs';
 import {createPiRepository} from './prospect-intelligence-supabase.mjs';
-import {escapeText as esc,safeUrl,sourceLink,filterCases,RESOLUTION_LABELS,dateLabel} from './pi-discovery-view.mjs';
+import {escapeText as esc,safeUrl,sourceLink,filterCases,RESOLUTION_LABELS,dateLabel,validatePiForm} from './pi-discovery-view.mjs';
 const $=id=>document.getElementById(id);
 const demo=new URLSearchParams(location.search).get('demo')==='1';
 let repo,context,rows=[],selected=null,view='organizations',editing=null,pending=null,busy=false;
@@ -76,11 +76,13 @@ $('editForm').onsubmit=async e=>{
  e.preventDefault();if(busy||!canWrite())return;busy=true;$('save').disabled=true;$('formStatus').textContent='Guardando…';
  try{
   const f=Object.fromEntries(new FormData(e.currentTarget));for(const k of Object.keys(f))f[k]=f[k].trim();
+  validatePiForm(editing.kind,f);
   if(editing.kind==='case'){
    const dimensions=Object.fromEntries(Object.keys(DIMENSIONS).map(k=>[k,Number(f['dim_'+k])]));
    if(Object.values(dimensions).some(n=>!Number.isInteger(n)||n<0||n>5))throw Error('Revisa los valores de evaluación.');
    const values={organization_name:f.organization_name,organization_type:f.organization_type,organization_country:f.organization_country,sector:f.sector,organization_city:f.organization_city,organization_website:f.organization_website||null,hypothesis:f.hypothesis,next_action:f.next_action,next_action_date:f.next_action_date?new Date(f.next_action_date).toISOString():null,transfer_reason:f.transfer_reason,dimensions};
    const saved=await repo.saveCase(values,editing.id);selected=saved.id;
+   if(!editing.id){$('kindFilter').value=saved.organization_name.startsWith('[SIMULADO]')?'synthetic':'research';$('stateFilter').value='ALL';$('search').value='';}
   }else if(editing.kind==='signal'){
    if(!safeUrl(f.source_url))throw Error('Usa un enlace HTTP o HTTPS válido.');
    await repo.addObservation('pi_signals',editing.caseId,{label:f.label,source:f.source,source_url:f.source_url,observed_at:new Date().toISOString(),metadata:{published_on:f.published_on}});

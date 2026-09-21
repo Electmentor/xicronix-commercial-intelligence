@@ -1,5 +1,10 @@
 export function escapeText(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 export function safeUrl(value){try{const u=new URL(value);return ['https:','http:'].includes(u.protocol)?u.href:'';}catch{return '';}}
+export function validatePiForm(kind,values){
+ const required=kind==='case'?['organization_name']:kind==='signal'?['label','source','source_url','published_on']:['note'];
+ if(required.some(key=>!String(values[key]??'').trim()))throw new Error('Completa los campos obligatorios; no pueden contener solo espacios.');
+ if(kind==='case'&&values.organization_website&&!safeUrl(values.organization_website))throw new Error('Usa un sitio institucional HTTP o HTTPS válido.');
+}
 export function filterCases(rows,query='',state='ALL',kind='research'){
  const q=query.trim().toLocaleLowerCase('es');
  return rows.filter(p=>(state==='ALL'||p.state===state)&&(kind==='all'||(kind==='synthetic')===p.organization_name.startsWith('[SIMULADO]'))&&[p.organization_name,p.sector,p.organization_city,p.hypothesis,...(p.signals||[]).map(s=>s.label)].join(' ').toLocaleLowerCase('es').includes(q));

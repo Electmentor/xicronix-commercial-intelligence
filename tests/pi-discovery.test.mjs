@@ -1,7 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {filterCases,sourceLink,safeUrl,dateLabel} from '../pi-discovery-view.mjs';
+import {filterCases,sourceLink,safeUrl,dateLabel,validatePiForm} from '../pi-discovery-view.mjs';
 import {validateDevConfig} from '../prospect-intelligence-supabase.mjs';
+test('required PI text rejects whitespace and organization URLs reject active schemes',()=>{
+ assert.throws(()=>validatePiForm('case',{organization_name:'   '}),/obligatorios/);
+ assert.throws(()=>validatePiForm('evidence',{note:'\t'}),/obligatorios/);
+ assert.throws(()=>validatePiForm('signal',{label:'QA',source:' ',source_url:'https://example.invalid',published_on:'2026-09-21'}),/obligatorios/);
+ assert.throws(()=>validatePiForm('case',{organization_name:'QA',organization_website:'javascript:alert(1)'}),/HTTP/);
+ assert.doesNotThrow(()=>validatePiForm('case',{organization_name:'QA',organization_website:'https://example.invalid'}));
+});
 test('publication dates retain their calendar day',()=>{
  process.env.TZ='America/Lima';
  assert.match(dateLabel('2026-09-21'),/^21 /);
