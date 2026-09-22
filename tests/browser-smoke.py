@@ -35,7 +35,7 @@ with sync_playwright() as p:
  try:
   context,page=newpage();expect(page.locator('#workspaceControls')).to_be_visible()
   check('actual data is default',lambda:expect(page.locator('#sourceBadge')).to_have_text('DATOS REALES'))
-  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-22-v2.20'))
+  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-22-v2.21'))
   page.screenshot(path=str(out/'desktop-v2-fixture.png'),full_page=True)
   pages=['now','radar','institutions','contacts','leads','opportunities','tasks','meetings','deliverables','documents','activities','catalog_products','cost_profiles','expenses','goals','users','dashboard']
   for target in pages:
@@ -53,7 +53,7 @@ with sync_playwright() as p:
   page.locator('#navigation [data-page="radar"]').click()
   check('radar module renders safely',lambda:expect(page.locator('#recordList')).to_contain_text('Colegio Radar de prueba'))
   check('Radar call action visible',lambda:expect(page.locator('.radar-quick-actions a[href^="tel:"]')).to_be_visible())
-  check('Radar corporate email action visible',lambda:expect(page.locator('.radar-quick-actions a[href^="mailto:"]')).to_be_visible())
+  check('Radar Zoho email action visible',lambda:expect(page.get_by_role('link',name='Correo Zoho')).to_be_visible())
   check('Radar WhatsApp action visible',lambda:expect(page.locator('.radar-quick-actions a[href*="wa.me"]')).to_be_visible())
   check('Radar linked prospect action visible',lambda:expect(page.locator('[data-radar-lead]')).to_be_visible())
   check('Radar register action visible',lambda:expect(page.locator('[data-radar-activity]')).to_be_visible())
