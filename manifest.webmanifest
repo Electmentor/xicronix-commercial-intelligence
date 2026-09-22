@@ -2,7 +2,7 @@
   "name": "Xicronix Commercial Intelligence",
   "short_name": "Xicronix",
   "description": "Radar y operación comercial de Xicronix.",
-  "start_url": "/#now",
+  "start_url": "/#page=now",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f4f7fb",
