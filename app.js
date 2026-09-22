@@ -67,7 +67,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-19-v2.9';
+const CRM_RELEASE='2026-09-22-v2.11';
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
 let entryRoute=readEntryRoute();
@@ -76,6 +76,10 @@ const writable=()=>profile && ['ADMIN','MANAGER','SALES'].includes(profile.role)
 let workspace=SELLER, workspaceIdentity=null, loading=false;
 let dataSource='live', sourceIdentity=null, demoData=null, demoSeller=DEMO_SELLERS[0].id, demoSaved=true, executiveFilter='', executiveOwner='';
 let analyticsPeriod='year';
+let deferredInstallPrompt=null;
+window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;if(page==='now')renderNow();});
+window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;if(page==='now')renderNow();});
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 const currentActor=()=>dataSource==='demo'?demoSeller:session?.user?.id;
 const sourceKey=()=>workspaceIdentity+':source-v'+DEMO_VERSION;
 const demoKey=()=>workspaceIdentity+':demo-v'+DEMO_VERSION;
@@ -159,8 +163,8 @@ function renderWorkspaceControls(){
  $('workspaceHint').textContent=admin?'Visión global: resultados, margen, metas y equipo.':'Mi cartera: prospectos, potencial, interacciones y próximas acciones.';
  $('workspaceLabel').textContent=admin?'DIRECCIÓN COMERCIAL':'MI ESPACIO DE VENTAS';
  $('appView').dataset.workspace=admin?ADMIN:SELLER;
- const labels=admin?{dashboard:'Dashboard Ejecutivo'}:{dashboard:'Mi Dashboard',leads:'Mi cartera',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',deliverables:'Mis entregables',documents:'Mis documentos',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
- const keys=admin?['dashboard',...Object.keys(modules)]:['dashboard','leads','tasks','meetings','deliverables','documents','activities','opportunities','catalog_products','institutions','contacts'];
+ const labels=admin?{dashboard:'Dashboard Ejecutivo',now:'Ahora'}:{dashboard:'Mi Dashboard',now:'Ahora',leads:'Mi cartera',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',deliverables:'Mis entregables',documents:'Mis documentos',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
+ const keys=admin?['dashboard','now',...Object.keys(modules)]:['dashboard','now','leads','tasks','meetings','deliverables','documents','activities','opportunities','catalog_products','institutions','contacts'];
  $('navigation').innerHTML=keys.filter(accessible).map((key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen ejecutivo')+'</button>').join('');
 }
 async function setWorkspace(next){
@@ -334,7 +338,7 @@ function render(){
  const admin=canViewDashboard();
  $('appView').dataset.page=page;$('appView').dataset.source=dataSource;
  $('dashboard').hidden=page!=='dashboard';$('records').hidden=page==='dashboard';
- $('pageTitle').textContent=page==='dashboard'?(admin?'Dashboard Ejecutivo':'Mi Dashboard Comercial'):!admin&&page==='leads'?'Mi cartera de prospectos':modules[page].label;
+ $('pageTitle').textContent=page==='dashboard'?(admin?'Dashboard Ejecutivo':'Mi Dashboard Comercial'):page==='now'?'Xicronix Ahora':!admin&&page==='leads'?'Mi cartera de prospectos':modules[page].label;
  const target=page==='dashboard'?(admin?'institutions':'leads'):page;
  $('newBtn').hidden=target==='users'||!writableFor(target);
  $('newBtn').textContent='+ Crear '+modules[target].singular;
@@ -558,7 +562,33 @@ function renderRadarRecords(){
  $('recordList').innerHTML=metrics+'<section class="radar-intro panel"><div><p class="eyebrow">RADAR COMERCIAL XICRONIX</p><h2>Oportunidades filtradas para actuar con menos fricción.</h2><p>Orden: clasificación → Lima/proximidad operativa → score. Una señal no se convierte automáticamente en lead.</p></div></section><section class="radar-grid">'+cards+'</section>';
 }
 
+function renderNow(){
+ $('recordContext').hidden=true;$('sellerSummary').hidden=true;$('importBtn').hidden=true;$('importHelp').hidden=true;$('exportBtn').disabled=true;
+ const radar=(data.radar||[]).slice().sort((a,b)=>Number(a.classification_priority||99)-Number(b.classification_priority||99)||Number(b.weighted_score||0)-Number(a.weighted_score||0));
+ const critical=radar.filter(row=>row.classification==='CRITICAL'),high=radar.filter(row=>row.classification==='HIGH'),potential=radar.filter(row=>row.classification==='POTENTIAL');
+ const openTasks=(data.tasks||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status));
+ const now=Date.now(),todayEnd=new Date();todayEnd.setHours(23,59,59,999);
+ const dueToday=openTasks.filter(row=>row.due_at&&Date.parse(row.due_at)<=todayEnd.getTime()).length;
+ const openOpps=(data.opportunities||[]).filter(row=>!['WON','LOST'].includes(row.stage));
+ const pipeline=openOpps.reduce((sum,row)=>sum+(Number(row.value)||0),0);
+ const focus=critical[0]||high[0]||potential[0]||null;
+ const lastRadar=radar.map(row=>Date.parse(row.last_verified_at||row.updated_at||row.created_at)).filter(Number.isFinite).sort((a,b)=>b-a)[0];
+ const standalone=window.matchMedia?.('(display-mode: standalone)').matches||navigator.standalone===true;
+ const status=critical.length?'ALERTA CRÍTICA':high.length?'ATENCIÓN':'ESTABLE';
+ const statusClass=critical.length?'critical':high.length?'high':'stable';
+ const install=standalone?'<span class="now-installed">Instalado en este dispositivo</span>':deferredInstallPrompt?'<button id="installAppBtn" class="primary">Instalar Xicronix en este celular</button>':'<small>Para tenerlo como icono: menú del navegador → Añadir a pantalla de inicio / Instalar app.</small>';
+ $('recordCount').textContent='Resumen móvil · datos reales del CRM';
+ $('pageNumber').textContent='';$('previous').disabled=true;$('next').disabled=true;
+ $('recordList').innerHTML=
+ '<section class="now-status '+statusClass+'"><div><p class="eyebrow">XICRONIX AHORA</p><h2>'+status+'</h2><p>'+(critical.length?'Hay una señal comercial que merece atención inmediata.':high.length?'Hay oportunidades de alta prioridad para revisar.':'No hay alertas comerciales críticas en este momento.')+'</p></div><div class="now-pulse"><i></i><span>Radar activo</span></div></section>'+
+ '<section class="now-kpis"><article><b>'+critical.length+'</b><span>Críticos</span></article><article><b>'+high.length+'</b><span>Alta prioridad</span></article><article><b>'+potential.length+'</b><span>Potenciales</span></article><article><b>'+dueToday+'</b><span>Acciones hoy</span></article></section>'+
+ '<section class="now-grid"><article class="panel now-focus"><p class="eyebrow">LO MÁS IMPORTANTE</p>'+(focus?'<h3>'+esc(focus.institution_name)+'</h3><div class="now-score">'+Number(focus.weighted_score||0)+'/100 · '+esc(enums.radarClass[focus.classification]||focus.classification)+'</div><p>'+esc(focus.signal_summary||'Señal comercial en investigación')+'</p><p><b>Siguiente:</b> '+esc(focus.next_action||'Continuar investigación remota')+'</p>':'<h3>Sin alertas prioritarias</h3><p>El Radar seguirá filtrando oportunidades sin llenarte de ruido.</p>')+'</article>'+
+ '<article class="panel now-business"><p class="eyebrow">OPERACIÓN</p><div><span><b>'+openTasks.length+'</b>Tareas abiertas</span><span><b>'+openOpps.length+'</b>Oportunidades abiertas</span><span><b>'+money(pipeline)+'</b>Pipeline registrado</span></div></article></section>'+
+ '<section class="panel now-update"><div><p class="eyebrow">ÚLTIMA LECTURA DEL RADAR</p><h3>'+(lastRadar?esc(date(new Date(lastRadar).toISOString())):'Sin verificación registrada')+'</h3><p>Abre “Radar Comercial” para ver la evidencia y los contactos de cada institución.</p></div><div class="now-install">'+install+'</div></section>';
+ const button=$('installAppBtn');if(button)button.onclick=async()=>{if(!deferredInstallPrompt)return;deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;renderNow();};
+}
 function renderRecords(){
+ if(page==='now'){renderNow();return;}
  if(page==='radar'){renderRadarRecords();return;}
  const isUsers=page==='users',isGoals=page==='goals',isExpenses=page==='expenses';
  $('recordContext').hidden=!executiveFilter&&!executiveOwner;
