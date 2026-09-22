@@ -42,6 +42,7 @@ export function scopeWorkspaceData(source, profile, userId, workspace) {
     (!row.lead_id && !row.opportunity_id && row.created_by === userId));
   result.scores = (organization.scores || []).filter(row => leadIds.has(row.lead_id) || opportunityIds.has(row.opportunity_id));
   result.catalog_products = organization.catalog_products || [];
+  result.radar = organization.radar || [];
   result.cost_profiles = [];
   const linked = [...result.leads, ...result.opportunities, ...result.tasks, ...(result.meetings||[]), ...(result.deliverables||[]), ...(result.documents||[]), ...result.activities];
   const contactIds = new Set(linked.map(row => row.contact_id).filter(Boolean));
