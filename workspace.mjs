@@ -11,10 +11,10 @@ export function workspaceKey(userId, organizationId) {
 }
 export function canAccessPage(profile, workspace, page) {
   if (!profile?.organization_id || !['ADMIN','MANAGER','SALES','VIEWER'].includes(profile.role)) return false;
-  return operational.includes(page) || page === 'dashboard' || (effectiveWorkspace(profile, workspace) === ADMIN && ['users','goals','cost_profiles','expenses'].includes(page));
+  return operational.includes(page) || ['dashboard','now'].includes(page) || (effectiveWorkspace(profile, workspace) === ADMIN && ['users','goals','cost_profiles','expenses'].includes(page));
 }
 export function canWriteModule(profile, workspace, table) {
-  if (!canAccessPage(profile, workspace, table) || ['dashboard','radar'].includes(table) || !['ADMIN','MANAGER','SALES'].includes(profile.role)) return false;
+  if (!canAccessPage(profile, workspace, table) || ['dashboard','radar','now'].includes(table) || !['ADMIN','MANAGER','SALES'].includes(profile.role)) return false;
   if (['catalog_products','cost_profiles'].includes(table) && effectiveWorkspace(profile, workspace) !== ADMIN) return false;
   return table !== 'cost_profiles' ? table !== 'catalog_products' || profile.role === 'ADMIN' : profile.role === 'ADMIN';
 }
@@ -42,6 +42,7 @@ export function scopeWorkspaceData(source, profile, userId, workspace) {
     (!row.lead_id && !row.opportunity_id && row.created_by === userId));
   result.scores = (organization.scores || []).filter(row => leadIds.has(row.lead_id) || opportunityIds.has(row.opportunity_id));
   result.catalog_products = organization.catalog_products || [];
+  result.radar = organization.radar || [];
   result.cost_profiles = [];
   const linked = [...result.leads, ...result.opportunities, ...result.tasks, ...(result.meetings||[]), ...(result.deliverables||[]), ...(result.documents||[]), ...result.activities];
   const contactIds = new Set(linked.map(row => row.contact_id).filter(Boolean));
