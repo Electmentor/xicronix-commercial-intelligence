@@ -67,7 +67,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-22-v2.11';
+const CRM_RELEASE='2026-09-22-v2.12';
+const PUSH_PUBLIC_KEY='BIrTjCYNyPtyh-qg1Ym7n75mU4WdHmVZvQ0c-36jGJwVgnkcIrYMJisOJAqMVz22OoHXCLkhLKDrePoGrQdht4s';
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
 let entryRoute=readEntryRoute();
@@ -562,6 +563,38 @@ function renderRadarRecords(){
  $('recordList').innerHTML=metrics+'<section class="radar-intro panel"><div><p class="eyebrow">RADAR COMERCIAL XICRONIX</p><h2>Oportunidades filtradas para actuar con menos fricción.</h2><p>Orden: clasificación → Lima/proximidad operativa → score. Una señal no se convierte automáticamente en lead.</p></div></section><section class="radar-grid">'+cards+'</section>';
 }
 
+
+function base64UrlToUint8Array(value){
+ const padding='='.repeat((4-value.length%4)%4);
+ const base64=(value+padding).replace(/-/g,'+').replace(/_/g,'/');
+ const raw=atob(base64);return Uint8Array.from([...raw].map(char=>char.charCodeAt(0)));
+}
+async function enableCriticalPush(){
+ if(!session||!profile||!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window)){
+  notice('Este navegador no permite alertas push.',true);return;
+ }
+ try{
+  const permission=await Notification.requestPermission();
+  if(permission!=='granted'){notice('Las alertas no se activaron porque el permiso de notificaciones no fue concedido.',true);renderNow();return;}
+  const registration=await navigator.serviceWorker.ready;
+  let subscription=await registration.pushManager.getSubscription();
+  if(!subscription){
+   subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:base64UrlToUint8Array(PUSH_PUBLIC_KEY)});
+  }
+  const json=subscription.toJSON();
+  const payload={
+   organization_id:profile.organization_id,user_id:session.user.id,endpoint:subscription.endpoint,
+   p256dh:json.keys?.p256dh,auth:json.keys?.auth,user_agent:navigator.userAgent,
+   enabled:true,last_seen_at:new Date().toISOString(),updated_at:new Date().toISOString()
+  };
+  if(!payload.p256dh||!payload.auth)throw new Error('subscription_keys_missing');
+  const {error}=await sb.from('commercial_push_subscriptions').upsert(payload,{onConflict:'endpoint'});
+  if(error)throw error;
+  notice('Alertas críticas activadas en este celular.');
+  renderNow();
+ }catch(error){notice('No se pudieron activar las alertas críticas: '+errorText(error),true);}
+}
+
 function renderNow(){
  $('recordContext').hidden=true;$('sellerSummary').hidden=true;$('importBtn').hidden=true;$('importHelp').hidden=true;$('exportBtn').disabled=true;
  const radar=(data.radar||[]).slice().sort((a,b)=>Number(a.classification_priority||99)-Number(b.classification_priority||99)||Number(b.weighted_score||0)-Number(a.weighted_score||0));
@@ -577,6 +610,12 @@ function renderNow(){
  const status=critical.length?'ALERTA CRÍTICA':high.length?'ATENCIÓN':'ESTABLE';
  const statusClass=critical.length?'critical':high.length?'high':'stable';
  const install=standalone?'<span class="now-installed">Instalado en este dispositivo</span>':deferredInstallPrompt?'<button id="installAppBtn" class="primary">Instalar Xicronix en este celular</button>':'<small>Para tenerlo como icono: menú del navegador → Añadir a pantalla de inicio / Instalar app.</small>';
+ const pushSupported=('Notification' in window)&&('serviceWorker' in navigator)&&('PushManager' in window);
+ const pushBlock=pushSupported
+  ?(Notification.permission==='granted'
+    ?'<button id="criticalPushBtn" class="now-alert-button enabled">Alertas críticas activadas</button><small>Solo se enviarán cuando una señal entre en CRITICAL.</small>'
+    :'<button id="criticalPushBtn" class="now-alert-button">Activar alertas críticas</button><small>El teléfono pedirá permiso una sola vez.</small>')
+  :'<small>Este navegador no admite alertas push.</small>';
  $('recordCount').textContent='Resumen móvil · datos reales del CRM';
  $('pageNumber').textContent='';$('previous').disabled=true;$('next').disabled=true;
  $('recordList').innerHTML=
@@ -584,8 +623,9 @@ function renderNow(){
  '<section class="now-kpis"><article><b>'+critical.length+'</b><span>Críticos</span></article><article><b>'+high.length+'</b><span>Alta prioridad</span></article><article><b>'+potential.length+'</b><span>Potenciales</span></article><article><b>'+dueToday+'</b><span>Acciones hoy</span></article></section>'+
  '<section class="now-grid"><article class="panel now-focus"><p class="eyebrow">LO MÁS IMPORTANTE</p>'+(focus?'<h3>'+esc(focus.institution_name)+'</h3><div class="now-score">'+Number(focus.weighted_score||0)+'/100 · '+esc(enums.radarClass[focus.classification]||focus.classification)+'</div><p>'+esc(focus.signal_summary||'Señal comercial en investigación')+'</p><p><b>Siguiente:</b> '+esc(focus.next_action||'Continuar investigación remota')+'</p>':'<h3>Sin alertas prioritarias</h3><p>El Radar seguirá filtrando oportunidades sin llenarte de ruido.</p>')+'</article>'+
  '<article class="panel now-business"><p class="eyebrow">OPERACIÓN</p><div><span><b>'+openTasks.length+'</b>Tareas abiertas</span><span><b>'+openOpps.length+'</b>Oportunidades abiertas</span><span><b>'+money(pipeline)+'</b>Pipeline registrado</span></div></article></section>'+
- '<section class="panel now-update"><div><p class="eyebrow">ÚLTIMA LECTURA DEL RADAR</p><h3>'+(lastRadar?esc(date(new Date(lastRadar).toISOString())):'Sin verificación registrada')+'</h3><p>Abre “Radar Comercial” para ver la evidencia y los contactos de cada institución.</p></div><div class="now-install">'+install+'</div></section>';
+ '<section class="panel now-update"><div><p class="eyebrow">ÚLTIMA LECTURA DEL RADAR</p><h3>'+(lastRadar?esc(date(new Date(lastRadar).toISOString())):'Sin verificación registrada')+'</h3><p>Abre “Radar Comercial” para ver la evidencia y los contactos de cada institución.</p></div><div class="now-install">'+install+'</div></section><section class="panel now-alerts"><div><p class="eyebrow">ALERTAS DE PROSPECTOS</p><h3>Interrupciones solo cuando valga la pena.</h3><p>Una notificación se dispara únicamente cuando una señal entra en CRITICAL.</p></div><div class="now-alert-control">'+pushBlock+'</div></section>';
  const button=$('installAppBtn');if(button)button.onclick=async()=>{if(!deferredInstallPrompt)return;deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;renderNow();};
+ const pushButton=$('criticalPushBtn');if(pushButton)pushButton.onclick=enableCriticalPush;
 }
 function renderRecords(){
  if(page==='now'){renderNow();return;}
