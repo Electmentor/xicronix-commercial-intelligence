@@ -339,8 +339,8 @@ function render(){
  $('appView').dataset.page=page;$('appView').dataset.source=dataSource;
  $('dashboard').hidden=page!=='dashboard';$('records').hidden=page==='dashboard';
  $('pageTitle').textContent=page==='dashboard'?(admin?'Dashboard Ejecutivo':'Mi Dashboard Comercial'):page==='now'?'Xicronix Ahora':!admin&&page==='leads'?'Mi cartera de prospectos':modules[page].label;
- const target=page==='dashboard'?(admin?'institutions':'leads'):page;
- $('newBtn').hidden=target==='users'||!writableFor(target);
+ const target=page==='dashboard'?(admin?'institutions':'leads'):page==='now'?'leads':page;
+ $('newBtn').hidden=page==='now'||target==='users'||!writableFor(target);
  $('newBtn').textContent='+ Crear '+modules[target].singular;
  $('newBtn').disabled=loading||busy||!writableFor(target)||!!failures[target];
  $('refreshBtn').disabled=loading||busy;
