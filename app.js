@@ -49,6 +49,7 @@ const discount=f('discount_pct','Descuento negociado (%)','number');
 const negotiatedPrice=f('negotiated_unit_price','Precio unitario negociado (USD)','number');
 const modules={
  radar:{label:'Radar Comercial',singular:'señal radar',filter:'classification',options:enums.radarClass,fields:[]},
+ mail:{label:'Correo Zoho',singular:'correo',filter:'status',options:enums.mailStatus,fields:[]},
  institutions:{label:'Instituciones',singular:'institución',filter:'type',options:enums.type,fields:[f('name','Nombre','text',true),f('type','Tipo','select',true,enums.type),f('ruc','RUC'),f('city','Ciudad'),f('country','País','text',true),f('address','Dirección'),f('email','Correo','email'),f('phone','Teléfono','tel'),f('website','Sitio web','url'),f('notes','Notas','textarea')]},
  contacts:{label:'Contactos',singular:'contacto',filter:'decision_level',options:enums.decision_level,fields:[f('first_name','Nombres','text',true),f('last_name','Apellidos'),institution,f('job_title','Cargo'),f('decision_level','Nivel de decisión','select',true,enums.decision_level),f('email','Correo','email'),f('phone','Teléfono','tel'),f('notes','Notas','textarea')]},
  leads:{label:'Prospectos',singular:'prospecto',filter:'status',options:enums.status,fields:[f('title','Título','text',true),institution,contact,f('source','Canal de origen','select',false,enums.leadSource),f('status','Estado','select',true,enums.status),f('estimated_value','Valor estimado (S/)','number'),f('score','Calificación manual (0–100)','number'),owner,...followUp]},
@@ -67,7 +68,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-22-v2.18';
+const CRM_RELEASE='2026-09-22-v2.19';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -79,6 +80,7 @@ let dataSource='live', sourceIdentity=null, demoData=null, demoSeller=DEMO_SELLE
 let analyticsPeriod='year';
 let deferredInstallPrompt=null;
 let criticalPushState='unknown';
+let mailWebhookConfig=null;
 window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;if(page==='now')renderNow();});
 window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;if(page==='now')renderNow();});
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
@@ -138,7 +140,7 @@ const canDelete=canViewDashboard;
 const accessible=table=>canAccessPage(profile,workspace,table);
 const writableFor=table=>canWriteModule(profile,workspace,table);
 const fieldsFor=table=>(modules[table]?.fields||[]).filter(field=>!field.adminOnly||canViewDashboard());
-const databaseTable=table=>({users:'profiles',goals:'commercial_goals',expenses:'commercial_expenses',radar:'commercial_radar_dashboard'})[table]||table;
+const databaseTable=table=>({users:'profiles',goals:'commercial_goals',expenses:'commercial_expenses',radar:'commercial_radar_dashboard',mail:'commercial_mail_inbox'})[table]||table;
 function restoreWorkspace(){
  const identity=workspaceKey(session.user.id,profile.organization_id);
  if(workspaceIdentity!==identity){
@@ -165,7 +167,7 @@ function renderWorkspaceControls(){
  $('workspaceHint').textContent=admin?'Visión global: resultados, margen, metas y equipo.':'Mi cartera: prospectos, potencial, interacciones y próximas acciones.';
  $('workspaceLabel').textContent=admin?'DIRECCIÓN COMERCIAL':'MI ESPACIO DE VENTAS';
  $('appView').dataset.workspace=admin?ADMIN:SELLER;
- const labels=admin?{dashboard:'Dashboard Ejecutivo',now:'Ahora'}:{dashboard:'Mi Dashboard',now:'Ahora',leads:'Mi cartera',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',deliverables:'Mis entregables',documents:'Mis documentos',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
+ const labels=admin?{dashboard:'Dashboard Ejecutivo',now:'Ahora',mail:'Correo Zoho'}:{dashboard:'Mi Dashboard',now:'Ahora',leads:'Mi cartera',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',deliverables:'Mis entregables',documents:'Mis documentos',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
  const keys=admin?['dashboard','now',...Object.keys(modules)]:['dashboard','now','leads','tasks','meetings','deliverables','documents','activities','opportunities','catalog_products','institutions','contacts'];
  $('navigation').innerHTML=keys.filter(accessible).map((key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen ejecutivo')+'</button>').join('');
 }
@@ -235,7 +237,7 @@ function resetPasswordVisibility(){
 }
 function clearSession(){
  closeLeadDetails(false);
- loadVersion++;session=null;profile=null;data=emptyData();failures={};page='dashboard';pageIndex=0;workspace=SELLER;workspaceIdentity=null;loading=false;dataSource='live';sourceIdentity=null;demoData=null;executiveFilter='';executiveOwner='';editTable=null;editId=null;editingVersion=null;
+ loadVersion++;session=null;profile=null;data=emptyData();failures={};mailWebhookConfig=null;page='dashboard';pageIndex=0;workspace=SELLER;workspaceIdentity=null;loading=false;dataSource='live';sourceIdentity=null;demoData=null;executiveFilter='';executiveOwner='';editTable=null;editId=null;editingVersion=null;
  $('fields').replaceChildren();$('sellerSummary').replaceChildren();$('navigation').replaceChildren();$('workspaceControls').hidden=true;
  if($('editor').open)$('editor').close();$('appView').hidden=true;$('authView').hidden=false;$('dashboard').replaceChildren();$('recordList').replaceChildren();
 }
@@ -271,6 +273,10 @@ async function reload(){
  if(version!==loadVersion)return;
  data=emptyData();failures={};tables.forEach((k,i)=>{if(results[i].status==='fulfilled')data[k]=results[i].value;else failures[k]=true;});
  data=scopeWorkspaceData(realOnly(data),profile,userId,workspace);
+ if(canViewDashboard()){
+   const cfg=await sb.from('commercial_mail_webhook_config').select('organization_id,setup_token,status,limited_data,last_webhook_at,last_error').eq('organization_id',profile.organization_id).maybeSingle();
+   mailWebhookConfig=cfg.error?null:cfg.data;
+ }else mailWebhookConfig=null;
  render();const bad=Object.keys(failures);notice(bad.length?'No se pudo cargar: '+bad.map(k=>modules[k]?.label||k).join(', ')+'. Pulsa Actualizar para reintentar.':'',!!bad.length);
  }catch(error){if(version===loadVersion){profile=null;data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice(errorText(error),true);}}
  finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;render();applyEntryRoute();}}
@@ -632,6 +638,7 @@ function renderNow(){
  const radar=(data.radar||[]).slice().sort((a,b)=>Number(a.classification_priority||99)-Number(b.classification_priority||99)||Number(b.weighted_score||0)-Number(a.weighted_score||0));
  const critical=radar.filter(row=>row.classification==='CRITICAL'),high=radar.filter(row=>row.classification==='HIGH'),potential=radar.filter(row=>row.classification==='POTENTIAL');
  const openTasks=(data.tasks||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status));
+ const newMail=(data.mail||[]).filter(row=>row.status==='NEW').sort((a,b)=>String(b.received_at||b.created_at||'').localeCompare(String(a.received_at||a.created_at||'')));
  const now=Date.now(),todayEnd=new Date();todayEnd.setHours(23,59,59,999);
  const dueToday=openTasks.filter(row=>row.due_at&&Date.parse(row.due_at)<=todayEnd.getTime()).length;
  const openOpps=(data.opportunities||[]).filter(row=>!['WON','LOST'].includes(row.stage));
@@ -654,6 +661,7 @@ function renderNow(){
  $('recordList').innerHTML=
  '<button type="button" class="now-status now-nav-card '+statusClass+'" data-now-target="radar" data-now-filter="'+(critical.length?'CRITICAL':high.length?'HIGH':'')+'"><div><p class="eyebrow">XICRONIX AHORA</p><h2>'+status+'</h2><p>'+(critical.length?'Hay una señal comercial que merece atención inmediata.':high.length?'Hay oportunidades de alta prioridad para revisar.':'No hay alertas comerciales críticas en este momento.')+'</p></div><div class="now-pulse"><i></i><span>Radar activo</span></div></button>'+
  '<section class="now-kpis"><button type="button" class="now-kpi-card" data-now-target="radar" data-now-filter="CRITICAL"><b>'+critical.length+'</b><span>Críticos</span><small>Ver Radar</small></button><button type="button" class="now-kpi-card" data-now-target="radar" data-now-filter="HIGH"><b>'+high.length+'</b><span>Alta prioridad</span><small>Ver Radar</small></button><button type="button" class="now-kpi-card" data-now-target="radar" data-now-filter="POTENTIAL"><b>'+potential.length+'</b><span>Potenciales</span><small>Ver Radar</small></button><button type="button" class="now-kpi-card" data-now-target="tasks"><b>'+dueToday+'</b><span>Acciones hoy</span><small>Ver tareas</small></button></section>'+
+ '<section class="now-mail-strip"><button type="button" class="panel now-mail-card now-nav-card" data-now-target="mail"><div><p class="eyebrow">CORREO ZOHO</p><h3>'+newMail.length+' nuevos</h3><p>'+(newMail[0]?esc(newMail[0].subject||'(Sin asunto)'):'Sin correos pendientes de revisar')+'</p></div><span>Ver correo →</span></button></section>'+ 
  '<section class="now-grid"><button type="button" class="panel now-focus now-nav-card" data-now-target="radar" data-now-filter="'+esc(focus?.classification||'')+'" data-now-search="'+esc(focus?.institution_name||'')+'"><p class="eyebrow">LO MÁS IMPORTANTE</p>'+(focus?'<h3>'+esc(focus.institution_name)+'</h3><div class="now-score">'+Number(focus.weighted_score||0)+'/100 · '+esc(enums.radarClass[focus.classification]||focus.classification)+'</div><p>'+esc(focus.signal_summary||'Señal comercial en investigación')+'</p><p><b>Siguiente:</b> '+esc(focus.next_action||'Continuar investigación remota')+'</p>':'<h3>Sin alertas prioritarias</h3><p>El Radar seguirá filtrando oportunidades sin llenarte de ruido.</p>')+'</button>'+
  '<article class="panel now-business"><p class="eyebrow">OPERACIÓN</p><div><span><b>'+openTasks.length+'</b>Tareas abiertas</span><span><b>'+openOpps.length+'</b>Oportunidades abiertas</span><span><b>'+money(pipeline)+'</b>Pipeline registrado</span></div></article></section>'+
  '<section class="panel now-update"><div><p class="eyebrow">ÚLTIMA LECTURA DEL RADAR</p><h3>'+(lastRadar?esc(date(new Date(lastRadar).toISOString())):'Sin verificación registrada')+'</h3><p>Abre “Radar Comercial” para ver la evidencia y los contactos de cada institución.</p></div><div class="now-install">'+install+'</div></section><section class="panel now-alerts"><div><p class="eyebrow">ALERTAS DE PROSPECTOS</p><h3>Interrupciones solo cuando valga la pena.</h3><p>Una notificación se dispara únicamente cuando una señal entra en CRITICAL.</p></div><div class="now-alert-control">'+pushBlock+'</div></section>';
@@ -755,9 +763,52 @@ function renderTaskRecords(){
  $('recordList').innerHTML=renderTaskCards(pageRows);
 }
 
+
+function zohoWebhookUrl(){
+ if(!mailWebhookConfig?.setup_token||!profile?.organization_id)return '';
+ return 'https://qzfprdhmcaucqcdqgqiz.supabase.co/functions/v1/zoho-mail-webhook?org='+encodeURIComponent(profile.organization_id)+'&token='+encodeURIComponent(mailWebhookConfig.setup_token);
+}
+async function copyZohoWebhookUrl(){
+ const value=zohoWebhookUrl();if(!value)return;
+ try{await navigator.clipboard.writeText(value);notice('URL del webhook copiada.');}
+ catch(_error){notice('No se pudo copiar automáticamente. Mantén pulsada la URL para copiarla.',true);}
+}
+async function markMailReviewed(id){
+ if(!profile||busy||loading)return;
+ const row=(data.mail||[]).find(item=>item.id===id);if(!row||row.status!=='NEW')return;
+ busy=true;notice('Marcando correo como revisado…');
+ try{
+   const {error}=await sb.from('commercial_mail_inbox').update({status:'REVIEWED',updated_at:new Date().toISOString()}).eq('id',id).eq('organization_id',profile.organization_id);
+   if(error)throw error;
+   busy=false;await reload();notice('Correo marcado como revisado.');
+ }catch(error){notice(errorText(error),true);}
+ finally{busy=false;render();}
+}
+function renderMailRecords(){
+ $('recordContext').hidden=true;$('sellerSummary').hidden=true;$('importBtn').hidden=true;$('importHelp').hidden=true;
+ const search=normalize($('search').value),filter=$('filter').value;
+ const rows=(data.mail||[]).filter(row=>(!filter||row.status===filter)&&(!search||normalize([row.subject,row.from_address,row.sender_name,row.to_address,row.classification].filter(Boolean).join(' ')).includes(search)))
+   .sort((a,b)=>String(b.received_at||b.created_at||'').localeCompare(String(a.received_at||a.created_at||'')));
+ $('recordCount').textContent=failures.mail?'Información no disponible':rows.length+' correos';
+ $('exportBtn').disabled=true;$('pageNumber').textContent='';$('previous').disabled=true;$('next').disabled=true;
+ if(failures.mail){$('recordList').innerHTML='<div class="panel empty">No pudimos cargar el correo. Pulsa Actualizar.</div>';return;}
+ const hook=zohoWebhookUrl();
+ const setup=mailWebhookConfig?.status==='ACTIVE'
+   ?'<div class="mail-connection active"><b>Zoho Mail conectado</b><span>Último webhook: '+esc(mailWebhookConfig.last_webhook_at?date(mailWebhookConfig.last_webhook_at):'aún sin correos')+'</span></div>'
+   :'<div class="mail-setup panel"><p class="eyebrow">CONEXIÓN PENDIENTE</p><h2>Conecta Zoho Mail una sola vez</h2><p>En Zoho Mail: Configuración → Integraciones → Developer Space → Outgoing Webhooks → Mail. Usa “Limited Data List” para compartir solo asunto, remitente, destinatario y hora.</p>'+(hook?'<div class="mail-webhook-url">'+esc(hook)+'</div><button type="button" class="primary" data-copy-zoho-webhook>Copiar URL del webhook</button>':'')+'</div>';
+ const cards=rows.length?'<section class="mail-list">'+rows.map(row=>{
+   const linked=row.lead_id?'<button type="button" class="primary" data-mail-lead="'+row.lead_id+'">Abrir prospecto</button>':'';
+   const reply=row.from_address?'<a class="task-link-button" href="mailto:'+esc(row.from_address)+'?subject='+encodeURIComponent('Re: '+(row.subject||''))+'">Responder</a>':'';
+   const reviewed=row.status==='NEW'?'<button type="button" data-mail-reviewed="'+row.id+'">Marcar revisado</button>':'';
+   return '<article class="mail-card '+(row.status==='NEW'?'new':'')+'"><header><div><span class="mail-from">'+esc(row.sender_name||row.from_address||'Remitente desconocido')+'</span><h3>'+esc(row.subject||'(Sin asunto)')+'</h3></div><span class="badge '+(row.priority==='HIGH'||row.priority==='CRITICAL'?'warn':'')+'">'+esc(enums.mailPriority[row.priority]||row.priority)+'</span></header><p class="mail-meta">'+esc(row.from_address||'')+' · '+esc(date(row.received_at||row.created_at))+'</p>'+(row.summary?'<p class="mail-summary">'+esc(row.summary)+'</p>':'')+'<div class="mail-actions">'+linked+reply+reviewed+'</div></article>';
+ }).join('')+'</section>':'<div class="panel empty">Todavía no hay correos recibidos desde Zoho Mail.</div>';
+ $('recordList').innerHTML=setup+cards;
+}
+
 function renderRecords(){
  if(page==='now'){renderNow();return;}
  if(page==='radar'){renderRadarRecords();return;}
+ if(page==='mail'){renderMailRecords();return;}
  if(page==='tasks'){renderTaskRecords();return;}
  const isUsers=page==='users',isGoals=page==='goals',isExpenses=page==='expenses';
  $('recordContext').hidden=!executiveFilter&&!executiveOwner;
@@ -1170,7 +1221,7 @@ function init(){
  $('dateLabel').textContent=new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long'});
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  $('sidebarToggle').onclick=()=>applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
