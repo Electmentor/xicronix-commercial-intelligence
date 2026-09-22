@@ -41,7 +41,9 @@ with sync_playwright() as p:
   for target in pages:
    page.locator('#navigation [data-page="'+target+'"]').click()
    check('navigation '+target,lambda t=target:expect(page.locator('#appView')).to_have_attribute('data-page',t))
-  page.locator('#navigation [data-page="now"]').click()\n  check('mobile command center renders',lambda:expect(page.locator('#recordList')).to_contain_text('XICRONIX AHORA'))\n  page.locator('#navigation [data-page="radar"]').click()
+  page.locator('#navigation [data-page="now"]').click()
+  check('mobile command center renders',lambda:expect(page.locator('#recordList')).to_contain_text('XICRONIX AHORA'))
+  page.locator('#navigation [data-page="radar"]').click()
   check('radar module renders safely',lambda:expect(page.locator('#recordList')).to_contain_text('No hay oportunidades que superen el filtro actual.'))
   page.locator('#navigation [data-page="leads"]').click()
   check('real lead visible',lambda:expect(page.locator('#recordList')).to_contain_text('Institución de validación · Diagnóstico'))
