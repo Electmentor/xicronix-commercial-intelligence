@@ -70,7 +70,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-22-v2.20';
+const CRM_RELEASE='2026-09-22-v2.21';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -534,12 +534,18 @@ function radarWhatsappHref(value){
  const digits=String(value||'').replace(/\D/g,'');
  return digits ? 'https://wa.me/'+(digits.startsWith('51')?digits:'51'+digits) : '';
 }
-function radarMailHref(row){
+function zohoMailComposeHref(row){
  const email=String(row?.contact_email||'').trim();
  if(!email)return '';
  const subject='Xicronix | '+String(row?.institution_name||'Contacto comercial');
- return 'mailto:'+email+'?subject='+encodeURIComponent(subject);
+ const mailto='mailto:'+email+'?subject='+encodeURIComponent(subject);
+ const isAndroid=/Android/i.test(navigator.userAgent||'');
+ if(!isAndroid)return mailto;
+ const fallback='https://play.google.com/store/apps/details?id=com.zoho.mail';
+ return 'intent:'+mailto+'#Intent;package=com.zoho.mail;S.browser_fallback_url='+encodeURIComponent(fallback)+';end';
 }
+
+function radarMailHref(row){return zohoMailComposeHref(row);}
 function openLeadFromRadar(signalId){
  const row=(data.radar||[]).find(item=>item.id===signalId);
  if(!row)return;
@@ -597,7 +603,7 @@ function renderRadarRecords(){
    '<div class="radar-contact"><p><b>Decisor:</b> '+esc(contact)+'</p><p><b>Contacto:</b> '+esc(channels)+'</p></div>'+
    '<div class="radar-quick-actions">'+
     (row.contact_phone?'<a class="radar-action-button primary" href="'+esc(radarPhoneHref(row.contact_phone))+'">Llamar</a>':'')+
-    (row.contact_email?'<a class="radar-action-button" href="'+esc(radarMailHref(row))+'">Correo Xicronix</a>':'')+
+    (row.contact_email?'<a class="radar-action-button" href="'+esc(radarMailHref(row))+'">Correo Zoho</a>':'')+
     (row.contact_whatsapp?'<a class="radar-action-button" href="'+esc(radarWhatsappHref(row.contact_whatsapp))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
     '<button type="button" class="radar-action-button" data-radar-lead="'+row.id+'">'+(row.lead_id?'Abrir prospecto':'Crear prospecto')+'</button>'+
     (row.lead_id&&writableFor('activities')?'<button type="button" class="radar-action-button" data-radar-activity="'+row.lead_id+'">Registrar acción</button>':'')+
