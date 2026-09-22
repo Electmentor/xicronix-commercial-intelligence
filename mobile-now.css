@@ -59,3 +59,44 @@ html[data-theme="night"] .now-alert-button.enabled{
   color:#8df0d0;
   border-color:rgba(91,221,181,.38);
 }
+
+
+/* Xicronix Ahora — navigable cards */
+.now-nav-card,.now-kpi-card{
+  width:100%;
+  text-align:left;
+  color:inherit;
+  cursor:pointer;
+}
+.now-status.now-nav-card{
+  min-height:0;
+}
+.now-kpis .now-kpi-card{
+  border:1px solid var(--line,#dfe7ef);
+  background:var(--panel,#fff);
+  border-radius:18px;
+  padding:16px;
+  display:block;
+  min-height:112px;
+}
+.now-kpis .now-kpi-card b{display:block;font-size:1.75rem}
+.now-kpis .now-kpi-card span{display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted,#65758b)}
+.now-kpis .now-kpi-card small{display:block;margin-top:10px;color:var(--blue);font-weight:750}
+.now-nav-card:hover,.now-kpi-card:hover{
+  transform:translateY(-1px);
+  border-color:var(--blue);
+}
+.now-nav-card:focus-visible,.now-kpi-card:focus-visible{
+  outline:3px solid var(--orange);
+  outline-offset:3px;
+}
+.now-focus.now-nav-card{
+  min-height:0;
+}
+html[data-theme="night"] .now-kpis .now-kpi-card{
+  background:var(--panel);
+  border-color:var(--line);
+  color:var(--ink);
+}
+html[data-theme="night"] .now-kpis .now-kpi-card small{color:#8fc0ff}
+@media(max-width:400px){.now-kpis .now-kpi-card b{font-size:1.5rem}}
