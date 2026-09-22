@@ -67,7 +67,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-22-v2.12';
+const CRM_RELEASE='2026-09-22-v2.13';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -78,6 +78,7 @@ let workspace=SELLER, workspaceIdentity=null, loading=false;
 let dataSource='live', sourceIdentity=null, demoData=null, demoSeller=DEMO_SELLERS[0].id, demoSaved=true, executiveFilter='', executiveOwner='';
 let analyticsPeriod='year';
 let deferredInstallPrompt=null;
+let criticalPushState='unknown';
 window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;if(page==='now')renderNow();});
 window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;if(page==='now')renderNow();});
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
@@ -579,9 +580,9 @@ async function enableCriticalPush(){
   const registration=await navigator.serviceWorker.ready;
   let subscription=await registration.pushManager.getSubscription();
   if(!subscription){
-   const {data:cfg,error:cfgError}=await sb.functions.invoke('radar-push-config',{body:{}});
-   if(cfgError||!cfg?.public_key)throw cfgError||new Error('push_config_missing');
-   subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:base64UrlToUint8Array(cfg.public_key)});
+   const {data:cfg,error:cfgError}=await sb.from('commercial_push_config').select('vapid_public_key').eq('organization_id',profile.organization_id).maybeSingle();
+   if(cfgError||!cfg?.vapid_public_key)throw cfgError||new Error('push_config_missing');
+   subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:base64UrlToUint8Array(cfg.vapid_public_key)});
   }
   const json=subscription.toJSON();
   const payload={
@@ -592,9 +593,30 @@ async function enableCriticalPush(){
   if(!payload.p256dh||!payload.auth)throw new Error('subscription_keys_missing');
   const {error}=await sb.from('commercial_push_subscriptions').upsert(payload,{onConflict:'endpoint'});
   if(error)throw error;
+  criticalPushState='active';
   notice('Alertas críticas activadas en este celular.');
   renderNow();
- }catch(error){notice('No se pudieron activar las alertas críticas: '+errorText(error),true);}
+ }catch(error){
+  criticalPushState='inactive';
+  notice('No se pudieron activar las alertas críticas: '+errorText(error),true);
+  renderNow();
+ }
+}
+
+async function refreshCriticalPushState(){
+ if(!session||!profile||!sb||!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window)){
+  criticalPushState='unsupported';return;
+ }
+ if(Notification.permission!=='granted'){
+  criticalPushState='inactive';return;
+ }
+ try{
+  const registration=await navigator.serviceWorker.ready;
+  const subscription=await registration.pushManager.getSubscription();
+  if(!subscription){criticalPushState='inactive';return;}
+  const {data:stored,error}=await sb.from('commercial_push_subscriptions').select('endpoint,enabled').eq('endpoint',subscription.endpoint).maybeSingle();
+  criticalPushState=!error&&stored?.enabled?'active':'inactive';
+ }catch(_error){criticalPushState='inactive';}
 }
 
 function renderNow(){
@@ -613,10 +635,11 @@ function renderNow(){
  const statusClass=critical.length?'critical':high.length?'high':'stable';
  const install=standalone?'<span class="now-installed">Instalado en este dispositivo</span>':deferredInstallPrompt?'<button id="installAppBtn" class="primary">Instalar Xicronix en este celular</button>':'<small>Para tenerlo como icono: menú del navegador → Añadir a pantalla de inicio / Instalar app.</small>';
  const pushSupported=('Notification' in window)&&('serviceWorker' in navigator)&&('PushManager' in window);
+ if(pushSupported&&criticalPushState==='unknown')refreshCriticalPushState().then(()=>{if(page==='now')renderNow();});
  const pushBlock=pushSupported
-  ?(Notification.permission==='granted'
-    ?'<button id="criticalPushBtn" class="now-alert-button enabled">Alertas críticas activadas</button><small>Solo se enviarán cuando una señal entre en CRITICAL.</small>'
-    :'<button id="criticalPushBtn" class="now-alert-button">Activar alertas críticas</button><small>El teléfono pedirá permiso una sola vez.</small>')
+  ?(criticalPushState==='active'
+    ?'<button id="criticalPushBtn" class="now-alert-button enabled">Alertas críticas activadas</button><small>Suscripción verificada en Xicronix. Solo se enviarán cuando una señal entre en CRITICAL.</small>'
+    :'<button id="criticalPushBtn" class="now-alert-button">Activar alertas críticas</button><small>'+(Notification.permission==='granted'?'El permiso del teléfono ya está concedido; falta registrar este dispositivo.':'El teléfono pedirá permiso una sola vez.')+'</small>')
   :'<small>Este navegador no admite alertas push.</small>';
  $('recordCount').textContent='Resumen móvil · datos reales del CRM';
  $('pageNumber').textContent='';$('previous').disabled=true;$('next').disabled=true;
