@@ -15,3 +15,47 @@
 .now-alert-button{border:1px solid var(--line,#dfe7ef);background:var(--panel,#fff);padding:12px 15px;border-radius:12px;font-weight:800;cursor:pointer}
 .now-alert-button.enabled{background:rgba(24,151,117,.12);color:#14765f;border-color:rgba(24,151,117,.3)}
 @media(max-width:760px){.now-alerts{align-items:flex-start;flex-direction:column}.now-alert-control{align-items:stretch;text-align:left;max-width:none;width:100%}.now-alert-button{width:100%}}
+
+
+/* Night-mode contrast fixes for Xicronix Ahora */
+html[data-theme="night"] .now-status{
+  background:linear-gradient(135deg,#13243a,#0f1d30);
+  border-color:#35506d;
+  color:#e8f0fa;
+}
+html[data-theme="night"] .now-status.critical{
+  background:linear-gradient(135deg,rgba(217,72,65,.28),#172235);
+}
+html[data-theme="night"] .now-status.high{
+  background:linear-gradient(135deg,rgba(239,141,34,.24),#172235);
+}
+html[data-theme="night"] .now-status .eyebrow,
+html[data-theme="night"] .now-status p{
+  color:#c6d4e6;
+}
+html[data-theme="night"] .now-status h2{
+  color:#ffffff;
+}
+html[data-theme="night"] .now-kpis article{
+  background:#111f31;
+  border-color:#2f4762;
+  color:#e8f0fa;
+}
+html[data-theme="night"] .now-kpis b{
+  color:#ffffff;
+}
+html[data-theme="night"] .now-kpis span{
+  color:#b7c6d8;
+}
+html[data-theme="night"] .now-score{
+  background:rgba(95,162,255,.16);
+  color:#dbeafe;
+}
+html[data-theme="night"] .now-installed{
+  color:#7ee2c3;
+}
+html[data-theme="night"] .now-alert-button.enabled{
+  background:rgba(24,151,117,.18);
+  color:#8df0d0;
+  border-color:rgba(91,221,181,.38);
+}
