@@ -1,0 +1,8 @@
+const CACHE='xicronix-v2-11';
+const ASSETS=['/','/index.html','/styles.css','/executive.css','/analytics.css','/production.css?v=20260919-v2.9','/radar.css?v=20260922-v1','/mobile-now.css?v=20260922-v1','/app.js?v=20260922-v2.11','/workspace.mjs','/manifest.webmanifest','/xicronix-icon.svg'];
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).catch(()=>{})));
+self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key))))));
+self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;event.respondWith(fetch(event.request).then(response=>{const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy)).catch(()=>{});return response;}).catch(()=>caches.match(event.request)));});
+self.addEventListener('push',event=>{let data={};try{data=event.data?.json()||{};}catch(_error){data={title:'Xicronix Radar',body:event.data?.text()||'Nueva alerta comercial.'};}
+ event.waitUntil(self.registration.showNotification(data.title||'Xicronix Radar',{body:data.body||'Nueva alerta comercial.',icon:'/xicronix-icon.svg',badge:'/xicronix-icon.svg',data:{url:data.url||'/#now'},tag:data.tag||'xicronix-radar'}));});
+self.addEventListener('notificationclick',event=>{event.notification.close();const url=event.notification.data?.url||'/#now';event.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(list=>{for(const client of list){if('focus'in client){client.navigate(url);return client.focus();}}return clients.openWindow(url);}));});
