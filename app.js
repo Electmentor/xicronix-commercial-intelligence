@@ -30,7 +30,9 @@ const enums = {
  activityOutcome:{INTERESTED:'Interesado',FOLLOW_UP:'Requiere seguimiento',NO_RESPONSE:'Sin respuesta',NOT_INTERESTED:'No interesado',QUALIFIED:'Calificado',DISQUALIFIED:'No califica'},
  movementAction:MOVEMENT_ACTIONS,
  expenseCategory:{PERSONNEL:'Personal',MARKETING:'Marketing',OPERATIONS:'Operaciones',TECHNOLOGY:'Tecnología',OTHER:'Otros'},
- radarClass:{CRITICAL:'Crítica',HIGH:'Alta prioridad',POTENTIAL:'Potencial',OBSERVE:'En observación',DISCARD:'Descartada'}
+ radarClass:{CRITICAL:'Crítica',HIGH:'Alta prioridad',POTENTIAL:'Potencial',OBSERVE:'En observación',DISCARD:'Descartada'},
+ mailStatus:{NEW:'Nuevo',REVIEWED:'Revisado',LINKED:'Vinculado',ARCHIVED:'Archivado'},
+ mailPriority:{CRITICAL:'Crítica',HIGH:'Alta',NORMAL:'Normal',LOW:'Baja'}
 };
 const f=(key,label,type='text',required=false,options=null)=>({key,label,type,required,options});
 const transientFile={key:'_file',label:'Archivo / nueva versión',type:'file',required:false,transient:true};
