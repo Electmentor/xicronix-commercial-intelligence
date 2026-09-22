@@ -24,14 +24,26 @@ async function rpc(name, args) {
 }
 async function auth() {
   const {data,error} = await s.auth.getUser();
-  if(error || !data?.user) { show('auth','Sin sesión verificada.'); return false; }
+  if(error || !data?.user) { show('auth','Sin sesión verificada.'); show('gate','Inicia sesión para consultar tu autorización en el servidor.'); return false; }
   const a = await s.auth.mfa.getAuthenticatorAssuranceLevel();
   if(a.error) throw a.error;
   show('auth',data.user.email+' · '+a.data.currentLevel);
+  await inspectGate();
   return true;
 }
+async function inspectGate() {
+  const gate=await rpc('core_human_gate_status',{p_org:ORG});
+  show('gate',{
+    identidad_autenticada:gate.user_present && gate.authenticated_claim,
+    administrador_activo:gate.active_admin_membership,
+    sesion_vigente:gate.live_session,
+    autenticacion_AAL2:gate.aal2,
+    autorizado_por_backend:gate.ready
+  });
+  return gate;
+}
 async function requireReady() {
-  const gate = await rpc('core_human_gate_status',{p_org:ORG});
+  const gate = await inspectGate();
   if(!gate.ready) throw new Error('Falta una sesión administradora activa con MFA/AAL2. Inicia sesión y verifica el código de tu autenticador.');
 }
 function learningDraft(q) {
@@ -62,6 +74,7 @@ async function load() {
   show('item',evo.affected_component+' · '+evo.status+' · '+evo.id);
   show('proposal',{hypothesis:evo.hypothesis,before:evo.current_system_state,change:evo.proposed_change,expected:evo.success_criteria,failure:evo.failure_criteria,risk:evo.risk,rollback:evo.rollback_plan,proposal_hash:evo.proposal_hash});
   if(evo.evaluation_id) show('result',{expected:evo.success_criteria,actual:evo.evaluation_checks,passed:evo.evaluation_passed,evidence_id:evo.evidence_id,evidence_hash:evo.evidence_hash});
+  if(evo.approval_receipt && evo.status!=='learned') show('receipt',evo.approval_receipt);
   if(evo.status === 'awaiting_learning_approval' && evo.evaluation_passed === true && draftEvidence !== evo.evidence_hash) {
     $('knowledge').value = learningDraft(evo); draftEvidence = evo.evidence_hash;
   }
