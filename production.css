@@ -138,3 +138,11 @@
 html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:var(--line)}
 @media(max-width:700px){.task-mobile-card{padding:15px}.task-mobile-actions{display:grid;grid-template-columns:1fr 1fr}.task-mobile-actions>*{width:100%}.task-mobile-actions .primary{grid-column:1/-1}.task-mobile-notes{max-height:7.5em;overflow:auto}}
 @media(max-width:390px){.task-mobile-actions{grid-template-columns:1fr}}
+
+
+/* V2.19 Zoho Mail visibility */
+.now-mail-strip{margin:0 0 16px}.now-mail-card{display:flex;align-items:center;justify-content:space-between;gap:16px;text-align:left;width:100%}.now-mail-card h3{margin:.2rem 0 .35rem;font-size:1.35rem}.now-mail-card p{margin:0;color:var(--muted)}.now-mail-card>span{color:var(--blue);font-weight:800;white-space:nowrap}
+.mail-connection{display:flex;justify-content:space-between;gap:12px;align-items:center;border:1px solid var(--line);border-radius:14px;padding:13px 15px;margin-bottom:16px;background:color-mix(in srgb,var(--success) 10%,var(--panel))}.mail-connection span{color:var(--muted);font-size:.82rem}
+.mail-setup{margin-bottom:16px}.mail-setup h2{margin:.3rem 0 .5rem}.mail-setup p{line-height:1.5}.mail-webhook-url{font-family:monospace;font-size:.72rem;word-break:break-all;border:1px solid var(--line);background:var(--panel-raised);border-radius:10px;padding:12px;margin:12px 0}
+.mail-list{display:grid;gap:12px}.mail-card{border:1px solid var(--line);border-radius:17px;padding:17px;background:var(--panel);color:var(--ink)}.mail-card.new{border-left:4px solid var(--blue)}.mail-card header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.mail-card h3{margin:5px 0 0;font-size:1rem}.mail-from{font-size:.75rem;font-weight:800;color:var(--muted)}.mail-meta{font-size:.8rem;color:var(--muted);margin:10px 0}.mail-summary{line-height:1.5;margin:10px 0}.mail-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.mail-actions button,.mail-actions a{min-height:44px}
+@media(max-width:700px){.now-mail-card{align-items:flex-start;flex-direction:column}.mail-connection{align-items:flex-start;flex-direction:column}.mail-card{padding:15px}.mail-actions{display:grid;grid-template-columns:1fr 1fr}.mail-actions>*{width:100%}.mail-actions .primary{grid-column:1/-1}}
