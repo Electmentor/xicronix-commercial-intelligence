@@ -10,9 +10,11 @@ import * as demo from '../demo.mjs';
 import * as executive from '../executive.mjs';
 import * as analytics from '../analytics.mjs';
 import * as sellerDashboard from '../seller-dashboard.mjs';
+import * as commercialCore from '../commercial-core.mjs';
+import * as catalog from '../catalog.mjs';
 const source=readFileSync(new URL('../app.js',import.meta.url),'utf8').replace(/^import .*;$/gm,'');
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
-function harness(role='ADMIN',saved=null,sourceChoice='live'){
+function harness(role='ADMIN',saved=null,sourceChoice='live',hostname='test.invalid'){
  const nodes=new Map(),listeners={},storage=new Map(),downloads=[];
  class Element{
   constructor(id){this.id=id;this.dataset={};this.attributes={};this.value='';this.hidden=false;this.disabled=false;this.open=false;this._html='';this.textContent='';this.classList={toggle(){}};}
@@ -27,6 +29,9 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
   showModal(){this.open=true;}
   close(){this.open=false;this._listeners?.close?.();}
   reset(){}
+  focus(){this.focused=true;}
+  scrollIntoView(){this.scrolled=true;}
+  reportValidity(){return this.id==='recordForm'||!!this.value;}
   click(){if(this.download)downloads.push({filename:this.download,url:this.href});}
   querySelectorAll(){return [];}
   closest(){return this;}
@@ -75,7 +80,7 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
  const sb={from:table=>new Query(table),auth:{onAuthStateChange(){},signOut:async()=>({error:null})}};
  if(saved)storage.set(workspace.workspaceKey('me','org'),saved);
  if(sourceChoice)storage.set(workspace.workspaceKey('me','org')+':source-v'+demo.DEMO_VERSION,sourceChoice);
- const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,...analytics,...sellerDashboard,console,document,window:{supabase:{createClient:()=>sb},confirm:()=>true},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
+ const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,...analytics,...sellerDashboard,...commercialCore,...catalog,console,document,window:{supabase:{createClient:()=>sb},confirm:()=>true},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname,origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
  const run=code=>vm.runInContext(code,context);
  run(source);run('init();session={user:{id:"me",email:"test@example.invalid"}};');
  return {run,nodes,db,queries,storage,downloads,boot:()=>run('reload()'),gate:promise=>{profileGate=promise;},click:id=>nodes.get(id).onclick()};
@@ -389,4 +394,41 @@ test('complaints console is linked only for a real administrator workspace',asyn
  const h=harness();await h.boot();assert.equal(h.nodes.get('complaintsLink').hidden,false);
  await h.click('sourceToggle');assert.equal(h.nodes.get('complaintsLink').hidden,true);
  await h.click('sourceToggle');await h.click('sellerModeBtn');assert.equal(h.nodes.get('complaintsLink').hidden,true);
+});
+
+test('movement form marks action required, preserves draft on error, and saves after selection',async()=>{
+ const h=harness();await h.boot();h.run("openEditor('activities')");
+ assert.match(h.nodes.get('fields').innerHTML,/name="action_code" required/);
+ assert.match(h.nodes.get('fields').innerHTML,/Acción realizada \*/);
+ for(const [k,v] of Object.entries({lead_id:'own-lead',type:'NOTE',subject:'[DEV TEST] Movimiento',notes:'Conservar borrador',occurred_at:'2026-09-21T17:10'}))h.nodes.get('field-'+k).value=v;
+ await h.run('saveRecord({preventDefault(){}})');
+ assert.equal(h.nodes.get('field-action_code').focused,true);
+ assert.equal(h.nodes.get('field-notes').value,'Conservar borrador');
+ assert.equal(h.db.activities.length,1);
+ h.nodes.get('field-action_code').value='REQUEST_REVIEWED';
+ await h.run('saveRecord({preventDefault(){}})');
+ assert.equal(h.db.activities.length,2);
+ assert.equal(h.db.activities[1].action_code,'REQUEST_REVIEWED');
+ assert.equal(h.db.activities[1].notes,'Conservar borrador');
+});
+
+
+test('DEV loads existing responsible profiles without exposing user management',async()=>{
+ const h=harness('ADMIN',null,'live','xicronix-commercial-intelligence-git-dev-xicronix.vercel.app');await h.boot();
+ assert.ok(h.queries.some(q=>q.table==='profiles'&&q.filters.some(([k])=>k==='organization_id')));
+ assert.equal(h.run("accessible('users')"),false);
+ h.run("openEditor('leads')");
+ assert.match(h.nodes.get('fields').innerHTML,/Cuenta de prueba/);
+ for(const [k,v] of Object.entries({title:'QA prospecto',status:'NEW',owner_user_id:'me'}))h.nodes.get('field-'+k).value=v;
+ await h.run('saveRecord({preventDefault(){}})');
+ assert.equal(h.db.leads.at(-1).title,'QA prospecto');
+});
+test('DEV opportunity save uses only supported schema fields',async()=>{
+ const h=harness('ADMIN',null,'live','xicronix-commercial-intelligence-git-dev-xicronix.vercel.app');await h.boot();h.run("openEditor('opportunities')");
+ assert.doesNotMatch(h.nodes.get('fields').innerHTML,/name="(?:catalog_product_id|cost_profile_id|quantity|discount_pct|negotiated_unit_price|estimated_cost)"/);
+ for(const [k,v] of Object.entries({name:'QA oportunidad',stage:'DETECTED',owner_user_id:'me',value:'100.25',probability:'25'}))h.nodes.get('field-'+k).value=v;
+ await h.run('saveRecord({preventDefault(){}})');
+ const saved=h.db.opportunities.at(-1);assert.equal(saved.name,'QA oportunidad');assert.equal(saved.value,100.25);
+ for(const key of ['estimated_cost','catalog_product_id','cost_profile_id','quantity','discount_pct','negotiated_unit_price'])assert.equal(Object.hasOwn(saved,key),false);
+ h.run("openLeadDetails('own-lead')");assert.match(h.nodes.get('leadDetailContent').innerHTML,/disabled title="Agenda aún no disponible en DEV"/);
 });

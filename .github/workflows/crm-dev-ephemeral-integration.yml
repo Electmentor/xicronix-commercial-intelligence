@@ -1,0 +1,50 @@
+name: CRM DEV ephemeral integration
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  postgres-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: crm_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d crm_dev"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGPASSWORD: postgres
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGDATABASE: crm_dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Prepare Supabase-compatible auth context
+        run: psql -v ON_ERROR_STOP=1 -f database/ci-supabase-auth-prelude.sql
+      - name: Apply CRM DEV minimum bootstrap
+        run: psql -v ON_ERROR_STOP=1 -f database/crm-dev-minimum-bootstrap-v1.sql
+      - name: Apply Prospect Intelligence backend
+        run: psql -v ON_ERROR_STOP=1 -f database/prospect-intelligence-backend-v1.sql
+      - name: Apply PI transition, idempotency and DEV performance migrations
+        run: |
+          psql -v ON_ERROR_STOP=1 -f database/prospect-intelligence-transition-v1.sql
+          psql -v ON_ERROR_STOP=1 -f database/prospect-intelligence-transfer-idempotency-v1.sql
+          psql -v ON_ERROR_STOP=1 -f database/crm-dev-performance-v1.sql
+      - name: Run end-to-end PI to CRM integration and RLS smoke
+        run: psql -v ON_ERROR_STOP=1 -f database/prospect-intelligence-e2e-v1.sql

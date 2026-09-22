@@ -1,0 +1,29 @@
+name: Prospect Intelligence backend DEV validation
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  validate-pi-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate adapter syntax
+        run: node --check prospect-intelligence-supabase.mjs
+      - name: Run backend and adapter contract tests
+        run: |
+          node --test tests/prospect-intelligence-supabase.test.mjs
+          node --test tests/prospect-intelligence-backend-contract.test.mjs
+      - name: Verify DEV bootstrap is explicit
+        run: |
+          grep -q 'DO NOT APPLY TO PRODUCTION' database/crm-dev-minimum-bootstrap-v1.sql
+          grep -q 'DEV ONLY' database/prospect-intelligence-backend-v1.sql

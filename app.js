@@ -1,3 +1,18 @@
+function movementActionRequired(table, id) {
+ return table === 'activities' && !id;
+}
+function validateMovementAction(table, id, field, message) {
+ if (!movementActionRequired(table, id) || field?.value?.trim()) return true;
+ message.textContent = 'Selecciona la acción realizada antes de guardar el movimiento.';
+ message.className = 'error';
+ if (field) {
+  field.required = true;
+  field.scrollIntoView({block:'center'});
+  field.focus();
+  field.reportValidity();
+ }
+ return false;
+}
 import {escapeHTML as esc, filterRecords, money, metrics, priorities, taskUrgency, sortTasksByUrgency, csv, parseCsv, normalize} from './domain.mjs';
 
 import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWriteModule, assignedUserId, scopeWorkspaceData} from './workspace.mjs';
@@ -62,10 +77,18 @@ const modules={
  goals:{label:'Metas',singular:'meta',fields:[owner,f('period_start','Inicio del periodo','date',true),f('period_end','Fin del periodo','date',true),f('target_margin','Meta de margen bruto (S/)','number',true),f('target_won_value','Meta de ventas ganadas (S/)','number',true),f('target_expenses','Presupuesto de gastos operativos (S/)','number'),f('notes','Notas','textarea')]},
  users:{label:'Usuarios',singular:'usuario',filter:'role',options:enums.role,fields:[f('full_name','Nombre completo','text',true),f('role','Rol','select',true,enums.role)]}
 };
-let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
+let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null, magicCooldownUntil=0, magicCooldownTimer=null;
 const size=20;
-const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-19-v2.9';
+const IS_DEV_PREVIEW=location.hostname.includes('-git-dev-')&&location.hostname.endsWith('.vercel.app');
+const PROD_SUPABASE_URL='https://qzfprdhmcaucqcdqgqiz.supabase.co';
+const PROD_SUPABASE_KEY='sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK';
+const DEV_SUPABASE_URL='https://rmximatxuaczhpqbcuho.supabase.co';
+const DEV_SUPABASE_KEY='sb_publishable_pqqyMTcBovUi4sbp2Cn6yw_sL0_Xs__';
+const CRM_SUPABASE_URL=IS_DEV_PREVIEW?DEV_SUPABASE_URL:PROD_SUPABASE_URL;
+const CRM_SUPABASE_KEY=IS_DEV_PREVIEW?DEV_SUPABASE_KEY:PROD_SUPABASE_KEY;
+const PUBLIC_APP_URL=IS_DEV_PREVIEW?'https://xicronix-commercial-intelligence-git-dev-xicronix.vercel.app/':'https://xicronix-commercial-intelligence.vercel.app/';
+const CRM_RELEASE=IS_DEV_PREVIEW?'2026-09-20-dev-crm-v0.1':'2026-09-19-v2.9';
+const DEV_SUPPORTED_MODULES=new Set(['dashboard','institutions','contacts','leads','opportunities','tasks','activities']);
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
 let entryRoute=readEntryRoute();
@@ -127,9 +150,10 @@ const canViewDashboard=()=>!!profile && effectiveWorkspace(profile,workspace)===
 const canManageUsers=canViewDashboard;
 const canManageGoals=canViewDashboard;
 const canDelete=canViewDashboard;
-const accessible=table=>canAccessPage(profile,workspace,table);
+const accessible=table=>(!IS_DEV_PREVIEW||DEV_SUPPORTED_MODULES.has(table))&&canAccessPage(profile,workspace,table);
 const writableFor=table=>canWriteModule(profile,workspace,table);
-const fieldsFor=table=>(modules[table]?.fields||[]).filter(field=>!field.adminOnly||canViewDashboard());
+const DEV_UNAVAILABLE_OPPORTUNITY_FIELDS=new Set(['catalog_product_id','cost_profile_id','quantity','discount_pct','negotiated_unit_price','estimated_cost']);
+const fieldsFor=table=>(modules[table]?.fields||[]).filter(field=>(!field.adminOnly||canViewDashboard())&&(!IS_DEV_PREVIEW||table!=='opportunities'||!DEV_UNAVAILABLE_OPPORTUNITY_FIELDS.has(field.key)));
 const databaseTable=table=>({users:'profiles',goals:'commercial_goals',expenses:'commercial_expenses'})[table]||table;
 function restoreWorkspace(){
  const identity=workspaceKey(session.user.id,profile.organization_id);
@@ -154,7 +178,7 @@ function renderWorkspaceControls(){
  $('adminModeBtn').setAttribute('aria-pressed',String(admin));
  $('sellerModeBtn').setAttribute('aria-pressed',String(!admin));
  $('adminModeBtn').disabled=$('sellerModeBtn').disabled=loading||busy;
- $('workspaceHint').textContent=admin?'Visión global: resultados, margen, metas y equipo.':'Mi cartera: prospectos, potencial, interacciones y próximas acciones.';
+ $('workspaceHint').textContent=IS_DEV_PREVIEW?'CRM DEV aislado · datos de prueba y evolución funcional.':admin?'Visión global: resultados, margen, metas y equipo.':'Mi cartera: prospectos, potencial, interacciones y próximas acciones.';
  $('workspaceLabel').textContent=admin?'DIRECCIÓN COMERCIAL':'MI ESPACIO DE VENTAS';
  $('appView').dataset.workspace=admin?ADMIN:SELLER;
  const labels=admin?{dashboard:'Dashboard Ejecutivo'}:{dashboard:'Mi Dashboard',leads:'Mi cartera',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',deliverables:'Mis entregables',documents:'Mis documentos',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
@@ -187,12 +211,16 @@ function errorText(error){
  if(code==='invalid_credentials')return 'Correo o contraseña incorrectos.';
  if(['otp_expired','invalid_token','bad_jwt'].includes(code))return 'El enlace de recuperación venció o ya fue utilizado. Solicita uno nuevo y ábrelo una sola vez.';
  if(code==='email_not_confirmed')return 'Confirma tu correo antes de ingresar.';
+ if(code==='signup_disabled')return 'El alta automática por correo está deshabilitada en Supabase Auth DEV.';
+ if(code==='email_provider_disabled')return 'El proveedor de correo está deshabilitado en Supabase Auth DEV.';
+ if(code==='email_address_invalid')return 'Supabase rechazó el correo como no válido.';
  if(code==='over_email_send_rate_limit'||error?.status===429)return 'Se alcanzó el límite de intentos. Espera unos minutos y vuelve a intentar.';
  if(code==='weak_password')return 'Usa una contraseña única de al menos 12 caracteres.';
  if(code==='same_password')return 'Elige una contraseña diferente a la anterior.';
  if(code==='23505')return 'Ya existe un registro con esos datos.';
  if(code==='42501')return 'Tu cuenta no tiene permiso para esta operación.';
  if(code==='PGRST116')return 'El registro cambió o ya no está disponible. Actualiza e intenta nuevamente.';
+ if(IS_DEV_PREVIEW&&error?.message)return 'CRM DEV · '+String(error.message).slice(0,240)+(code?' ['+code+']':'');
  return 'No se pudo completar la operación. Comprueba tu conexión e inténtalo nuevamente.';
 }
 function setMode(next){
@@ -202,7 +230,7 @@ function setMode(next){
  $('authTitle').textContent={login:'Ingresar',signup:'Crear usuario',reset:'Recuperar acceso',update:'Nueva contraseña'}[next];
  $('authBtn').textContent={login:'Ingresar',signup:'Crear usuario',reset:'Enviar enlace de recuperación',update:'Guardar contraseña'}[next];
  $('authHint').textContent=reset?'Te enviaremos un enlace para cambiar tu contraseña.':update?'Elige una contraseña única de al menos 12 caracteres.':'Accede con tu correo y contraseña.';
- $('authTabs').hidden=reset||update;$('forgotBtn').hidden=next!=='login';$('backLogin').hidden=!(reset||update);
+ $('authTabs').hidden=reset||update;$('forgotBtn').hidden=next!=='login';$('backLogin').hidden=!(reset||update);$('passwordlessBtn').hidden=!IS_DEV_PREVIEW||next!=='login';$('passwordlessHint').hidden=!IS_DEV_PREVIEW||next!=='login';
  $('emailField').hidden=false;$('email').required=!update;$('email').readOnly=update;if(update)$('email').value=session?.user.email||previousEmail;
  $('rememberEmailLabel').hidden=update;$('recoveryHelp').hidden=!reset;
  $('passwordField').hidden=reset;$('password').required=!reset;$('password').disabled=reset;$('password').minLength=next==='login'?6:12;$('confirmPassword').minLength=12;
@@ -258,7 +286,7 @@ async function reload(){
  restoreWorkspace();restoreSource();
  $('userRole').textContent=enums.role[profile.role]||'Sin rol';$('welcome').textContent=profile.full_name||session.user.email;
  if(dataSource==='demo'){loadDemo();notice('');render();return;}
- const tables=[...Object.keys(modules).filter(accessible),'scores',...(accessible('documents')?['document_versions']:[])];
+ const tables=[...Object.keys(modules).filter(k=>accessible(k)||(k==='users'&&canViewDashboard())),'scores',...(accessible('documents')?['document_versions']:[])];
  const results=await Promise.allSettled(tables.map(k=>allRows(k,profile.organization_id)));
  if(version!==loadVersion)return;
  data=emptyData();failures={};tables.forEach((k,i)=>{if(results[i].status==='fulfilled')data[k]=results[i].value;else failures[k]=true;});
@@ -360,7 +388,7 @@ function exportAnalytics(){
  const link=document.createElement('a');link.href=url;link.download='xicronix-rendimiento-'+(dataSource==='demo'?'SIMULADO-':'')+analyticsPeriod+'-'+new Date().toISOString().slice(0,10)+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function scopedRows(table){
- if(!accessible(table)&&table!=='scores')return [];
+ if(!accessible(table)&&table!=='scores'&&!(table==='users'&&canViewDashboard()))return [];
  return scopeWorkspaceData(data,profile,currentActor(),workspace)[table]||[];
 }
 function renderTaskPrioritySummary(){
@@ -675,21 +703,22 @@ function openEditor(table,id=null,initialValues={}){
  $('editorTitle').textContent=table==='activities'&&!id?'Registrar movimiento':`${id?(writableFor(table)?'Editar':'Ver'):'Crear'} ${modules[table].singular}`;$('formMsg').textContent='';
  $('fields').innerHTML=fieldsFor(table).map(field=>{
  let value=row[field.key]??({country:'Peru',type:table==='activities'?'':'OTHER',priority:'MEDIUM',score:0,value:0,estimated_value:0,estimated_cost:'',probability:10,target_margin:0,target_won_value:0,active:true,quantity:1,discount_pct:0,negotiated_unit_price:''}[field.key]??'');if(field.type==='datetime-local')value=localDateTime(value);if(costRateKeys.has(field.key)&&value!=='')value=Number(value)*100;
- let options=field.options;if(field.type==='relation')options=Object.fromEntries(editorRelationRows(field.key,row).map(r=>[r.id,nameOf(r)]));
+ let options=field.options;if(field.type==='relation')options=Object.fromEntries(editorRelationRows(field.key,row).map(r=>[r.id,nameOf(r)||(r.id===session?.user?.id?session.user.email:'Registro '+r.id.slice(0,8))]));
  if(options&&value&&!Object.hasOwn(options,value))options={...options,[value]:'Valor actual: '+String(value)+' (revisar)'};
  let input;
- const attrs=`id="field-${field.key}" name="${field.key}" ${field.required?'required':''} ${!writableFor(editTable)?'disabled':''}`;
- if(options)input=`<select ${attrs}><option value="" ${value===''?'selected':''}>${field.type==='relation'?'Sin vincular':field.required?'Selecciona una opción':'Sin registrar'}</option>${Object.entries(options).map(([k,v])=>`<option value="${esc(k)}" ${value===k?'selected':''}>${esc(v)}</option>`).join('')}</select>`;
+ const required=field.required||(field.key==='action_code'&&movementActionRequired(table,id));
+ const attrs=`id="field-${field.key}" name="${field.key}" ${required?'required':''} ${!writableFor(editTable)?'disabled':''}`;
+ if(options)input=`<select ${attrs}><option value="" ${value===''?'selected':''}>${field.type==='relation'?'Sin vincular':required?'Selecciona una opción':'Sin registrar'}</option>${Object.entries(options).map(([k,v])=>`<option value="${esc(k)}" ${value===k?'selected':''}>${esc(v)}</option>`).join('')}</select>`;
  else if(field.type==='textarea')input=`<textarea ${attrs}>${esc(value)}</textarea>`;
  else if(field.type==='checkbox')input=`<input ${attrs} type="checkbox" ${value!==false?'checked':''}>`;
  else if(field.type==='file')input=`<input ${attrs} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.txt,.csv">`;
  else input=`<input ${attrs} type="${field.type}" value="${esc(value)}" ${field.type==='number'?`min="0" step="${['score','probability','quantity',...costRateKeys].includes(field.key)?1:'0.01'}" ${['score','probability',...costRateKeys].includes(field.key)?'max="100"':''}`:''} ${field.key==='ruc'?'pattern="[0-9]{11}" title="Ingresa 11 dígitos"':''}>`;
- return `<div class="${field.type==='textarea'?'full':''}"><label for="field-${field.key}">${field.label}${field.required?' *':''}</label>${input}</div>`;
+ return `<div class="${field.type==='textarea'?'full':''}"><label for="field-${field.key}">${field.label}${required?' *':''}</label>${input}</div>`;
  }).join('');
  if(table==='expenses')$('fields').insertAdjacentHTML('beforeend','<p class="full muted">Registra gastos operativos en soles. Los costos directos de las ventas se toman del costo estimado de cada oportunidad; no los registres aquí otra vez. Un gasto con fecha futura se incluirá cuando llegue esa fecha.</p>');
  if(table==='goals')$('fields').insertAdjacentHTML('beforeend','<p class="full muted">Para el tablero general, deja el responsable sin vincular. El presupuesto de gastos corresponde al periodo completo; vacío significa sin presupuesto y 0 significa que no se prevén gastos. La meta de margen bruto se calcula antes de gastos operativos. El avance a la fecha se distribuye por días calendario.</p>');
  const leadScore=id&&table==='leads'?(data.scores||[]).find(item=>item.lead_id===id):null;
- if(table==='opportunities'&&canViewDashboard()){
+ if(table==='opportunities'&&canViewDashboard()&&!IS_DEV_PREVIEW){
   $('fields').insertAdjacentHTML('beforeend','<section id="quotePreview" class="quote-insight full" aria-live="polite"></section>');
   updateQuotePreview();
  }
@@ -697,7 +726,7 @@ function openEditor(table,id=null,initialValues={}){
   const scoreValue=leadScore?Math.max(0,Math.min(100,Number(leadScore.total_score)||0)):0;
   const linkedOpportunity=(data.opportunities||[]).find(item=>item.lead_id===id);
   const scoreLabel=row.status==='CONVERTED'?'Potencial al convertir':'Potencial calculado';
-  const scoreRecommendation=row.status==='CONVERTED'?(linkedOpportunity?'Lead convertido · continuar '+(enums.stage[linkedOpportunity.stage]||'oportunidad'):'Lead convertido · crear o vincular una oportunidad'):(leadScore?.recommendation||'Se calculará al guardar el lead y registrar su primera interacción.');
+  const scoreRecommendation=row.status==='CONVERTED'?(linkedOpportunity?'Lead convertido · continuar '+(enums.stage[linkedOpportunity.stage]||'oportunidad'):'Lead convertido · crear o vincular una oportunidad'):(leadScore?.recommendation||(IS_DEV_PREVIEW?'El cálculo automático de potencial aún no está habilitado en DEV. Puedes guardar la calificación manual y registrar hitos de madurez.':'Se calculará al guardar el lead y registrar su primera interacción.'));
   $('fields').insertAdjacentHTML('beforeend','<section class="score-insight full" aria-live="polite"><div class="score-insight-head"><strong>'+scoreLabel+'</strong><b>'+(leadScore?scoreValue+'%':'Pendiente')+'</b></div><div class="score-track"><i style="width:'+scoreValue+'%"></i></div><p>'+esc(scoreRecommendation)+'</p><small>Motor explicable v1 · Fuente: '+(esc(leadScore?.recommendation_source||'RULES_V1'))+(row.status==='CONVERTED'?' · La conversión no reinicia este histórico':'')+'</small></section>');
  }
  if(['leads','activities','opportunities','tasks','meetings','deliverables','documents'].includes(table))$('fields').insertAdjacentHTML('beforeend','<p id="relationHelp" class="full muted" role="status">Institución y contacto deben corresponder entre sí. Al cambiar de institución se actualiza la lista de contactos.</p>');
@@ -730,6 +759,7 @@ async function saveRecord(event){
  if(editId&&!scopedRows(editTable).some(row=>row.id===editId))return;
  const payload={}, form=new FormData($('recordForm'));
  const original=editId?scopedRows(editTable).find(row=>row.id===editId):null;
+ if(!validateMovementAction(editTable,editId,editTable==='activities'?$('field-action_code'):null,$('formMsg')))return;
  if(typeof $('recordForm').reportValidity==='function'&&!$('recordForm').reportValidity())return;
  for(const field of fieldsFor(editTable)){if(field.transient)continue;let value=field.type==='checkbox'?form.get(field.key)==='on':String(form.get(field.key)??'').trim();
  if(field.required&&!value){$('formMsg').textContent='Completa los campos obligatorios.';return;}
@@ -811,6 +841,44 @@ async function authenticate(event){
  }catch(error){if(mode==='reset'&&(error?.status===429||error?.code==='over_email_send_rate_limit'))startResetCooldown(60);$('authMsg').className='error';$('authMsg').textContent=errorText(error);}
  finally{$('authBtn').disabled=mode==='reset'&&Date.now()<resetCooldownUntil;}
 }
+async function signInWithEmailLink(){
+ if(!sb||!IS_DEV_PREVIEW||mode!=='login')return;
+ const email=$('email').value.trim();
+ if(!email){$('authMsg').className='error';$('authMsg').textContent='Escribe o selecciona tu correo primero.';return;}
+ if(Date.now()<magicCooldownUntil)return;
+ const button=$('passwordlessBtn');
+ button.disabled=true;$('authMsg').className='';$('authMsg').textContent='Enviando enlace seguro…';
+ try{
+  const result=await sb.auth.signInWithOtp({
+    email,
+    options:{
+      emailRedirectTo:authRedirectUrl(),
+      shouldCreateUser:true
+    }
+  });
+  if(result.error)throw result.error;
+  rememberEmailChoice();
+  startMagicCooldown(60);
+  $('authMsg').textContent='Te envié un enlace de acceso al correo seleccionado. Si al abrirlo Supabase te lleva a localhost, reemplaza solo http://localhost:3000 por '+PUBLIC_APP_URL+' y conserva todo lo que aparece después del símbolo #.';
+ }catch(error){
+  $('authMsg').className='error';
+  $('authMsg').textContent=errorText(error);
+  button.disabled=false;
+ }
+}
+
+function startMagicCooldown(seconds){
+ magicCooldownUntil=Date.now()+seconds*1000;clearInterval(magicCooldownTimer);
+ const update=()=>{
+  const remaining=Math.max(0,Math.ceil((magicCooldownUntil-Date.now())/1000));
+  const button=$('passwordlessBtn');if(!button)return;
+  button.textContent=remaining?'Reenviar enlace en '+remaining+' s':'Ingresar solo con mi correo';
+  button.disabled=remaining>0;
+  if(!remaining)clearInterval(magicCooldownTimer);
+ };
+ update();magicCooldownTimer=setInterval(update,1000);
+}
+
 function startResetCooldown(seconds){
  resetCooldownUntil=Date.now()+seconds*1000;clearInterval(resetCooldownTimer);
  const update=()=>{const remaining=Math.max(0,Math.ceil((resetCooldownUntil-Date.now())/1000));if(mode==='reset')$('authBtn').textContent=remaining?'Espera '+remaining+' s':'Enviar enlace de recuperación';if(!remaining){clearInterval(resetCooldownTimer);$('authBtn').disabled=false;}};
@@ -888,7 +956,7 @@ function openLeadDetails(id){
  const need=activities.find(row=>row.need_summary)?.need_summary||'Pendiente de precisar';
  const budget=Number(lead.estimated_value)>0?money(lead.estimated_value):'Sin definir';
  const field=(label,value)=>'<div class="lead-detail-row"><dt>'+esc(label)+'</dt><dd>'+esc(value||'Sin registrar')+'</dd></div>';
- const buttons=writableFor('leads')?'<div class="lead-master-actions"><button type="button" data-edit-lead="'+lead.id+'">Editar prospecto</button><button type="button" class="primary" data-activity-lead="'+lead.id+'">Registrar movimiento</button><button type="button" data-create-task-lead="'+lead.id+'">Crear tarea</button><button type="button" data-create-meeting-lead="'+lead.id+'">Agendar reunión</button><button type="button" data-create-deliverable-lead="'+lead.id+'">Registrar entregable</button><button type="button" data-create-document-lead="'+lead.id+'">Subir documento</button></div>':'';
+ const buttons=writableFor('leads')?'<div class="lead-master-actions"><button type="button" data-edit-lead="'+lead.id+'">Editar prospecto</button><button type="button" class="primary" data-activity-lead="'+lead.id+'">Registrar movimiento</button><button type="button" data-create-task-lead="'+lead.id+'">Crear tarea</button><button type="button" '+(!accessible('meetings')?'disabled title="Agenda aún no disponible en DEV" ':'')+'data-create-meeting-lead="'+lead.id+'">Agendar reunión</button><button type="button" '+(!accessible('deliverables')?'disabled title="Entregables aún no disponible en DEV" ':'')+'data-create-deliverable-lead="'+lead.id+'">Registrar entregable</button><button type="button" '+(!accessible('documents')?'disabled title="Documentos aún no disponible en DEV" ':'')+'data-create-document-lead="'+lead.id+'">Subir documento</button></div>':'';
  $('leadDetailTitle').textContent='Expediente Comercial · '+(institution?.name||lead.title||'Prospecto');
  $('leadDetailContent').innerHTML='<section class="lead-master commercial-dossier"><p class="muted">'+(dataSource==='demo'?'Demostración, sin datos reales.':'Radiografía comercial basada únicamente en los registros del expediente.')+'</p>'+buttons+
  '<section class="situation-action"><div><small>SITUACIÓN</small><h3>'+(latest?esc(latest.subject||MOVEMENT_ACTIONS[latest.action_code]||'Último movimiento registrado'):'Sin movimiento reciente')+'</h3><p>'+(latest?esc(latest.notes||latest.need_summary||'Movimiento registrado sin detalle adicional.'):'La oportunidad todavía no tiene actividad suficiente para resumir una situación previa.')+'</p></div><div><small>ACCIÓN</small><h3>'+esc(action)+'</h3><p>'+(nextDate?'Próximo compromiso: '+esc(date(nextDate)):'Aún no existe una fecha comprometida.')+'</p></div></section>'+
@@ -919,7 +987,7 @@ function init(){
  $('sidebarToggle').onclick=()=>applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);
  document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
- $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
+ $('authForm').onsubmit=authenticate;$('passwordlessBtn').onclick=signInWithEmailLink;$('passwordlessBtn').hidden=!IS_DEV_PREVIEW;$('passwordlessHint').hidden=!IS_DEV_PREVIEW;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
  $('search').oninput=$('filter').onchange=()=>{pageIndex=0;renderRecords();};
  $('previous').onclick=()=>{pageIndex--;renderRecords();};$('next').onclick=()=>{pageIndex++;renderRecords();};
@@ -927,11 +995,10 @@ function init(){
  $('logoutBtn').onclick=async()=>{const {error}=await sb.auth.signOut();if(error){notice(errorText(error),true);return;}clearSession();setMode('login');};
  $('exportBtn').onclick=()=>{if(!accessible(page)||loading||busy||failures[page])return;const columns=fieldsFor(page).filter(field=>!field.transient).map(field=>({key:field.key,label:field.label}));const rows=filtered().map(row=>Object.fromEntries(columns.map(c=>{const field=modules[page].fields.find(f=>f.key===c.key);return [c.key,field.type==='relation'?relationName(c.key,row):costRateKeys.has(c.key)?Number(row[c.key])*100:field.options?.[row[c.key]]||row[c.key]];})));const url=URL.createObjectURL(new Blob([csv(rows,columns)],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`xicronix-${dataSource==='demo'?'SIMULADO-':''}${page}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
  if(!window.supabase){$('authMsg').textContent='No se pudo cargar el servicio de acceso. Comprueba tu conexión y recarga la página.';$('authBtn').disabled=true;return;}
- sb=window.supabase.createClient('https://qzfprdhmcaucqcdqgqiz.supabase.co','sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+ sb=window.supabase.createClient(CRM_SUPABASE_URL,CRM_SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
  sb.auth.onAuthStateChange(handleAuth);
  const params=new URLSearchParams(location.hash.slice(1));if(params.has('error')){setRecovery(false);setMode('reset');$('authMsg').textContent='El enlace de acceso venció o no es válido. Solicita uno nuevo.';history.replaceState(null,'',location.pathname);}
  if(typeof sb.auth.getSession==='function')sb.auth.getSession().then(({data,error})=>{if(!error)handleAuth('INITIAL_SESSION',data.session);}).catch(()=>{$('authMsg').textContent='No se pudo verificar la sesión. Recarga la página.';});
 }
 // Both the SDK's defer script and module execution finish before DOMContentLoaded.
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
-
