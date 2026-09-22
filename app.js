@@ -68,7 +68,7 @@ let sb, session=null, profile=null, data={}, failures={}, page='dashboard', page
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
 const CRM_RELEASE='2026-09-22-v2.12';
-const PUSH_PUBLIC_KEY='BIrTjCYNyPtyh-qg1Ym7n75mU4WdHmVZvQ0c-36jGJwVgnkcIrYMJisOJAqMVz22OoHXCLkhLKDrePoGrQdht4s';
+
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
 let entryRoute=readEntryRoute();
@@ -579,7 +579,9 @@ async function enableCriticalPush(){
   const registration=await navigator.serviceWorker.ready;
   let subscription=await registration.pushManager.getSubscription();
   if(!subscription){
-   subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:base64UrlToUint8Array(PUSH_PUBLIC_KEY)});
+   const {data:cfg,error:cfgError}=await sb.functions.invoke('radar-push-config',{body:{}});
+   if(cfgError||!cfg?.public_key)throw cfgError||new Error('push_config_missing');
+   subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:base64UrlToUint8Array(cfg.public_key)});
   }
   const json=subscription.toJSON();
   const payload={
