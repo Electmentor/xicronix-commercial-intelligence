@@ -68,7 +68,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-22-v2.19';
+const CRM_RELEASE='2026-09-22-v2.20';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -523,6 +523,38 @@ function applyLocalMovementMilestone(payload){
 function safeExternalUrl(value){
  try{const url=new URL(value);return ['http:','https:'].includes(url.protocol)?url.href:'';}catch(_error){return '';}
 }
+
+function radarPhoneHref(value){
+ const digits=String(value||'').replace(/\D/g,'');
+ return digits ? 'tel:+'+(digits.startsWith('51')?digits:'51'+digits) : '';
+}
+function radarWhatsappHref(value){
+ const digits=String(value||'').replace(/\D/g,'');
+ return digits ? 'https://wa.me/'+(digits.startsWith('51')?digits:'51'+digits) : '';
+}
+function radarMailHref(row){
+ const email=String(row?.contact_email||'').trim();
+ if(!email)return '';
+ const subject='Xicronix | '+String(row?.institution_name||'Contacto comercial');
+ return 'mailto:'+email+'?subject='+encodeURIComponent(subject);
+}
+function openLeadFromRadar(signalId){
+ const row=(data.radar||[]).find(item=>item.id===signalId);
+ if(!row)return;
+ if(row.lead_id){openLeadDetails(row.lead_id);return;}
+ if(!writableFor('leads'))return;
+ openEditor('leads',null,{
+   title:(row.institution_name||'Prospecto Radar')+' · Radar',
+   institution_id:row.institution_id||'',
+   contact_id:'',
+   source:'OTHER',
+   status:'NEW',
+   estimated_value:Number(row.estimated_value)||0,
+   score:Math.round(Number(row.weighted_score)||0),
+   owner_user_id:currentActor()
+ });
+}
+
 function renderRadarRecords(){
  $('recordContext').hidden=true;$('sellerSummary').hidden=true;
  $('importBtn').hidden=true;$('importHelp').hidden=true;
@@ -561,6 +593,13 @@ function renderRadarRecords(){
    '<p class="radar-summary">'+esc(row.signal_summary||'Señal comercial en investigación')+'</p>'+
    '<div class="radar-facts"><span><b>Laboratorio</b>'+esc(lab)+'</span><span><b>Ticket</b>'+esc(money(row.estimated_value))+'</span><span><b>Presupuesto</b>'+esc(budget)+'</span><span><b>Timing</b>'+esc(row.signal_date||'Por verificar')+'</span></div>'+
    '<div class="radar-contact"><p><b>Decisor:</b> '+esc(contact)+'</p><p><b>Contacto:</b> '+esc(channels)+'</p></div>'+
+   '<div class="radar-quick-actions">'+
+    (row.contact_phone?'<a class="radar-action-button primary" href="'+esc(radarPhoneHref(row.contact_phone))+'">Llamar</a>':'')+
+    (row.contact_email?'<a class="radar-action-button" href="'+esc(radarMailHref(row))+'">Correo Xicronix</a>':'')+
+    (row.contact_whatsapp?'<a class="radar-action-button" href="'+esc(radarWhatsappHref(row.contact_whatsapp))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
+    '<button type="button" class="radar-action-button" data-radar-lead="'+row.id+'">'+(row.lead_id?'Abrir prospecto':'Crear prospecto')+'</button>'+
+    (row.lead_id&&writableFor('activities')?'<button type="button" class="radar-action-button" data-radar-activity="'+row.lead_id+'">Registrar acción</button>':'')+
+   '</div>'+
    '<div class="radar-action"><p><b>Siguiente acción:</b> '+esc(row.next_action||'Continuar investigación remota')+'</p><p><b>Riesgo:</b> '+esc(row.principal_risk||'Sin riesgo principal registrado')+'</p></div>'+
    '<footer><span>'+esc(row.competitor_or_supplier?'Proveedor/competencia: '+row.competitor_or_supplier:'Proveedor actual: no identificado')+'</span>'+
    (source?'<a href="'+esc(source)+'" target="_blank" rel="noopener noreferrer">Ver evidencia ↗</a>':'<span>Fuente pendiente</span>')+
@@ -1221,7 +1260,7 @@ function init(){
  $('dateLabel').textContent=new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long'});
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  $('sidebarToggle').onclick=()=>applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.radarLead){openLeadFromRadar(b.dataset.radarLead);return;}if(b.dataset.radarActivity){openActivityForLead(b.dataset.radarActivity);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
