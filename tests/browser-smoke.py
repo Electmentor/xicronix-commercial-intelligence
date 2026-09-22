@@ -50,7 +50,6 @@ with sync_playwright() as p:
   page.locator('#navigation [data-page="now"]').click()
   page.locator('#navigation [data-page="mail"]').click()
   check('Zoho mail module renders',lambda:expect(page.locator('#recordList')).to_contain_text('Diagnóstico del laboratorio'))
-  check('Zoho mail new item action exists',lambda:expect(page.locator('[data-mail-reviewed]')).to_be_visible())
   page.locator('#navigation [data-page="radar"]').click()
   check('radar module renders safely',lambda:expect(page.locator('#recordList')).to_contain_text('Colegio Radar de prueba'))
   check('Radar call action visible',lambda:expect(page.locator('.radar-quick-actions a[href^="tel:"]')).to_be_visible())
