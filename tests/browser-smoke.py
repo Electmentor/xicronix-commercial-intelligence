@@ -35,7 +35,7 @@ with sync_playwright() as p:
  try:
   context,page=newpage();expect(page.locator('#workspaceControls')).to_be_visible()
   check('actual data is default',lambda:expect(page.locator('#sourceBadge')).to_have_text('DATOS REALES'))
-  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-22-v2.12'))
+  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-22-v2.17'))
   page.screenshot(path=str(out/'desktop-v2-fixture.png'),full_page=True)
   pages=['now','radar','institutions','contacts','leads','opportunities','tasks','meetings','deliverables','documents','activities','catalog_products','cost_profiles','expenses','goals','users','dashboard']
   for target in pages:
@@ -61,6 +61,14 @@ with sync_playwright() as p:
   check('page survives refresh',lambda:expect(page.locator('#appView')).to_have_attribute('data-page','tasks'))
   page.locator('#themeToggle').click();page.reload(wait_until='networkidle')
   check('night mode persists',lambda:expect(page.locator('html')).to_have_attribute('data-theme','night'))
+  page.locator('#navigation [data-page="radar"]').click()
+  page.locator('#recordList').evaluate("""node=>{node.insertAdjacentHTML('beforeend','<article id="nightRadarProbe" class="radar-card critical"><header><div><span class="radar-class">Crítica</span><h3>Prueba visual</h3><p>Lima</p></div><div class="radar-score"><b>94</b><span>/100</span></div></header><p class="radar-summary">Texto principal legible</p><div class="radar-facts"><span><b>Laboratorio</b>Confirmado</span></div><footer><a href="#">Fuente</a></footer></article>')}</script>""".replace('</script>',''))
+  radar_probe=page.locator('#nightRadarProbe')
+  check('night radar card uses dark surface',lambda:exec("assert page.evaluate(\"getComputedStyle(document.querySelector('#nightRadarProbe')).backgroundColor\") != 'rgb(255, 255, 255)'"))
+  check('night radar text has strong contrast token',lambda:exec("assert page.evaluate(\"getComputedStyle(document.querySelector('#nightRadarProbe')).color\") in ['rgb(238, 245, 255)','rgb(232, 240, 250)']"))
+  page.set_viewport_size({'width':390,'height':900})
+  check('mobile sidebar toggle is not fixed over content',lambda:exec("assert page.evaluate(\"getComputedStyle(document.querySelector('.sidebar-toggle')).position\") == 'absolute'"))
+
   page.locator('#sourceToggle').click();check('explicit demo',lambda:expect(page.locator('#sourceBadge')).to_contain_text('DEMOSTRACIÓN'))
   page.locator('#sourceToggle').click();check('return to real',lambda:expect(page.locator('#sourceBadge')).to_have_text('DATOS REALES'))
   assert page.evaluate('window.__testWrites.length')==0;checks.append('no business writes in browsing')
