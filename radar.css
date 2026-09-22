@@ -89,3 +89,14 @@ html[data-theme="night"] .radar-linked{
   background:rgba(91,221,181,.15);
   color:#8df0d0;
 }
+
+
+/* V2.20 — direct commercial actions from Radar */
+.radar-quick-actions{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px}
+.radar-action-button{min-height:44px;border:1px solid var(--line);border-radius:10px;padding:10px 13px;background:var(--panel-raised);color:var(--ink);font-weight:750;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.radar-action-button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.radar-action-button:hover{border-color:var(--blue)}
+html[data-theme="night"] .radar-action-button{background:var(--panel-raised);color:var(--ink)}
+html[data-theme="night"] .radar-action-button.primary{background:#2d7df0;color:#fff}
+@media(max-width:560px){.radar-quick-actions{display:grid;grid-template-columns:1fr 1fr}.radar-action-button{width:100%}.radar-action-button.primary{grid-column:1/-1}}
+@media(max-width:380px){.radar-quick-actions{grid-template-columns:1fr}}
