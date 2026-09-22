@@ -67,7 +67,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-22-v2.17';
+const CRM_RELEASE='2026-09-22-v2.18';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -661,9 +661,104 @@ function renderNow(){
  const pushButton=$('criticalPushBtn');if(pushButton)pushButton.onclick=enableCriticalPush;
  document.querySelectorAll('[data-now-target]').forEach(card=>{card.onclick=()=>openNowDestination(card.dataset.nowTarget,card.dataset.nowFilter||'',card.dataset.nowSearch||'');});
 }
+
+function taskLinkedLead(row){
+ return row?.lead_id ? scopedRows('leads').find(item=>item.id===row.lead_id) : null;
+}
+function taskLinkedContact(row){
+ const lead=taskLinkedLead(row);
+ const contactId=row?.contact_id||lead?.contact_id;
+ return contactId ? scopedRows('contacts').find(item=>item.id===contactId) : null;
+}
+function taskLinkedInstitution(row){
+ const lead=taskLinkedLead(row);
+ const institutionId=row?.institution_id||lead?.institution_id;
+ return institutionId ? scopedRows('institutions').find(item=>item.id===institutionId) : null;
+}
+function taskModuleTarget(row){
+ const title=String(row?.title||'').toUpperCase();
+ if(title.includes('[CX-04]')||title.includes('[CX-06]'))return {page:'meetings',label:'Abrir agenda'};
+ if(title.includes('[CX-05]')||title.includes('[CX-08]'))return {page:'activities',label:'Abrir movimientos'};
+ if(title.includes('[CX-09]'))return {page:'documents',label:'Abrir documentos'};
+ if(title.includes('[CX-11]'))return {page:'opportunities',label:'Abrir oportunidades'};
+ if(title.includes('[CX-10]'))return {page:'tasks',label:'Ver tareas'};
+ if(title.includes('[CX-12]'))return {page:'now',label:'Abrir Xicronix Ahora'};
+ if(title.includes('[CX-02]')||title.includes('[CX-03]')||title.includes('[CX-07]'))return {page:'leads',label:'Abrir prospectos'};
+ return {page:'tasks',label:'Abrir tarea'};
+}
+function phoneHref(value){
+ const digits=String(value||'').replace(/\D/g,'');
+ return digits ? 'tel:+'+(digits.startsWith('51')?digits:'51'+digits) : '';
+}
+function whatsappHref(value){
+ const digits=String(value||'').replace(/\D/g,'');
+ return digits ? 'https://wa.me/'+(digits.startsWith('51')?digits:'51'+digits) : '';
+}
+function mailHref(value){
+ return value ? 'mailto:'+String(value).trim() : '';
+}
+async function completeTaskQuick(id){
+ if(!writableFor('tasks')||busy||loading)return;
+ const row=scopedRows('tasks').find(item=>item.id===id);
+ if(!row||['COMPLETED','CANCELLED'].includes(row.status))return;
+ if(!window.confirm('¿Marcar esta tarea como completada?'))return;
+ busy=true;notice('Completando tarea…');
+ try{
+  if(dataSource==='demo'){
+   mutateDemo(demoData,'tasks','update',{...row,status:'COMPLETED',updated_at:new Date().toISOString()},{id,userId:currentActor(),org:profile.organization_id});
+   persistDemo();loadDemo();notice(demoSavedMessage());
+  }else{
+   const {error}=await sb.from(databaseTable('tasks')).update({status:'COMPLETED',updated_at:new Date().toISOString()}).eq('id',id).eq('organization_id',profile.organization_id);
+   if(error)throw error;
+   busy=false;await reload();notice('Tarea completada.');
+  }
+ }catch(error){notice(errorText(error),true);}
+ finally{busy=false;render();}
+}
+function openTaskModule(row){
+ const target=taskModuleTarget(row);
+ if(target.page==='tasks'){openEditor('tasks',row.id);return;}
+ navigate(target.page);
+}
+function renderTaskCards(rows){
+ const canEdit=writableFor('tasks');
+ return '<section class="task-mobile-list">'+rows.map(row=>{
+  const lead=taskLinkedLead(row),contact=taskLinkedContact(row),institution=taskLinkedInstitution(row);
+  const urgency=taskUrgency(row,Date.now());
+  const moduleTarget=taskModuleTarget(row);
+  const overdue=urgency.band==='OVERDUE';
+  const done=['COMPLETED','CANCELLED'].includes(row.status);
+  const phone=phoneHref(contact?.phone),wa=whatsappHref(contact?.phone),email=mailHref(contact?.email);
+  const primary=lead?'<button type="button" class="primary" data-task-lead="'+lead.id+'">Abrir prospecto</button>':'<button type="button" class="primary" data-task-module="'+row.id+'">'+esc(moduleTarget.label)+'</button>';
+  const respond=lead&&canEdit?'<button type="button" data-task-response="'+lead.id+'">Registrar respuesta</button>':'';
+  const contactActions=(phone?'<a class="task-link-button" href="'+esc(phone)+'">Llamar</a>':'')+(wa?'<a class="task-link-button" href="'+esc(wa)+'" target="_blank" rel="noopener">WhatsApp</a>':'')+(email?'<a class="task-link-button" href="'+esc(email)+'">Correo</a>':'');
+  const complete=!done&&canEdit?'<button type="button" class="task-complete" data-task-complete="'+row.id+'">Completar</button>':'';
+  return '<article class="task-mobile-card '+(overdue?'overdue ':'')+(done?'done':'')+'">'+
+   '<header><div><span class="task-mobile-priority">'+esc(enums.priority[row.priority]||row.priority||'Sin prioridad')+'</span><h3>'+esc(row.title||'Tarea')+'</h3></div><span class="badge '+(overdue?'warn':done?'success':'')+'">'+esc(enums.taskStatus[row.status]||row.status)+'</span></header>'+
+   '<div class="task-mobile-meta"><span><b>'+esc(urgency.label)+'</b>'+(urgency.hasDate?' · '+esc(date(row.due_at)):' · Sin fecha límite')+'</span>'+(institution?'<span>'+esc(institution.name)+'</span>':'')+(contact?'<span>'+esc(nameOf(contact))+'</span>':'')+'</div>'+
+   (row.notes?'<p class="task-mobile-notes">'+esc(row.notes)+'</p>':'')+
+   '<div class="task-mobile-actions">'+primary+respond+contactActions+complete+'<button type="button" data-edit="'+row.id+'" data-table="tasks">'+(canEdit?'Editar':'Ver')+'</button></div>'+
+  '</article>';
+ }).join('')+'</section>';
+}
+function renderTaskRecords(){
+ $('recordContext').hidden=true;$('sellerSummary').hidden=canViewDashboard();
+ $('sellerSummary').innerHTML=renderTaskPrioritySummary();
+ $('importBtn').hidden=false;$('importHelp').hidden=false;
+ const rows=filtered(),max=Math.max(1,Math.ceil(rows.length/size));pageIndex=Math.min(pageIndex,max-1);
+ $('recordCount').textContent=failures.tasks?'Información no disponible':rows.length+' tareas';
+ $('exportBtn').disabled=!!failures.tasks||!rows.length;
+ $('pageNumber').textContent='Página '+(pageIndex+1)+' de '+max;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
+ if(failures.tasks){$('recordList').innerHTML='<div class="panel empty">No pudimos cargar las tareas. Pulsa Actualizar.</div>';return;}
+ if(!rows.length){$('recordList').innerHTML='<div class="panel empty">'+($('search').value||$('filter').value?'No hay tareas con ese filtro.':'No hay tareas registradas.')+'</div>';return;}
+ const pageRows=rows.slice(pageIndex*size,(pageIndex+1)*size);
+ $('recordList').innerHTML=renderTaskCards(pageRows);
+}
+
 function renderRecords(){
  if(page==='now'){renderNow();return;}
  if(page==='radar'){renderRadarRecords();return;}
+ if(page==='tasks'){renderTaskRecords();return;}
  const isUsers=page==='users',isGoals=page==='goals',isExpenses=page==='expenses';
  $('recordContext').hidden=!executiveFilter&&!executiveOwner;
  $('recordContextLabel').textContent=[{won:'Ganadas con cierre previsto este mes',pipeline:'Cartera abierta',risk:'Cartera en riesgo'}[executiveFilter],executiveOwner?'Vendedor: '+(data.users.find(row=>row.id===executiveOwner)?.full_name||'seleccionado'):''].filter(Boolean).join(' · ');
@@ -1075,7 +1170,7 @@ function init(){
  $('dateLabel').textContent=new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long'});
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  $('sidebarToggle').onclick=()=>applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
