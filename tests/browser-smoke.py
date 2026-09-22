@@ -35,7 +35,7 @@ with sync_playwright() as p:
  try:
   context,page=newpage();expect(page.locator('#workspaceControls')).to_be_visible()
   check('actual data is default',lambda:expect(page.locator('#sourceBadge')).to_have_text('DATOS REALES'))
-  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-22-v2.18'))
+  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-22-v2.19'))
   page.screenshot(path=str(out/'desktop-v2-fixture.png'),full_page=True)
   pages=['now','radar','institutions','contacts','leads','opportunities','tasks','meetings','deliverables','documents','activities','catalog_products','cost_profiles','expenses','goals','users','dashboard']
   for target in pages:
@@ -48,6 +48,9 @@ with sync_playwright() as p:
   check('potential card opens Radar',lambda:expect(page.locator('#appView')).to_have_attribute('data-page','radar'))
   check('potential card applies Radar filter',lambda:expect(page.locator('#filter')).to_have_value('POTENTIAL'))
   page.locator('#navigation [data-page="now"]').click()
+  page.locator('#navigation [data-page="mail"]').click()
+  check('Zoho mail module renders',lambda:expect(page.locator('#recordList')).to_contain_text('Diagnóstico del laboratorio'))
+  check('Zoho mail new item action exists',lambda:expect(page.locator('[data-mail-reviewed]')).to_be_visible())
   page.locator('#navigation [data-page="radar"]').click()
   check('radar module renders safely',lambda:expect(page.locator('#recordList')).to_contain_text('No hay oportunidades que superen el filtro actual.'))
   page.locator('#navigation [data-page="leads"]').click()
