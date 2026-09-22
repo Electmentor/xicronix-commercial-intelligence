@@ -29,7 +29,8 @@ const enums = {
  leadSource:{WEBSITE:'Formulario web',EMAIL:'Correo',WHATSAPP:'WhatsApp',CALL:'Llamada',REFERRAL:'Referido',EVENT:'Evento',OTHER:'Otro'},
  activityOutcome:{INTERESTED:'Interesado',FOLLOW_UP:'Requiere seguimiento',NO_RESPONSE:'Sin respuesta',NOT_INTERESTED:'No interesado',QUALIFIED:'Calificado',DISQUALIFIED:'No califica'},
  movementAction:MOVEMENT_ACTIONS,
- expenseCategory:{PERSONNEL:'Personal',MARKETING:'Marketing',OPERATIONS:'Operaciones',TECHNOLOGY:'Tecnología',OTHER:'Otros'}
+ expenseCategory:{PERSONNEL:'Personal',MARKETING:'Marketing',OPERATIONS:'Operaciones',TECHNOLOGY:'Tecnología',OTHER:'Otros'},
+ radarClass:{CRITICAL:'Crítica',HIGH:'Alta prioridad',POTENTIAL:'Potencial',OBSERVE:'En observación',DISCARD:'Descartada'}
 };
 const f=(key,label,type='text',required=false,options=null)=>({key,label,type,required,options});
 const transientFile={key:'_file',label:'Archivo / nueva versión',type:'file',required:false,transient:true};
@@ -47,6 +48,7 @@ const quantity=f('quantity','Cantidad','number');
 const discount=f('discount_pct','Descuento negociado (%)','number');
 const negotiatedPrice=f('negotiated_unit_price','Precio unitario negociado (USD)','number');
 const modules={
+ radar:{label:'Radar Comercial',singular:'señal radar',filter:'classification',options:enums.radarClass,fields:[]},
  institutions:{label:'Instituciones',singular:'institución',filter:'type',options:enums.type,fields:[f('name','Nombre','text',true),f('type','Tipo','select',true,enums.type),f('ruc','RUC'),f('city','Ciudad'),f('country','País','text',true),f('address','Dirección'),f('email','Correo','email'),f('phone','Teléfono','tel'),f('website','Sitio web','url'),f('notes','Notas','textarea')]},
  contacts:{label:'Contactos',singular:'contacto',filter:'decision_level',options:enums.decision_level,fields:[f('first_name','Nombres','text',true),f('last_name','Apellidos'),institution,f('job_title','Cargo'),f('decision_level','Nivel de decisión','select',true,enums.decision_level),f('email','Correo','email'),f('phone','Teléfono','tel'),f('notes','Notas','textarea')]},
  leads:{label:'Prospectos',singular:'prospecto',filter:'status',options:enums.status,fields:[f('title','Título','text',true),institution,contact,f('source','Canal de origen','select',false,enums.leadSource),f('status','Estado','select',true,enums.status),f('estimated_value','Valor estimado (S/)','number'),f('score','Calificación manual (0–100)','number'),owner,...followUp]},
@@ -130,7 +132,7 @@ const canDelete=canViewDashboard;
 const accessible=table=>canAccessPage(profile,workspace,table);
 const writableFor=table=>canWriteModule(profile,workspace,table);
 const fieldsFor=table=>(modules[table]?.fields||[]).filter(field=>!field.adminOnly||canViewDashboard());
-const databaseTable=table=>({users:'profiles',goals:'commercial_goals',expenses:'commercial_expenses'})[table]||table;
+const databaseTable=table=>({users:'profiles',goals:'commercial_goals',expenses:'commercial_expenses',radar:'commercial_radar_dashboard'})[table]||table;
 function restoreWorkspace(){
  const identity=workspaceKey(session.user.id,profile.organization_id);
  if(workspaceIdentity!==identity){
@@ -175,7 +177,7 @@ async function setWorkspace(next){
 const THEME_STORAGE_KEY='xicronix-theme';
 const SIDEBAR_STORAGE_KEY='xicronix-sidebar-collapsed';
 const authRedirectUrl=()=>PUBLIC_APP_URL;
-const nameOf=row=>row.name || row.title || row.subject || row.description || row.full_name || [row.first_name,row.last_name].filter(Boolean).join(' ');
+const nameOf=row=>row.institution_name || row.name || row.title || row.subject || row.description || row.full_name || [row.first_name,row.last_name].filter(Boolean).join(' ');
 const relatedName=row=>data.institutions?.find(i=>i.id===row.institution_id)?.name || '';
 const relationTable=key=>({institution_id:'institutions',contact_id:'contacts',lead_id:'leads',opportunity_id:'opportunities',owner_user_id:'users',assigned_to:'users',catalog_product_id:'catalog_products',cost_profile_id:'cost_profiles'})[key];
 const relationName=(key,row)=>{const table=relationTable(key);return table?nameOf((data[table]||[]).find(item=>item.id===row[key])||{}):'';};
@@ -505,7 +507,59 @@ function applyLocalMovementMilestone(payload){
  const current=milestonePercent(lead.commercial_milestone);
  if(current<meta.percent){lead.commercial_milestone=code;lead.maturity_percent=meta.percent;lead.milestone_updated_at=payload.occurred_at||new Date().toISOString();}
 }
+
+function safeExternalUrl(value){
+ try{const url=new URL(value);return ['http:','https:'].includes(url.protocol)?url.href:'';}catch(_error){return '';}
+}
+function renderRadarRecords(){
+ $('recordContext').hidden=true;$('sellerSummary').hidden=true;
+ $('importBtn').hidden=true;$('importHelp').hidden=true;
+ const search=normalize($('search').value),filter=$('filter').value;
+ const all=(scopedRows('radar')||[]).filter(row=>(!filter||row.classification===filter)&&(!search||normalize([
+  row.institution_name,row.city,row.region,row.signal_summary,row.decision_maker_name,row.decision_maker_title,
+  row.contact_email,row.contact_phone,row.next_action,row.principal_risk,row.competitor_or_supplier
+ ].filter(Boolean).join(' ')).includes(search)));
+ const rows=all.slice().sort((a,b)=>
+  Number(a.classification_priority||99)-Number(b.classification_priority||99)||
+  Number(a.geographic_priority||99)-Number(b.geographic_priority||99)||
+  Number(b.weighted_score||0)-Number(a.weighted_score||0)||
+  String(b.created_at||'').localeCompare(String(a.created_at||'')));
+ const max=Math.max(1,Math.ceil(rows.length/size));pageIndex=Math.min(pageIndex,max-1);
+ $('recordCount').textContent=failures.radar?'Información no disponible':rows.length+' señales calificadas';
+ $('exportBtn').disabled=!!failures.radar||!rows.length;
+ $('pageNumber').textContent='Página '+(pageIndex+1)+' de '+max;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
+ if(failures.radar){$('recordList').innerHTML='<div class="panel empty">No pudimos cargar el Radar Comercial. Pulsa Actualizar para reintentar.</div>';return;}
+ if(!rows.length){$('recordList').innerHTML='<section class="radar-hero panel"><div><p class="eyebrow">A009 / RADAR COMERCIAL</p><h2>No hay oportunidades que superen el filtro actual.</h2><p>Esto es correcto: el Radar prioriza precisión y evidencia antes que volumen.</p></div></section>';return;}
+ const pageRows=rows.slice(pageIndex*size,(pageIndex+1)*size);
+ const critical=rows.filter(row=>row.classification==='CRITICAL').length;
+ const high=rows.filter(row=>row.classification==='HIGH').length;
+ const potential=rows.filter(row=>row.classification==='POTENTIAL').length;
+ const observe=rows.filter(row=>row.classification==='OBSERVE').length;
+ const metrics='<section class="radar-metrics"><article><b>'+critical+'</b><span>Críticas</span></article><article><b>'+high+'</b><span>Alta prioridad</span></article><article><b>'+potential+'</b><span>Potenciales</span></article><article><b>'+observe+'</b><span>Observación</span></article></section>';
+ const cards=pageRows.map(row=>{
+  const source=safeExternalUrl(row.source_url);
+  const contact=[row.decision_maker_name,row.decision_maker_title].filter(Boolean).join(' · ')||'Decisor por identificar';
+  const channels=[row.contact_email,row.contact_phone,row.contact_whatsapp].filter(Boolean).join(' · ')||'Contacto por investigar';
+  const lab={EXISTING:'Laboratorio existente',PLANNED:'Laboratorio proyectado',NONE:'Sin laboratorio',UNKNOWN:'Laboratorio por verificar'}[row.lab_status]||row.lab_status;
+  const budget={CONFIRMED:'Presupuesto confirmado',PROBABLE:'Presupuesto probable',UNKNOWN:'Presupuesto por verificar',NONE:'Sin presupuesto'}[row.budget_status]||row.budget_status;
+  const cls=String(row.classification||'OBSERVE').toLowerCase();
+  return '<article class="radar-card '+cls+'">'+
+   '<header><div><span class="radar-class">'+esc(enums.radarClass[row.classification]||row.classification)+'</span><h3>'+esc(row.institution_name)+'</h3><p>'+esc([row.city,row.region].filter(Boolean).join(' · ')||'Ubicación por verificar')+'</p></div><div class="radar-score"><b>'+Number(row.weighted_score||0)+'</b><span>/100</span></div></header>'+
+   '<div class="radar-score-track"><i style="width:'+Math.max(0,Math.min(100,Number(row.weighted_score||0)))+'%"></i></div>'+
+   '<p class="radar-summary">'+esc(row.signal_summary||'Señal comercial en investigación')+'</p>'+
+   '<div class="radar-facts"><span><b>Laboratorio</b>'+esc(lab)+'</span><span><b>Ticket</b>'+esc(money(row.estimated_value))+'</span><span><b>Presupuesto</b>'+esc(budget)+'</span><span><b>Timing</b>'+esc(row.signal_date||'Por verificar')+'</span></div>'+
+   '<div class="radar-contact"><p><b>Decisor:</b> '+esc(contact)+'</p><p><b>Contacto:</b> '+esc(channels)+'</p></div>'+
+   '<div class="radar-action"><p><b>Siguiente acción:</b> '+esc(row.next_action||'Continuar investigación remota')+'</p><p><b>Riesgo:</b> '+esc(row.principal_risk||'Sin riesgo principal registrado')+'</p></div>'+
+   '<footer><span>'+esc(row.competitor_or_supplier?'Proveedor/competencia: '+row.competitor_or_supplier:'Proveedor actual: no identificado')+'</span>'+
+   (source?'<a href="'+esc(source)+'" target="_blank" rel="noopener noreferrer">Ver evidencia ↗</a>':'<span>Fuente pendiente</span>')+
+   (row.lead_id?'<span class="radar-linked">Lead vinculado</span>':'')+'</footer>'+
+  '</article>';
+ }).join('');
+ $('recordList').innerHTML=metrics+'<section class="radar-intro panel"><div><p class="eyebrow">RADAR COMERCIAL XICRONIX</p><h2>Oportunidades filtradas para actuar con menos fricción.</h2><p>Orden: clasificación → Lima/proximidad operativa → score. Una señal no se convierte automáticamente en lead.</p></div></section><section class="radar-grid">'+cards+'</section>';
+}
+
 function renderRecords(){
+ if(page==='radar'){renderRadarRecords();return;}
  const isUsers=page==='users',isGoals=page==='goals',isExpenses=page==='expenses';
  $('recordContext').hidden=!executiveFilter&&!executiveOwner;
  $('recordContextLabel').textContent=[{won:'Ganadas con cierre previsto este mes',pipeline:'Cartera abierta',risk:'Cartera en riesgo'}[executiveFilter],executiveOwner?'Vendedor: '+(data.users.find(row=>row.id===executiveOwner)?.full_name||'seleccionado'):''].filter(Boolean).join(' · ');

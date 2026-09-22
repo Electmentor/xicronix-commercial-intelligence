@@ -2,7 +2,7 @@
 // The database remains responsible for enforcing the authenticated account's permissions.
 export const ADMIN = 'admin';
 export const SELLER = 'seller';
-const operational = ['institutions', 'contacts', 'leads', 'opportunities', 'tasks', 'meetings', 'deliverables', 'documents', 'activities', 'catalog_products'];
+const operational = ['radar', 'institutions', 'contacts', 'leads', 'opportunities', 'tasks', 'meetings', 'deliverables', 'documents', 'activities', 'catalog_products'];
 export function effectiveWorkspace(profile, requested = ADMIN) {
   return profile?.role === 'ADMIN' && requested === ADMIN ? ADMIN : SELLER;
 }
@@ -14,7 +14,7 @@ export function canAccessPage(profile, workspace, page) {
   return operational.includes(page) || page === 'dashboard' || (effectiveWorkspace(profile, workspace) === ADMIN && ['users','goals','cost_profiles','expenses'].includes(page));
 }
 export function canWriteModule(profile, workspace, table) {
-  if (!canAccessPage(profile, workspace, table) || table === 'dashboard' || !['ADMIN','MANAGER','SALES'].includes(profile.role)) return false;
+  if (!canAccessPage(profile, workspace, table) || ['dashboard','radar'].includes(table) || !['ADMIN','MANAGER','SALES'].includes(profile.role)) return false;
   if (['catalog_products','cost_profiles'].includes(table) && effectiveWorkspace(profile, workspace) !== ADMIN) return false;
   return table !== 'cost_profiles' ? table !== 'catalog_products' || profile.role === 'ADMIN' : profile.role === 'ADMIN';
 }

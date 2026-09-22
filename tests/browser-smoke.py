@@ -35,12 +35,14 @@ with sync_playwright() as p:
  try:
   context,page=newpage();expect(page.locator('#workspaceControls')).to_be_visible()
   check('actual data is default',lambda:expect(page.locator('#sourceBadge')).to_have_text('DATOS REALES'))
-  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-19-v2.9'))
+  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-22-v2.10'))
   page.screenshot(path=str(out/'desktop-v2-fixture.png'),full_page=True)
-  pages=['institutions','contacts','leads','opportunities','tasks','meetings','deliverables','documents','activities','catalog_products','cost_profiles','expenses','goals','users','dashboard']
+  pages=['radar','institutions','contacts','leads','opportunities','tasks','meetings','deliverables','documents','activities','catalog_products','cost_profiles','expenses','goals','users','dashboard']
   for target in pages:
    page.locator('#navigation [data-page="'+target+'"]').click()
    check('navigation '+target,lambda t=target:expect(page.locator('#appView')).to_have_attribute('data-page',t))
+  page.locator('#navigation [data-page="radar"]').click()
+  check('radar module renders safely',lambda:expect(page.locator('#recordList')).to_contain_text('No hay oportunidades que superen el filtro actual.'))
   page.locator('#navigation [data-page="leads"]').click()
   check('real lead visible',lambda:expect(page.locator('#recordList')).to_contain_text('Institución de validación · Diagnóstico'))
   page.get_by_role('button',name='Abrir expediente comercial').first.click();check('commercial dossier opens',lambda:expect(page.locator('#leadDetailTitle')).to_contain_text('Expediente Comercial'));check('situation and action visible',lambda:expect(page.locator('#leadDetailContent')).to_contain_text('SITUACIÓN'));check('deliverables radiography visible',lambda:expect(page.locator('#leadDetailContent')).to_contain_text('Entregables'));check('documents section visible',lambda:expect(page.locator('#leadDetailContent')).to_contain_text('Documentos del expediente'));page.locator('#closeLeadDetail').click()
