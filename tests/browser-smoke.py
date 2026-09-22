@@ -35,7 +35,7 @@ with sync_playwright() as p:
  try:
   context,page=newpage();expect(page.locator('#workspaceControls')).to_be_visible()
   check('actual data is default',lambda:expect(page.locator('#sourceBadge')).to_have_text('DATOS REALES'))
-  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-22-v2.17'))
+  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-22-v2.18'))
   page.screenshot(path=str(out/'desktop-v2-fixture.png'),full_page=True)
   pages=['now','radar','institutions','contacts','leads','opportunities','tasks','meetings','deliverables','documents','activities','catalog_products','cost_profiles','expenses','goals','users','dashboard']
   for target in pages:
@@ -63,6 +63,9 @@ with sync_playwright() as p:
   page.locator('#closeLeadDetail').click()
   page.get_by_role('button',name='Registrar movimiento').first.click();check('interaction form',lambda:expect(page.locator('#editor')).to_be_visible());page.locator('#cancelEditor').click()
   page.locator('#navigation [data-page="tasks"]').click();page.reload(wait_until='networkidle')
+  check('mobile task cards render',lambda:expect(page.locator('.task-mobile-card')).to_have_count(2))
+  check('task quick actions visible',lambda:expect(page.locator('.task-mobile-actions').first).to_be_visible())
+  check('linked task opens prospect',lambda:expect(page.locator('[data-task-lead]').first).to_be_visible())
   check('page survives refresh',lambda:expect(page.locator('#appView')).to_have_attribute('data-page','tasks'))
   page.locator('#themeToggle').click();page.reload(wait_until='networkidle')
   check('night mode persists',lambda:expect(page.locator('html')).to_have_attribute('data-theme','night'))
