@@ -10,6 +10,7 @@ import * as demo from '../demo.mjs';
 import * as executive from '../executive.mjs';
 import * as analytics from '../analytics.mjs';
 import * as sellerDashboard from '../seller-dashboard.mjs';
+import * as commercialCore from '../commercial-core.mjs';
 const source=readFileSync(new URL('../app.js',import.meta.url),'utf8').replace(/^import .*;$/gm,'');
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 function harness(role='ADMIN',saved=null,sourceChoice='live'){
@@ -75,7 +76,7 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
  const sb={from:table=>new Query(table),auth:{onAuthStateChange(){},signOut:async()=>({error:null})}};
  if(saved)storage.set(workspace.workspaceKey('me','org'),saved);
  if(sourceChoice)storage.set(workspace.workspaceKey('me','org')+':source-v'+demo.DEMO_VERSION,sourceChoice);
- const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,...analytics,...sellerDashboard,console,document,window:{supabase:{createClient:()=>sb},confirm:()=>true},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
+ const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,...analytics,...sellerDashboard,...commercialCore,console,document,window:{supabase:{createClient:()=>sb},confirm:()=>true},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
  const run=code=>vm.runInContext(code,context);
  run(source);run('init();session={user:{id:"me",email:"test@example.invalid"}};');
  return {run,nodes,db,queries,storage,downloads,boot:()=>run('reload()'),gate:promise=>{profileGate=promise;},click:id=>nodes.get(id).onclick()};
@@ -379,6 +380,23 @@ test('original web request and tasks are readable without modifying a prospect',
  assert.match(h.nodes.get('leadDetailContent').innerHTML,/Tarea propia/);
  assert.equal(h.queries.some(query=>query.operation!=='select'),false);
  h.run('closeLeadDetails()');assert.equal(h.nodes.get('leadDetailDialog').open,false);
+});
+
+test('prospect dossier keeps context across linked actions and returns after cancel',async()=>{
+ const h=harness();h.db.tasks[0].lead_id='own-lead';await h.boot();
+ h.run('navigate("leads");openLeadDetails("own-lead")');
+ assert.equal(h.nodes.get('leadDetailDialog').open,true);
+ assert.match(h.nodes.get('leadDetailContent').innerHTML,/data-related-table="tasks"/);
+ assert.match(h.nodes.get('leadDetailContent').innerHTML,/data-related-table="institutions"/);
+ assert.match(h.nodes.get('leadDetailContent').innerHTML,/data-related-table="contacts"/);
+ h.run('openTaskForLead("own-lead")');
+ assert.equal(h.nodes.get('leadDetailDialog').open,false);
+ assert.equal(h.nodes.get('editor').open,true);
+ assert.equal(h.run('editorReturnLeadId'),'own-lead');
+ h.nodes.get('editor').close();
+ assert.equal(h.nodes.get('leadDetailDialog').open,true);
+ assert.equal(h.run('editorReturnLeadId'),null);
+ assert.match(h.nodes.get('leadDetailTitle').textContent,/Institución propia/);
 });
 test('seller cannot open another owner request details',async()=>{
  const h=harness('SALES');await h.boot();h.run('openLeadDetails("other-lead")');
