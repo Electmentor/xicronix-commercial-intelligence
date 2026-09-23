@@ -1725,3 +1725,19 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
   }
   .commercial-search>small{display:none!important}
 }
+
+
+/* V2.40.49 · Equalize prospect card vertical padding */
+.seller-priority-prospect{
+  padding-top:14px!important;
+  padding-bottom:14px!important;
+}
+.seller-priority-prospect>header{
+  margin-top:0!important;
+}
+.seller-priority-prospect>.prospect-progress{
+  margin-top:4px!important;
+}
+.prospect-action-footer{
+  margin-bottom:0!important;
+}
