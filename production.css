@@ -974,3 +974,44 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
 .prospect-progress{
   padding-top:12px!important;
 }
+
+
+/* V2.40.22 · Prospect title hierarchy and stage status */
+.seller-priority-prospect>header{
+  align-items:flex-start;
+}
+.seller-priority-prospect>header>div:first-child>div{
+  display:grid;
+  gap:4px;
+}
+.seller-priority-label{
+  display:block;
+  margin-top:1px;
+  font-size:.64rem;
+  letter-spacing:.09em;
+  font-weight:800;
+  color:var(--muted);
+}
+.seller-priority-status{
+  margin-left:auto;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  text-align:right;
+}
+.seller-current-stage{
+  font-size:.78rem;
+  font-weight:800;
+  color:var(--text);
+  white-space:nowrap;
+}
+@media(max-width:760px){
+  .seller-priority-prospect>header{
+    flex-direction:column;
+  }
+  .seller-priority-status{
+    width:100%;
+    margin-left:0;
+    justify-content:space-between;
+  }
+}
