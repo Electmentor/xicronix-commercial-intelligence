@@ -11,7 +11,7 @@ export function workspaceKey(userId, organizationId) {
 }
 export function canAccessPage(profile, workspace, page) {
   if (!profile?.organization_id || !['ADMIN','MANAGER','SALES','VIEWER'].includes(profile.role)) return false;
-  return (page==='mail' ? effectiveWorkspace(profile, workspace)===ADMIN : operational.includes(page)) || ['dashboard','now'].includes(page) || (effectiveWorkspace(profile, workspace) === ADMIN && ['users','goals','cost_profiles','expenses'].includes(page));
+  return (page==='mail' ? effectiveWorkspace(profile, workspace)===ADMIN : operational.includes(page)) || ['dashboard','now'].includes(page) || (effectiveWorkspace(profile, workspace) === ADMIN && ['prospects','users','goals','cost_profiles','expenses'].includes(page));
 }
 export function canWriteModule(profile, workspace, table) {
   if (!canAccessPage(profile, workspace, table) || ['dashboard','radar','now'].includes(table) || !['ADMIN','MANAGER','SALES'].includes(profile.role)) return false;
