@@ -88,8 +88,8 @@ const DEV_SUPABASE_KEY='sb_publishable_pqqyMTcBovUi4sbp2Cn6yw_sL0_Xs__';
 const CRM_SUPABASE_URL=IS_DEV_PREVIEW?DEV_SUPABASE_URL:PROD_SUPABASE_URL;
 const CRM_SUPABASE_KEY=IS_DEV_PREVIEW?DEV_SUPABASE_KEY:PROD_SUPABASE_KEY;
 const PUBLIC_APP_URL=IS_DEV_PREVIEW?'https://xicronix-commercial-intelligence-git-dev-xicronix.vercel.app/':'https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE=IS_DEV_PREVIEW?'2026-09-23-v2.33-dev':'2026-09-19-v2.9';
-const DEV_SUPPORTED_MODULES=new Set(['dashboard','institutions','contacts','leads','opportunities','tasks','activities']);
+const CRM_RELEASE=IS_DEV_PREVIEW?'2026-09-23-v2.34-dev':'2026-09-19-v2.9';
+const DEV_SUPPORTED_MODULES=new Set(['dashboard','prospects','institutions','contacts','leads','opportunities','tasks','activities']);
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
 let entryRoute=readEntryRoute();
@@ -373,9 +373,52 @@ function render(){
  });
  if(page==='dashboard')renderDashboard();else renderRecords();
 }
+function openNowTarget(target,filter=''){
+ if(!accessible(target))return;
+ navigate(target);
+ if(filter&&$('filter')){$('filter').value=filter;pageIndex=0;renderRecords();}
+}
+function renderNowDashboard(){
+ const prospects=(data.prospects||[]);
+ const actionNow=prospects.filter(row=>row.operating_bucket==='ACTION_NOW');
+ const researchFirst=prospects.filter(row=>row.operating_bucket==='RESEARCH_FIRST');
+ const strategic=prospects.filter(row=>row.operating_bucket==='STRATEGIC_WATCH');
+ const leads=scopedRows('leads').filter(row=>!['DISQUALIFIED','CONVERTED'].includes(row.status));
+ const tasks=sortTasksByUrgency(scopedRows('tasks').filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)),Date.now());
+ const overdue=tasks.filter(row=>taskUrgency(row,Date.now()).band==='OVERDUE');
+ const today=tasks.filter(row=>taskUrgency(row,Date.now()).band==='TODAY');
+ const attention=attentionRows();
+ const nextTask=tasks[0]||null;
+ const nextAction=actionNow[0]||researchFirst[0]||null;
+ const headline=attention.length
+   ? attention.length+' solicitud'+(attention.length===1?'':'es')+' requiere'+(attention.length===1?'':'n')+' primera respuesta'
+   : actionNow.length
+     ? actionNow.length+' potencial'+(actionNow.length===1?'':'es')+' listo'+(actionNow.length===1?'':'s')+' para acción'
+     : overdue.length
+       ? overdue.length+' tarea'+(overdue.length===1?'':'s')+' vencida'+(overdue.length===1?'':'s')
+       : 'Operación comercial bajo control';
+ const recommendation=attention[0]
+   ? 'Atender '+(relatedName(attention[0])||attention[0].title||'la solicitud web')+' antes de continuar con investigación.'
+   : nextAction
+     ? (nextAction.operating_bucket==='ACTION_NOW'?'Revisar evidencia y registrar contacto únicamente si la interacción humana ocurre.':'Cerrar investigación pendiente antes de cualquier contacto.')
+     : nextTask
+       ? 'Completar '+nextTask.title+' · '+date(nextTask.due_at)
+       : 'No hay una acción crítica pendiente registrada.';
+ return '<section class="now-dashboard"><header class="now-hero"><div><small>XICRONIX AHORA</small><h2>'+esc(headline)+'</h2><p>'+esc(recommendation)+'</p></div><span class="source-badge '+(dataSource==='demo'?'demo':'live')+'">'+(dataSource==='demo'?'DEMOSTRACIÓN':'DATOS REALES')+'</span></header>'+
+ '<div class="now-grid">'+
+  '<button class="now-card '+(attention.length?'urgent':'')+'" data-now-target="leads" data-now-filter=""><span>Atención humana</span><strong>'+attention.length+'</strong><small>Solicitudes web sin primera respuesta</small></button>'+
+  '<button class="now-card '+(actionNow.length?'ready':'')+'" data-now-target="prospects" data-now-filter="ACTION_NOW"><span>Acción ahora</span><strong>'+actionNow.length+'</strong><small>Potenciales que superaron los gates comerciales</small></button>'+
+  '<button class="now-card '+(researchFirst.length?'research':'')+'" data-now-target="prospects" data-now-filter="RESEARCH_FIRST"><span>Investigar primero</span><strong>'+researchFirst.length+'</strong><small>No contactar hasta cerrar evidencia o confianza</small></button>'+
+  '<button class="now-card '+(overdue.length?'urgent':'')+'" data-now-target="tasks" data-now-filter="OVERDUE"><span>Tareas vencidas</span><strong>'+overdue.length+'</strong><small>'+today.length+' adicionales vencen hoy</small></button>'+
+  '<button class="now-card" data-now-target="leads" data-now-filter=""><span>Leads activos</span><strong>'+leads.length+'</strong><small>Interacciones humanas ya registradas</small></button>'+
+  '<button class="now-card" data-now-target="prospects" data-now-filter="STRATEGIC_WATCH"><span>Vigilancia estratégica</span><strong>'+strategic.length+'</strong><small>Seguir observando sin forzar contacto</small></button>'+
+ '</div>'+
+ (nextTask||nextAction?'<section class="now-next"><div><small>SIGUIENTE ACCIÓN RECOMENDADA</small><h3>'+esc(nextTask?nextTask.title:(nextAction?.name||'Revisar potencial'))+'</h3><p>'+esc(nextTask?(taskUrgency(nextTask,Date.now()).label+' · '+date(nextTask.due_at)):(nextAction?.next_action||nextAction?.operating_recommendation||'Revisar evidencia antes de actuar.'))+'</p></div><button type="button" class="primary" data-now-target="'+(nextTask?'tasks':'prospects')+'" data-now-filter="'+(nextTask?'':nextAction?.operating_bucket||'')+'">Abrir ahora</button></section>':'')+
+ '</section>';
+}
 function renderDashboard(){
  const admin=canViewDashboard();
- $('dashboard').innerHTML=admin?renderExecutive(data,{demo:dataSource==='demo',failures,analyticsPeriod}):renderSellerDashboard(data,{demo:dataSource==='demo',failures});
+ $('dashboard').innerHTML=renderNowDashboard()+(admin?renderExecutive(data,{demo:dataSource==='demo',failures,analyticsPeriod}):renderSellerDashboard(data,{demo:dataSource==='demo',failures}));
 }
 function setAnalyticsPeriod(period){
  if(!canViewDashboard()||loading||busy||!['month','quarter','year'].includes(period))return;
@@ -1202,7 +1245,7 @@ function init(){
  $('dateLabel').textContent=new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long'});
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  $('sidebarToggle').onclick=()=>applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.prospectExplain){explainPotentialProspect(b.dataset.prospectExplain);return;}if(b.dataset.prospectContact){registerPotentialContact(b.dataset.prospectContact);return;}if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.nowTarget){openNowTarget(b.dataset.nowTarget,b.dataset.nowFilter||'');return;}if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.prospectExplain){explainPotentialProspect(b.dataset.prospectExplain);return;}if(b.dataset.prospectContact){registerPotentialContact(b.dataset.prospectContact);return;}if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
  $('authForm').onsubmit=authenticate;$('passwordlessBtn').onclick=signInWithEmailLink;$('passwordlessBtn').hidden=!IS_DEV_PREVIEW;$('passwordlessHint').hidden=!IS_DEV_PREVIEW;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
