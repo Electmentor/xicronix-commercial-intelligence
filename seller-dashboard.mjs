@@ -40,7 +40,7 @@ function renderProspectProgress(lead,maturity){
     const current=currentCode===code || (!currentCode && percent===meta.percent);
     const state=current?'current':reached?'done':'future';
     return '<div class="prospect-progress-node '+state+'" style="--node-pos:'+meta.percent+'%">'+
-      '<span class="prospect-progress-dot" aria-hidden="true"></span>'+
+      '<span class="prospect-progress-tick" aria-hidden="true"></span>'+
       '<div><b>'+meta.percent+'%</b><small>'+esc(meta.label)+'</small></div>'+
     '</div>';
   }).join('');
