@@ -161,3 +161,38 @@ html[data-theme="night"] .mobile-prospect-scores span{background:#172b42}
  .mobile-prospect-actions>*{flex:1 1 auto}
  .mobile-prospect-actions button{min-height:42px}
 }
+
+
+/* Xicronix Ahora · operational home · DEV v2.34 */
+.now-dashboard{display:grid;gap:12px;margin:0 0 18px}
+.now-hero{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;padding:18px 20px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(135deg,#f8fbff,#fff8f1)}
+.now-hero small,.now-next small{font-size:.7rem;letter-spacing:.12em;font-weight:800;color:var(--muted)}
+.now-hero h2{margin:5px 0 6px;font-size:clamp(1.3rem,2.3vw,1.85rem);line-height:1.15}
+.now-hero p{margin:0;color:var(--muted);line-height:1.45;max-width:840px}
+.now-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px}
+.now-card{min-height:122px;text-align:left;padding:14px;border:1px solid var(--line);border-radius:14px;background:white;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start}
+.now-card:hover,.now-card:focus-visible{border-color:var(--blue);transform:translateY(-1px)}
+.now-card span{font-weight:800;font-size:.78rem}
+.now-card strong{font-size:1.85rem;line-height:1;margin:10px 0 7px}
+.now-card small{font-size:.7rem;line-height:1.35;color:var(--muted);white-space:normal}
+.now-card.urgent{border-color:#e3a19c;background:#fff7f6}
+.now-card.ready{border-color:#91cbb5;background:#f3fbf7}
+.now-card.research{border-style:dashed;border-color:#e1b16b;background:#fffaf0}
+.now-next{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:15px 18px;border:1px solid var(--line);border-radius:15px;background:white}
+.now-next h3{margin:4px 0;font-size:1rem}
+.now-next p{margin:0;color:var(--muted);font-size:.82rem}
+.now-next button{flex:none}
+html[data-theme="night"] .now-hero{background:linear-gradient(135deg,#11243a,#211d18)}
+html[data-theme="night"] .now-card,html[data-theme="night"] .now-next{background:#111f31}
+html[data-theme="night"] .now-card.urgent{background:#3c2529;border-color:#82474a}
+html[data-theme="night"] .now-card.ready{background:#15352d;border-color:#376754}
+html[data-theme="night"] .now-card.research{background:#392d1c;border-color:#765829}
+@media(max-width:1200px){.now-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){
+ .now-dashboard{margin-top:4px}
+ .now-hero{flex-direction:column;padding:15px}
+ .now-grid{grid-template-columns:1fr 1fr;gap:8px}
+ .now-card{min-height:112px;padding:12px}
+ .now-next{align-items:stretch;flex-direction:column}
+ .now-next button{width:100%}
+}
