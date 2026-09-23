@@ -291,8 +291,8 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
     #d62d2d 25%,
     #ec9923 55%,
     #2ca45c 100%);
-  background-size:calc(100% / max(var(--progress-ratio, .01), .01)) 100%;
   background-position:left center;
+  background-repeat:no-repeat;
   color:transparent;
 }
 .prospect-progress-dot{display:none!important}
