@@ -1,0 +1,25 @@
+-- DEV only · Territorial Intelligence Consolidation v1
+-- Canonical executable reference for the changes applied in Supabase DEV on 2026-09-23.
+-- Purpose: consolidate already-processed geography, economic profile, XPPS/XWIN,
+-- procurement readiness and CRM operating buckets without resuming national research.
+--
+-- Runtime objects created:
+--   public.territorial_intelligence_registry (security_invoker view)
+--   public.get_territorial_intelligence(text) (ADMIN/MANAGER aggregate RPC)
+--
+-- Security:
+--   registry is not granted to anon;
+--   RPC exposes aggregates only, requires authenticated ADMIN/MANAGER;
+--   no raw master-account identities are returned by the RPC.
+--
+-- Important semantic rule:
+--   physical_presence_weight = campus footprint
+--   commercial_decision_weight = independent buying-decision unit
+-- Network duplicates may count physically while contributing zero independent decision weight.
+--
+-- Economic revenue estimates are deterministic only when student_count and tuition
+-- are both already present. No socioeconomic class is inferred from geography.
+
+-- The applied SQL is intentionally maintained in Supabase DEV as the canonical runtime
+-- definition. Inspect pg_views / pg_proc before reapplying to avoid drift.
+select 'territorial_intelligence_registry_v1_applied_in_dev' as status;
