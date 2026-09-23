@@ -100,3 +100,53 @@ html[data-theme="night"] .now-kpis .now-kpi-card{
 }
 html[data-theme="night"] .now-kpis .now-kpi-card small{color:#8fc0ff}
 @media(max-width:400px){.now-kpis .now-kpi-card b{font-size:1.5rem}}
+
+
+/* V2.35 · Mobile first viewport compaction */
+@media(max-width:700px){
+  .sidebar{padding:10px 14px 8px}
+  .sidebar .brand{padding:2px 0 10px;font-size:1.08rem;letter-spacing:.11em}
+  .sidebar nav{gap:6px;padding-bottom:4px}
+  .sidebar nav button{min-height:40px;padding:8px 12px;font-size:.86rem;border-radius:10px}
+  .sidebar-bottom{display:grid;grid-template-columns:auto 1fr auto;gap:6px 12px;padding:6px 0 0;align-items:center}
+  .sidebar-bottom .release-label{grid-column:1/-1;margin:0;font-size:.58rem;letter-spacing:.07em;opacity:.75}
+  .sidebar-bottom .complaints-link{display:none}
+  .sidebar-bottom span{font-size:.72rem;opacity:.8}
+  .sidebar-bottom button{min-height:34px;padding:6px 10px;font-size:.72rem;justify-self:end}
+
+  .main{padding:14px 14px 22px}
+  .top{gap:8px;margin-bottom:10px}
+  .top .eyebrow{font-size:.63rem;margin:0}
+  .top h1{font-size:1.48rem;margin:5px 0 2px}
+  #welcome{font-size:.75rem;margin:0}
+  .header-actions{display:grid;grid-template-columns:auto 1fr auto;gap:6px}
+  .header-actions button{min-height:38px;padding:7px 9px;font-size:.72rem}
+  #attentionBtn{min-width:48px}
+  #attentionBtn span{display:none}
+  #newBtn{display:none!important}
+
+  .workspace-controls{padding:8px 10px;gap:8px;margin:0 0 10px;border-radius:12px}
+  .workspace-switch{padding:2px;gap:2px;flex-wrap:nowrap}
+  .workspace-switch button{min-height:38px;padding:6px 8px;font-size:.72rem;line-height:1.15;flex:1 1 0}
+  .workspace-switch svg{width:15px;height:15px}
+  #workspaceHint{display:none}
+  .source-controls{width:100%;display:flex;align-items:center;gap:6px}
+  .source-controls .source-badge{font-size:.62rem;padding:5px 8px}
+  .source-controls button{min-height:34px;padding:6px 9px;font-size:.68rem}
+  .demo-seller{display:none!important}
+
+  .app[data-page="now"] .toolbar{margin-bottom:6px}
+  .app[data-page="now"] #importHelp{display:none}
+  .app[data-page="now"] #recordCount{font-size:.68rem;margin-bottom:6px}
+  .app[data-page="now"] .now-status{padding:14px 15px;margin-bottom:10px;border-radius:16px}
+  .app[data-page="now"] .now-status h2{font-size:1.35rem}
+  .app[data-page="now"] .now-status p{font-size:.78rem;line-height:1.4}
+  .app[data-page="now"] .now-kpis{gap:8px;margin-bottom:10px}
+  .app[data-page="now"] .now-kpis .now-kpi-card{min-height:92px;padding:11px}
+  .app[data-page="now"] .now-kpis .now-kpi-card b{font-size:1.45rem}
+  .app[data-page="now"] .now-kpis .now-kpi-card span{font-size:.66rem}
+  .app[data-page="now"] .now-kpis .now-kpi-card small{font-size:.65rem;margin-top:6px}
+  .app[data-page="now"] .panel{padding:14px}
+  .app[data-page="now"] .now-grid{gap:10px;margin-bottom:10px}
+  .app[data-page="now"] .now-update,.app[data-page="now"] .now-alerts{gap:10px}
+}
