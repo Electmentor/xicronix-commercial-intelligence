@@ -4,7 +4,7 @@ export const MILESTONE_META = {
   M3: { percent: 50, label: 'Propuesta presentada' },
   M4: { percent: 70, label: 'Negociación y condiciones validadas' },
   M5: { percent: 85, label: 'Compromiso formal del cliente' },
-  M6: { percent: 100, label: 'Venta cerrada' },
+  M6: { percent: 100, label: 'Venta ganada' },
 };
 
 export const MOVEMENT_ACTIONS = {
