@@ -300,3 +300,53 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
 .prospect-progress-node>div{top:12px}
 .prospect-progress-node.current>div b,
 .prospect-progress-node.current>div small{font-weight:900;color:var(--text)}
+
+
+/* V2.40.7 · Sci-fi pulse on prospect progress */
+.prospect-progress-track{
+  overflow:hidden;
+  box-shadow:inset 0 0 0 1px rgba(16,35,58,.04);
+}
+.prospect-progress-track>i{
+  position:absolute;
+  overflow:hidden;
+  background:
+    linear-gradient(90deg,
+      #3b0f16 0%,
+      #5a121b 16%,
+      #7e1720 34%,
+      #a91f27 55%,
+      #d42b31 76%,
+      #ef3d3d 100%);
+  background-position:left center;
+  background-repeat:no-repeat;
+  box-shadow:
+    0 0 8px rgba(183,28,38,.28),
+    0 0 16px rgba(211,36,45,.12);
+}
+.prospect-progress-track>i::after{
+  content:"";
+  position:absolute;
+  top:-5px;
+  bottom:-5px;
+  width:54px;
+  left:-70px;
+  background:linear-gradient(90deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,120,120,.10) 28%,
+    rgba(255,220,220,.92) 50%,
+    rgba(255,110,110,.12) 72%,
+    rgba(255,255,255,0) 100%);
+  filter:blur(.4px);
+  mix-blend-mode:screen;
+  animation:prospectProgressPulse 2.2s ease-in-out infinite;
+}
+@keyframes prospectProgressPulse{
+  0%{left:-70px;opacity:0}
+  10%{opacity:.95}
+  78%{opacity:.95}
+  100%{left:calc(100% + 16px);opacity:0}
+}
+@media (prefers-reduced-motion:reduce){
+  .prospect-progress-track>i::after{animation:none;display:none}
+}
