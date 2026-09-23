@@ -569,6 +569,10 @@ function explainPotentialProspect(id){
   'XPPS: '+(row.xpps_score??'—')+' · XWIN: '+(row.xwin_score??'—')+' · XAS: '+(row.xas_score??'—'),
   'Rollout: '+(row.rollout_potential_score??'—')+' · Procurement: '+(row.procurement_readiness_score??'—')+' ('+(row.procurement_model||'UNKNOWN')+')',
   'Pre-contacto: '+(row.precontact_completion_pct??'—')+'% · pendientes '+(row.open_items??0)+' · no encontrados '+(row.not_found_items??0),
+  row.student_count!=null?'Matrícula observada: '+Number(row.student_count).toLocaleString('es-PE')+' · alcance '+(row.student_count_scope||'UNKNOWN'):'',
+  row.monthly_tuition_pen!=null?'Pensión observada: '+prospectMoney(row.monthly_tuition_pen)+' · ingreso mensual bruto estimado '+prospectMoney(row.monthly_gross_revenue_estimate_pen):'',
+  row.market_segment_proxy&&row.market_segment_proxy!=='UNKNOWN'?'Segmento comercial proxy: '+marketSegmentLabel(row.market_segment_proxy)+' · confianza económica '+(row.economic_profile_confidence??'—')+'%':'',
+  row.economic_profile_note?'Nota económica: '+row.economic_profile_note:'',
   row.promotion_reason?'Criterio: '+row.promotion_reason:'',
   row.operating_recommendation?'Recomendación operativa: '+row.operating_recommendation:'',
   row.next_action?'Siguiente acción PI: '+row.next_action:'',
@@ -591,11 +595,85 @@ function prospectActionClass(row){
  if(bucket==='STRATEGIC_WATCH')return {label:'Vigilancia estratégica',cls:''};
  return {label:'Monitorear',cls:''};
 }
+
+const PERU_DEPARTMENT_CENTROIDS={
+ 'AMAZONAS':[-6.23,-77.87],'ANCASH':[-9.53,-77.53],'APURIMAC':[-13.63,-72.88],'AREQUIPA':[-16.40,-71.54],
+ 'AYACUCHO':[-13.16,-74.22],'CAJAMARCA':[-7.16,-78.51],'CALLAO':[-12.06,-77.15],'CUSCO':[-13.52,-71.97],
+ 'HUANCAVELICA':[-12.79,-74.97],'HUANUCO':[-9.93,-76.24],'ICA':[-14.07,-75.73],'JUNIN':[-12.07,-75.21],
+ 'LA LIBERTAD':[-8.11,-79.03],'LAMBAYEQUE':[-6.77,-79.84],'LIMA':[-12.05,-77.04],'LORETO':[-3.75,-73.25],
+ 'MADRE DE DIOS':[-12.59,-69.19],'MOQUEGUA':[-17.19,-70.94],'PASCO':[-10.68,-76.26],'PIURA':[-5.19,-80.63],
+ 'PUNO':[-15.84,-70.02],'SAN MARTIN':[-6.49,-76.36],'TACNA':[-18.01,-70.25],'TUMBES':[-3.57,-80.46],'UCAYALI':[-8.38,-74.55]
+};
+const LIMA_DISTRICT_CENTROIDS={
+ 'SANTIAGO DE SURCO':[-12.146,-77.006],'SAN ISIDRO':[-12.097,-77.036],'LA MOLINA':[-12.083,-76.947],
+ 'BARRANCA':[-10.752,-77.759],'MIRAFLORES':[-12.122,-77.030],'SAN BORJA':[-12.107,-76.999],
+ 'SAN MIGUEL':[-12.078,-77.090],'PUEBLO LIBRE':[-12.074,-77.063],'JESUS MARIA':[-12.075,-77.046],
+ 'MAGDALENA DEL MAR':[-12.091,-77.068],'LINCE':[-12.084,-77.034],'BREÑA':[-12.057,-77.052],
+ 'CERCADO DE LIMA':[-12.046,-77.043],'LIMA':[-12.046,-77.043],'SAN JUAN DE LURIGANCHO':[-11.986,-77.006],
+ 'VILLA EL SALVADOR':[-12.213,-76.937],'VILLA MARIA DEL TRIUNFO':[-12.163,-76.944],
+ 'SAN JUAN DE MIRAFLORES':[-12.163,-76.972],'CHORRILLOS':[-12.176,-77.016],'ATE':[-12.026,-76.922],
+ 'COMAS':[-11.938,-77.057],'LOS OLIVOS':[-11.970,-77.074],'PUENTE PIEDRA':[-11.866,-77.077],
+ 'SAN MARTIN DE PORRES':[-12.003,-77.083],'RIMAC':[-12.025,-77.042],'LA VICTORIA':[-12.067,-77.033],
+ 'SURQUILLO':[-12.111,-77.013],'INDEPENDENCIA':[-11.990,-77.050],'CARABAYLLO':[-11.858,-77.037],
+ 'LURIN':[-12.274,-76.870],'PACHACAMAC':[-12.229,-76.860],'CHACLACAYO':[-11.975,-76.769],
+ 'LURIGANCHO':[-11.936,-76.697],'SANTA ANITA':[-12.044,-76.971]
+};
+function prospectMoney(value){
+ return value==null?'—':'S/ '+new Intl.NumberFormat('es-PE',{maximumFractionDigits:0}).format(Number(value)||0);
+}
+function economicLabel(row){
+ if(row.monthly_gross_revenue_estimate_pen!=null)return prospectMoney(row.monthly_gross_revenue_estimate_pen)+'/mes';
+ if(row.student_count!=null)return Number(row.student_count).toLocaleString('es-PE')+' alumnos';
+ return 'Sin estimación';
+}
+function marketSegmentLabel(value){
+ return ({SOCIAL_MISSION:'Misión social',VALUE:'Accesible',MID_MARKET:'Medio',UPPER_MID:'Medio-alto',PREMIUM:'Premium',UNKNOWN:'Sin clasificar'})[value]||'Sin clasificar';
+}
+function renderProspectMaps(rows){
+ if(!window.L)return;
+ const peruEl=document.getElementById('prospectPeruMap'),limaEl=document.getElementById('prospectLimaMap');
+ if(!peruEl||!limaEl)return;
+ const init=(el,center,zoom)=>{
+   if(el._leaflet_id)return null;
+   const map=L.map(el,{scrollWheelZoom:false,attributionControl:true}).setView(center,zoom);
+   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
+   return map;
+ };
+ const peru=init(peruEl,[-9.2,-75.0],5);
+ if(peru){
+   const grouped=new Map();
+   rows.forEach(row=>{
+     const key=String(row.department||'').toUpperCase().trim();if(!key||!PERU_DEPARTMENT_CENTROIDS[key])return;
+     const current=grouped.get(key)||{count:0,xpps:0,xwin:0,ready:0};current.count++;
+     current.xpps+=Number(row.xpps_score||0);current.xwin+=Number(row.xwin_score||0);
+     if(row.operating_bucket==='ACTION_NOW')current.ready++;grouped.set(key,current);
+   });
+   grouped.forEach((v,key)=>{
+     const avgXpps=Math.round(v.xpps/v.count),avgXwin=Math.round(v.xwin/v.count);
+     L.circleMarker(PERU_DEPARTMENT_CENTROIDS[key],{radius:Math.min(22,7+v.count*3),weight:v.ready?4:2,fillOpacity:.55})
+      .addTo(peru).bindPopup('<strong>'+esc(key)+'</strong><br>'+v.count+' prospecto(s)<br>XPPS prom. '+avgXpps+' · XWIN prom. '+avgXwin+(v.ready?'<br><b>'+v.ready+' ACTION_NOW</b>':''));
+   });
+ }
+ const limaRows=rows.filter(row=>String(row.department||'').toUpperCase()==='LIMA');
+ const lima=init(limaEl,[-12.08,-77.02],10);
+ if(lima){
+   const grouped=new Map();
+   limaRows.forEach(row=>{
+     const key=String(row.district||'').toUpperCase().trim();if(!key)return;
+     const current=grouped.get(key)||{count:0,xpps:0,xwin:0,names:[]};current.count++;current.xpps+=Number(row.xpps_score||0);current.xwin+=Number(row.xwin_score||0);current.names.push(row.name);grouped.set(key,current);
+   });
+   grouped.forEach((v,key)=>{
+     const coord=LIMA_DISTRICT_CENTROIDS[key]||LIMA_DISTRICT_CENTROIDS.LIMA;
+     L.circleMarker(coord,{radius:Math.min(20,6+v.count*3),weight:2,fillOpacity:.55})
+      .addTo(lima).bindPopup('<strong>'+esc(key)+'</strong><br>'+v.count+' prospecto(s)<br>XPPS prom. '+Math.round(v.xpps/v.count)+' · XWIN prom. '+Math.round(v.xwin/v.count)+'<br>'+v.names.slice(0,4).map(esc).join('<br>'));
+   });
+ }
+}
 function renderPotentialProspects(){
  $('recordContext').hidden=true;$('sellerSummary').hidden=true;$('importBtn').hidden=true;$('importHelp').hidden=true;
  const search=normalize($('search').value),filter=$('filter').value;
  const all=(data.prospects||[]);
- const rows=all.filter(row=>(!filter||row.operating_bucket===filter)&&(!search||normalize([row.name,row.ruc,row.city,row.procurement_model,row.xwin_band].filter(Boolean).join(' ')).includes(search)))
+ const rows=all.filter(row=>(!filter||row.operating_bucket===filter)&&(!search||normalize([row.name,row.ruc,row.city,row.district,row.department,row.procurement_model,row.xwin_band,row.market_segment_proxy].filter(Boolean).join(' ')).includes(search)))
   .sort((a,b)=>{
    const aa=prospectActionClass(a),bb=prospectActionClass(b);
    const rank=x=>x.label==='Acción ahora'?5:x.label==='Investigar primero'?4:x.label==='Vigilancia estratégica'?3:x.label==='Revalidar'?2:1;
@@ -621,12 +699,13 @@ function renderPotentialProspects(){
    return '<article class="opportunity-card '+(row.operating_bucket==='ACTION_NOW'?'ready':'research')+'">'+
     '<div class="opportunity-card-top"><span class="badge '+action.cls+'">'+esc(action.label)+'</span><small>Conf. XWIN '+esc(confidence)+'</small></div>'+
     '<h4>'+esc(row.name||'Institución')+'</h4>'+
-    '<div class="opportunity-score-row"><span><b>'+(row.xpps_score==null?'—':Number(row.xpps_score))+'</b><small>XPPS</small></span><span><b>'+(row.xwin_score==null?'—':Number(row.xwin_score))+'</b><small>XWIN</small></span><span><b>'+esc(precontact)+'</b><small>Pre-contacto</small></span></div>'+
+    '<div class="opportunity-score-row"><span><b>'+(row.xpps_score==null?'—':Number(row.xpps_score))+'</b><small>XPPS</small></span><span><b>'+(row.xwin_score==null?'—':Number(row.xwin_score))+'</b><small>XWIN</small></span><span><b>'+esc(precontact)+'</b><small>Pre-contacto</small></span><span><b>'+esc(economicLabel(row))+'</b><small>Capacidad económica</small></span></div>'+
     '<p>'+esc(next)+'</p>'+
     '<button type="button" data-prospect-explain="'+row.id+'">Ver evidencia y decisión</button>'+
    '</article>';
   }).join('')+'</div></section>':'';
- $('recordList').innerHTML=focusBoard+'<div class="table-wrap"><table><thead><tr><th>Cuenta</th><th>Prioridad</th><th>XPPS / XWIN</th><th>Acceso</th><th>Escala</th><th>Compras</th><th>Acción</th></tr></thead><tbody>'+
+ const geoBoard='<section class="prospect-geo-board"><div class="prospect-geo-head"><div><small>MAPA COMERCIAL</small><h3>Concentración geográfica de prospectos</h3><p>El tamaño de cada punto refleja concentración de cuentas investigadas; no representa población total de colegios.</p></div></div><div class="prospect-map-grid"><article><h4>Perú</h4><div id="prospectPeruMap" class="prospect-map" aria-label="Mapa de prospectos por departamento"></div></article><article><h4>Lima por distrito</h4><div id="prospectLimaMap" class="prospect-map" aria-label="Mapa de prospectos por distrito de Lima"></div></article></div></section>';
+ $('recordList').innerHTML=focusBoard+geoBoard+'<div class="table-wrap"><table><thead><tr><th>Cuenta</th><th>Prioridad</th><th>XPPS / XWIN</th><th>Economía</th><th>Acceso</th><th>Escala</th><th>Compras</th><th>Acción</th></tr></thead><tbody>'+
  rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>{
    const action=prospectActionClass(row);
    const scale=Number(row.network_campus_count||1)>1?(Number(row.network_campus_count)+' sedes · '+Number(row.network_province_count||1)+' prov.'):'1 sede';
@@ -637,12 +716,14 @@ function renderPotentialProspects(){
     '<td><strong>'+esc(row.name||'Institución')+'</strong><small>'+esc([row.city,row.ruc&&('RUC '+row.ruc)].filter(Boolean).join(' · '))+'</small>'+revalidation+'</td>'+
     '<td><span class="badge '+action.cls+'">'+esc(action.label)+'</span></td>'+
     '<td><strong>XPPS '+(row.xpps_score==null?'—':Number(row.xpps_score))+'</strong><small>XWIN '+(row.xwin_score==null?'—':Number(row.xwin_score))+' · '+esc(row.xwin_band||'UNKNOWN')+'</small></td>'+
+    '<td><strong>'+esc(economicLabel(row))+'</strong><small>'+esc(marketSegmentLabel(row.market_segment_proxy))+(row.monthly_tuition_pen!=null?' · pensión '+prospectMoney(row.monthly_tuition_pen):'')+'</small></td>'+
     '<td><strong>XAS '+(row.xas_score==null?'—':Number(row.xas_score))+'</strong><small>Confianza XPPS '+(row.xpps_confidence==null?'—':Number(row.xpps_confidence)+'%')+'</small></td>'+
     '<td><strong>'+esc(scale)+'</strong><small>Rollout '+esc(rollout)+'</small></td>'+
     '<td><strong>'+esc(row.procurement_model||'UNKNOWN')+'</strong><small>Readiness '+esc(procurement)+'</small></td>'+
     '<td><div class="row-actions">'+'<button type="button" data-prospect-explain="'+row.id+'">Por qué</button>'+(row.has_lead?'<span class="badge success">Lead existente</span>':row.operating_bucket==='ACTION_NOW'?'<button type="button" class="primary" data-prospect-contact="'+row.id+'">Registrar contacto</button>':'<span class="badge warn">Contacto bloqueado</span>')+'</div></td>'+
    '</tr>';
  }).join('')+'</tbody></table></div>';
+ requestAnimationFrame(()=>renderProspectMaps(all));
 }
 
 function renderRecords(){
