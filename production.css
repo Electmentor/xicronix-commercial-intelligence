@@ -903,3 +903,63 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
     margin-left:42px;
   }
 }
+
+
+/* V2.40.19 · Align progress title beside rail and percent above marker */
+.prospect-progress{
+  position:relative;
+  padding-top:22px;
+}
+.prospect-progress-shell{
+  position:relative;
+  width:min(980px,calc(100% - 190px));
+  margin-left:150px;
+}
+.prospect-progress-head{
+  position:relative;
+  min-height:28px;
+  margin-bottom:4px;
+}
+.prospect-progress-title{
+  position:absolute;
+  left:-150px;
+  top:50%;
+  transform:translateY(-50%);
+  width:132px;
+  margin:0;
+  font-size:.68rem;
+  letter-spacing:.10em;
+  font-weight:900;
+  color:#24476b;
+  white-space:nowrap;
+  text-align:left;
+}
+.prospect-progress-value{
+  position:absolute;
+  left:var(--progress-label-pos);
+  top:-16px;
+  transform:translateX(-50%);
+  margin:0;
+  font-size:1.28rem;
+  line-height:1;
+  font-weight:900;
+  color:#0f2747;
+  text-align:center;
+  white-space:nowrap;
+}
+.prospect-progress-head>span{
+  display:none;
+}
+@media(max-width:900px){
+  .prospect-progress-shell{
+    width:calc(100% - 120px);
+    margin-left:92px;
+  }
+  .prospect-progress-title{
+    left:-92px;
+    width:80px;
+    font-size:.62rem;
+    white-space:normal;
+    line-height:1.1;
+  }
+}
