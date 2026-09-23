@@ -88,13 +88,25 @@ function prospectRows(data,now){
 }
 
 function prospectDisplayId(lead){return String(lead?.id||'').slice(0,8).toUpperCase();}
+function normalizeProspectIdSearch(value){
+  return String(value||'')
+    .trim()
+    .toUpperCase()
+    .replace(/^ID\s*/,'')
+    .replace(/O/g,'0')
+    .replace(/[^0-9A-F]/g,'');
+}
 function matchesProspectSearch(row,query){
-  const q=String(query||'').trim().toLowerCase();
-  if(!q)return true;
+  const raw=String(query||'').trim();
+  if(!raw)return true;
+  const q=raw.toLowerCase();
   const name=row.institution?.name||row.lead.title||'';
-  const fullId=String(row.lead.id||'').toLowerCase();
-  const shortId=prospectDisplayId(row.lead).toLowerCase();
-  return name.toLowerCase().includes(q)||fullId.includes(q)||shortId.includes(q);
+  if(name.toLowerCase().includes(q))return true;
+  const qId=normalizeProspectIdSearch(raw);
+  if(!qId)return false;
+  const fullId=normalizeProspectIdSearch(row.lead.id);
+  const shortId=normalizeProspectIdSearch(prospectDisplayId(row.lead));
+  return fullId.includes(qId)||shortId.includes(qId);
 }
 
 export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={},searchQuery='',showSearch=false}={}){
