@@ -1363,3 +1363,46 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
   border-radius:8px!important;
   padding:0!important;
 }
+
+
+/* V2.40.41 · Prospect card margins + icon-only refresh */
+.seller-priority-prospect{
+  padding-left:26px!important;
+  padding-right:26px!important;
+  box-sizing:border-box!important;
+}
+.seller-priority-prospect>header,
+.seller-priority-prospect>.prospect-progress,
+.seller-priority-prospect>footer{
+  margin-left:0!important;
+  margin-right:0!important;
+}
+.seller-priority-prospect .prospect-progress{
+  padding-left:0!important;
+  padding-right:0!important;
+}
+.icon-refresh{
+  width:34px!important;
+  height:30px!important;
+  min-width:34px!important;
+  padding:0!important;
+  display:inline-grid!important;
+  place-items:center!important;
+  border-radius:8px!important;
+}
+.icon-refresh svg{
+  width:16px!important;
+  height:16px!important;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.9;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.icon-refresh:hover svg{
+  transform:rotate(18deg);
+  transition:transform .18s ease;
+}
+.icon-refresh:active svg{
+  transform:rotate(180deg) scale(.94);
+}
