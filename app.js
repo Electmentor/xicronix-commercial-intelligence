@@ -654,8 +654,9 @@ function renderProspectMaps(rows){
    });
    grouped.forEach((v,key)=>{
      const avgXpps=Math.round(v.xpps/v.count),avgXwin=Math.round(v.xwin/v.count);
+     const share=rows.length?Math.round((v.count/rows.length)*100):0;
      L.circleMarker(PERU_DEPARTMENT_CENTROIDS[key],{radius:Math.min(22,7+v.count*3),weight:v.ready?4:2,fillOpacity:.55})
-      .addTo(peru).bindPopup('<strong>'+esc(key)+'</strong><br>'+v.count+' prospecto(s)<br>XPPS prom. '+avgXpps+' · XWIN prom. '+avgXwin+(v.ready?'<br><b>'+v.ready+' ACTION_NOW</b>':''));
+      .addTo(peru).bindPopup('<strong>'+esc(key)+'</strong><br>'+v.count+' prospecto(s) · '+share+'% del foco visible<br>XPPS prom. '+avgXpps+' · XWIN prom. '+avgXwin+(v.ready?'<br><b>'+v.ready+' ACTION_NOW</b>':''));
    });
  }
  const limaRows=rows.filter(row=>String(row.department||'').toUpperCase()==='LIMA');
@@ -668,8 +669,9 @@ function renderProspectMaps(rows){
    });
    grouped.forEach((v,key)=>{
      const coord=LIMA_DISTRICT_CENTROIDS[key]||LIMA_DISTRICT_CENTROIDS.LIMA;
+     const share=limaRows.length?Math.round((v.count/limaRows.length)*100):0;
      L.circleMarker(coord,{radius:Math.min(20,6+v.count*3),weight:2,fillOpacity:.55})
-      .addTo(lima).bindPopup('<strong>'+esc(key)+'</strong><br>'+v.count+' prospecto(s)<br>XPPS prom. '+Math.round(v.xpps/v.count)+' · XWIN prom. '+Math.round(v.xwin/v.count)+'<br>'+v.names.slice(0,4).map(esc).join('<br>'));
+      .addTo(lima).bindPopup('<strong>'+esc(key)+'</strong><br>'+v.count+' prospecto(s) · '+share+'% de Lima visible<br>XPPS prom. '+Math.round(v.xpps/v.count)+' · XWIN prom. '+Math.round(v.xwin/v.count)+'<br>'+v.names.slice(0,4).map(esc).join('<br>'));
    });
  }
 }
