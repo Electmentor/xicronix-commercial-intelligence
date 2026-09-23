@@ -1406,3 +1406,61 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
 .icon-refresh:active svg{
   transform:rotate(180deg) scale(.94);
 }
+
+
+/* V2.40.42 · Commercial prospect search */
+.commercial-search{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin:0 0 14px;
+}
+.commercial-search-field{
+  flex:1 1 auto;
+  max-width:560px;
+  height:40px;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:0 12px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--panel);
+}
+.commercial-search-field svg{
+  width:17px;
+  height:17px;
+  flex:none;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  color:var(--muted);
+}
+.commercial-search-field input{
+  width:100%;
+  border:0!important;
+  outline:0!important;
+  background:transparent!important;
+  padding:0!important;
+  font:inherit;
+  font-size:.84rem;
+  color:var(--text);
+}
+.commercial-search>small{
+  color:var(--muted);
+  font-size:.72rem;
+  white-space:nowrap;
+}
+.prospect-id{
+  display:block;
+  margin-top:4px;
+  font-size:.62rem!important;
+  letter-spacing:.08em;
+  color:var(--muted);
+  font-weight:700;
+}
+@media(max-width:700px){
+  .commercial-search{align-items:stretch}
+  .commercial-search-field{max-width:none}
+  .commercial-search>small{display:none}
+}
