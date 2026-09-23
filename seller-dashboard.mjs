@@ -121,7 +121,7 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
     '</button>';
   }).join(''):'<div class="seller-story-empty">No hay prospectos activos en tu cartera.</div>';
 
-  const priorityRows=rows.slice(0,2);
+  const priorityRows=rows.slice(0,4);
   const focus=priorityRows.length?'<section class="seller-priority-section"><div class="seller-priority-stack">'+priorityRows.map((row,index)=>{
     const lead=row.lead,name=row.institution?.name||lead.title;
     return '<article class="seller-priority-prospect '+(index===0?'primary-focus':'secondary-focus')+'">'+
