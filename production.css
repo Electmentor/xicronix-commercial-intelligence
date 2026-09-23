@@ -465,3 +465,30 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
   width:100%!important;
   background-size:100% 100%!important;
 }
+
+
+/* V2.40.11 · Inverted light-to-dark blue progress preview */
+.prospect-progress-track{
+  background:linear-gradient(
+    90deg,
+    rgba(238,246,255,.22) 0%,
+    rgba(207,231,255,.20) 28%,
+    rgba(159,208,255,.18) 58%,
+    rgba(93,168,245,.14) 80%,
+    rgba(22,58,107,.10) 100%
+  );
+}
+.prospect-progress-track>i{
+  background-image:linear-gradient(
+    90deg,
+    #eef6ff 0%,
+    #dceeff 18%,
+    #c2e0ff 36%,
+    #9fd0ff 56%,
+    #73b7f8 72%,
+    #4b92dd 85%,
+    #2f6fbf 94%,
+    #163a6b 100%
+  )!important;
+  background-size:100% 100%!important;
+}
