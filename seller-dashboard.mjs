@@ -101,19 +101,25 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
     '</button>';
   }).join(''):'<div class="seller-story-empty">No hay prospectos activos en tu cartera.</div>';
 
-  let focus='';
-  if(selected){
-    const lead=selected.lead,name=selected.institution?.name||lead.title;
-    const last=selected.latest;
-    focus='<article class="seller-focus-card seller-focus-card--story">'+
-      '<header><div><small>PROSPECTO QUE EXIGE DECISIÓN</small><h2>'+esc(name)+'</h2><p>'+esc(milestoneLabel(lead.commercial_milestone))+' · '+selected.maturity+'% de madurez · urgencia '+esc(selected.urgency.label.toLowerCase())+'</p></div><button class="primary" data-lead-detail="'+esc(lead.id)+'">Abrir expediente</button></header>'+
-      '<div class="seller-story-questions">'+
-        '<section><small>1 · PROBLEMA</small><strong>'+esc(selected.problem)+'</strong><p>'+(selected.contact?esc('Contacto: '+([selected.contact.first_name,selected.contact.last_name].filter(Boolean).join(' ')||selected.contact.job_title||'registrado')):'Sin contacto decisor identificado')+'</p></section>'+
-        '<section><small>2 · EVIDENCIA</small><strong>'+esc(selected.evidence)+'</strong><p>'+esc(last?'Último movimiento: '+compactDate(last.occurred_at):'Sin interacción reciente registrada')+'</p></section>'+
-        '<section><small>3 · ACCIÓN</small><strong>'+esc(selected.urgency.next)+'</strong><p>'+esc(selected.urgency.date?'Fecha clave: '+compactDate(selected.urgency.date):'Sin fecha comprometida')+'</p></section>'+
-        '<section><small>4 · VALOR / DECISIÓN</small><strong>'+(selected.potential===null?'Potencial pendiente':selected.potential+'% potencial')+'</strong><p>'+esc(lead.estimated_value?money(lead.estimated_value):selected.decision)+'</p></section>'+
-      '</div></article>';
-  }
+  const priorityRows=rows.slice(0,2);
+  const focus=priorityRows.length?'<section class="seller-priority-section"><header><div><small>PROSPECTOS QUE REQUIEREN ATENCIÓN AHORA</small><h2>¿A quién atender primero y qué hacer?</h2></div><span>'+priorityRows.length+' en foco</span></header><div class="seller-priority-stack">'+priorityRows.map((row,index)=>{
+    const lead=row.lead,name=row.institution?.name||lead.title,last=row.latest;
+    const why=row.urgency.label==='Alta'
+      ?'La acción está vencida o requiere atención inmediata.'
+      :row.evidence!=='Sin evidencia comercial explícita registrada.'
+        ?'Existe evidencia suficiente para mantener este prospecto en foco.'
+        :'Aún falta información clave antes de avanzar.';
+    return '<article class="seller-priority-prospect '+(index===0?'primary-focus':'secondary-focus')+'">'+
+      '<header><div><span class="seller-priority-rank">0'+(index+1)+'</span><div><small>PROSPECTO PRIORITARIO</small><h2>'+esc(name)+'</h2><p>'+esc(milestoneLabel(lead.commercial_milestone))+' · '+row.maturity+'% de madurez</p></div></div><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></header>'+
+      '<div class="seller-priority-grid">'+
+        '<section><small>SITUACIÓN ACTUAL</small><strong>'+esc(row.situation)+'</strong><p>'+esc(last?'Último movimiento: '+compactDate(last.occurred_at):'Sin interacción reciente')+'</p></section>'+
+        '<section><small>QUÉ FALTA</small><strong>'+esc(row.missingText)+'</strong><p>'+(row.contact?esc('Contacto: '+([row.contact.first_name,row.contact.last_name].filter(Boolean).join(' ')||row.contact.job_title||'registrado')):'Sin contacto identificado')+'</p></section>'+
+        '<section class="action-box"><small>SIGUIENTE ACCIÓN</small><strong>'+esc(row.urgency.next)+'</strong><p>'+esc(row.urgency.date?'Fecha clave: '+compactDate(row.urgency.date):'Sin fecha comprometida')+'</p></section>'+
+        '<section><small>POR QUÉ IMPORTA</small><strong>'+esc(why)+'</strong><p>'+(row.potential===null?'Potencial pendiente':row.potential+'% potencial')+' · '+esc(row.decision)+'</p></section>'+
+      '</div>'+
+      '<footer><div><small>Problema detectado</small><strong>'+esc(row.problem)+'</strong></div><button class="primary" data-lead-detail="'+esc(lead.id)+'">Abrir expediente</button></footer>'+
+    '</article>';
+  }).join('')+'</div></section>':'<div class="seller-story-empty">No hay prospectos activos en tu cartera.</div>';
 
   const priorityStory=selected?'<div class="seller-priority-story">'+
     '<p><small>SITUACIÓN ACTUAL</small><strong>'+esc(selected.situation)+'</strong></p>'+
@@ -124,6 +130,6 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
     '<section class="seller-story-hero"><div><small>'+(demo?'DEMOSTRACIÓN':'MI DASHBOARD COMERCIAL')+'</small><h1>Qué está pasando y qué hacer ahora</h1><p>'+esc(narrative)+'</p>'+priorityStory+'</div><button data-page="leads">Ver toda mi cartera</button></section>'+
     '<section class="seller-story-kpis">'+kpis+'</section>'+
     focus+
-    '<section class="seller-prospects-panel seller-prospects-panel--cards"><header><div><small>CANDIDATOS</small><h2>Problema, evidencia y siguiente acción</h2></div><span>Ordenados por urgencia y potencial</span></header><div class="seller-candidate-list">'+cards+'</div></section>'+
+    '<details class="seller-prospects-panel seller-prospects-panel--cards seller-secondary-list"><summary>Ver otros prospectos de mi cartera</summary><div class="seller-candidate-list">'+cards+'</div></details>'+
     '</div>';
 }
