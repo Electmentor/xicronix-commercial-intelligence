@@ -70,7 +70,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-22-v2.21';
+const CRM_RELEASE='2026-09-23-v2.35';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -350,7 +350,7 @@ function render(){
  $('dashboard').hidden=page!=='dashboard';$('records').hidden=page==='dashboard';
  $('pageTitle').textContent=page==='dashboard'?(admin?'Dashboard Ejecutivo':'Mi Dashboard Comercial'):page==='now'?'Xicronix Ahora':!admin&&page==='leads'?'Mi cartera de prospectos':modules[page].label;
  const target=page==='dashboard'?(admin?'institutions':'leads'):page==='now'?'leads':page;
- $('newBtn').hidden=page==='now'||target==='users'||!writableFor(target);
+ $('newBtn').hidden=page==='dashboard'||page==='now'||target==='users'||!writableFor(target);
  $('newBtn').textContent='+ Crear '+modules[target].singular;
  $('newBtn').disabled=loading||busy||!writableFor(target)||!!failures[target];
  $('refreshBtn').disabled=loading||busy;
