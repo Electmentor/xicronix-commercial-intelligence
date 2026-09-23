@@ -7,7 +7,7 @@ import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executiv
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
-import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260923-v2.40.24';
+import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260923-v2.40.26';
 
 const $ = id => document.getElementById(id);
 const enums = {
@@ -71,7 +71,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-23-v2.40.25';
+const CRM_RELEASE='2026-09-23-v2.40.26';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -369,10 +369,12 @@ function render(){
  }
  const admin=canViewDashboard();
  $('appView').dataset.page=page;$('appView').dataset.source=dataSource;
- $('dashboard').hidden=page!=='dashboard';$('records').hidden=page==='dashboard';
+ const sellerCommercialView=!admin&&page==='leads';
+ $('dashboard').hidden=page!=='dashboard'&&!sellerCommercialView;
+ $('records').hidden=page==='dashboard'||sellerCommercialView;
  $('pageTitle').textContent=page==='dashboard'?(admin?'Dashboard Ejecutivo':'Mi Dashboard Comercial'):page==='now'?'Xicronix Ahora':!admin&&page==='prospects'?'Prospectos':!admin&&page==='leads'?'Gestión comercial':modules[page].label;
  const target=page==='dashboard'?(admin?'institutions':'leads'):page==='now'?'leads':page;
- $('newBtn').hidden=page==='dashboard'||page==='now'||target==='users'||!writableFor(target);
+ $('newBtn').hidden=page==='dashboard'||page==='now'||(!admin&&page==='leads')||target==='users'||!writableFor(target);
  $('newBtn').textContent='+ Crear '+modules[target].singular;
  $('newBtn').disabled=loading||busy||!writableFor(target)||!!failures[target];
  $('refreshBtn').disabled=loading||busy;
@@ -380,7 +382,10 @@ function render(){
   button.classList.toggle('active',button.dataset.page===page);
   if(button.dataset.page===page)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');
  });
- if(page==='dashboard')renderDashboard();else renderRecords();
+ if(page==='dashboard')renderDashboard();
+ else if(!admin&&page==='leads'){
+   $('dashboard').innerHTML=renderSellerDashboard(data,{demo:dataSource==='demo',failures});
+ }else renderRecords();
 }
 const TERRITORIAL_REGION_CENTROIDS={
  'AMAZONAS':[-6.23,-77.87],'ANCASH':[-9.53,-77.53],'APURIMAC':[-13.63,-72.88],'AREQUIPA':[-16.40,-71.54],
