@@ -2039,3 +2039,68 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
   .app-splash-sub{font-size:.58rem!important}
   .app-splash-loader{width:96px!important}
 }
+
+
+/* V2.40.52 · Seamless native-to-web mobile splash */
+.app-splash{
+  background:#f4f7fb!important;
+  gap:12px!important;
+  opacity:1;
+  visibility:visible;
+  transition:opacity .28s cubic-bezier(.4,0,.2,1),visibility .28s linear;
+  will-change:opacity;
+}
+.app-splash.is-hidden{
+  opacity:0!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+.app-splash-logo{
+  width:min(58vw,240px)!important;
+  height:auto!important;
+  display:block!important;
+  object-fit:contain;
+  transform:translateZ(0);
+}
+.app-splash-wordmark{
+  margin-top:2px;
+  font-size:.72rem;
+  line-height:1;
+  font-weight:900;
+  letter-spacing:.18em;
+  color:#0b2340;
+  opacity:0;
+  animation:xicronixSplashWordmark .36s ease .12s forwards;
+}
+.app-splash-loader{
+  width:96px!important;
+  height:2px!important;
+  margin-top:4px!important;
+  background:#dce7f3!important;
+  opacity:.82;
+}
+.app-splash-loader span{
+  background:#2f7de1!important;
+  animation:xicronixSplashLoad .95s ease-in-out infinite!important;
+}
+@keyframes xicronixSplashWordmark{
+  to{opacity:.72}
+}
+@media(max-width:700px){
+  .app-splash{
+    gap:10px!important;
+  }
+  .app-splash-logo{
+    width:min(60vw,230px)!important;
+  }
+  .app-splash-wordmark{
+    font-size:.64rem!important;
+  }
+  .app-splash-loader{
+    width:84px!important;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .app-splash-wordmark{animation:none!important;opacity:.72}
+  .app-splash{transition-duration:.12s!important}
+}
