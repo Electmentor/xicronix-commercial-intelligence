@@ -350,3 +350,74 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
 @media (prefers-reduced-motion:reduce){
   .prospect-progress-track>i::after{animation:none;display:none}
 }
+
+
+/* V2.40.8 · Axon pulse train + true full-scale gradient */
+.prospect-progress-track{
+  position:relative;
+  height:8px;
+  border-radius:999px;
+  overflow:hidden;
+  background:linear-gradient(
+    90deg,
+    rgba(45,11,18,.12) 0%,
+    rgba(74,16,24,.12) 14%,
+    rgba(110,24,33,.11) 28%,
+    rgba(157,32,40,.10) 45%,
+    rgba(201,45,47,.09) 60%,
+    rgba(234,111,51,.09) 78%,
+    rgba(44,164,92,.10) 100%
+  );
+  box-shadow:inset 0 0 0 1px rgba(16,35,58,.04);
+}
+.prospect-progress-track>i{
+  position:absolute;
+  inset:0 auto 0 0;
+  border-radius:999px;
+  overflow:hidden;
+  background-image:linear-gradient(
+    90deg,
+    #2d0b12 0%,
+    #3a0d14 8%,
+    #4a1018 16%,
+    #5f141c 25%,
+    #7a1921 34%,
+    #982027 44%,
+    #b8292d 54%,
+    #d33a30 64%,
+    #e76c31 77%,
+    #d9a62e 88%,
+    #2ca45c 100%
+  );
+  background-repeat:no-repeat;
+  background-position:left center;
+  background-size:calc(10000% / var(--progress,1)) 100%;
+  box-shadow:
+    0 0 8px rgba(110,15,24,.42),
+    0 0 16px rgba(201,45,47,.18);
+}
+.prospect-progress-track>i::after{
+  content:"";
+  position:absolute;
+  inset:-3px 0;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at center,
+      rgba(255,255,255,.98) 0%,
+      rgba(255,228,228,.95) 12%,
+      rgba(255,150,150,.76) 25%,
+      rgba(255,86,86,.42) 40%,
+      rgba(255,255,255,0) 68%
+    ) 0 50% / 46px 16px repeat-x;
+  mix-blend-mode:screen;
+  filter:blur(.35px);
+  opacity:.95;
+  animation:axonPulseTrain 1.15s linear infinite;
+}
+@keyframes axonPulseTrain{
+  from{background-position:-46px 50%}
+  to{background-position:0 50%}
+}
+@media (prefers-reduced-motion:reduce){
+  .prospect-progress-track>i::after{animation:none;opacity:.35}
+}
