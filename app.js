@@ -71,7 +71,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-23-v2.40.1';
+const CRM_RELEASE='2026-09-23-v2.40.2';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -79,7 +79,8 @@ let entryRoute=readEntryRoute();
 const emptyData=()=>Object.fromEntries([...Object.keys(modules),'scores','document_versions'].map(k=>[k,[]]));
 const writable=()=>profile && ['ADMIN','MANAGER','SALES'].includes(profile.role);
 let workspace=SELLER, workspaceIdentity=null, loading=false;
-let dataSource='live', sourceIdentity=null, demoData=null, demoSeller=DEMO_SELLERS[0].id, demoSaved=true, executiveFilter='', executiveOwner='';
+let dataSource='live', sourceIdentity=null, demoData=null, demoSeller=DEMO_SELLERS[0].id, demoSaved=true, executiveFilter='', executiveOwner='', sellerQuickFilter='';
+let noticeTimer=null;
 let analyticsPeriod='year';
 let deferredInstallPrompt=null;
 let criticalPushState='unknown';
@@ -194,7 +195,11 @@ const relationTable=key=>({institution_id:'institutions',contact_id:'contacts',l
 const relationName=(key,row)=>{const table=relationTable(key);return table?nameOf((data[table]||[]).find(item=>item.id===row[key])||{}):'';};
 const date=value=>value?new Date(value).toLocaleString('es-PE',{dateStyle:'medium',timeStyle:'short'}):'Sin fecha';
 const catalogMoney=value=>'USD '+new Intl.NumberFormat('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(value)||0);
-const notice=(message,error=false)=>{ $('status').hidden=!message;$('status').textContent=message;$('status').className='notice'+(error?' error':''); };
+const notice=(message,error=false,timeout=0)=>{
+ clearTimeout(noticeTimer);
+ $('status').hidden=!message;$('status').textContent=message;$('status').className='notice'+(error?' error':'');
+ if(message&&!error&&timeout>0)noticeTimer=setTimeout(()=>{if($('status').textContent===message){$('status').hidden=true;$('status').textContent='';}},timeout);
+};
 function errorText(error){
  const code=error?.code;
  if(code==='invalid_credentials')return 'Correo o contraseña incorrectos.';
@@ -315,7 +320,7 @@ function initSidebar(){let stored='';try{stored=localStorage.getItem(SIDEBAR_STO
 function navigate(next){
  if(busy||$('editor').open)return;
  if(!accessible(next))next=canViewDashboard()?'dashboard':'leads';
- page=next;pageIndex=0;executiveFilter='';executiveOwner='';$('search').value='';
+ page=next;pageIndex=0;executiveFilter='';executiveOwner='';sellerQuickFilter='';$('search').value='';
  rememberPage();
  const config=modules[page];$('filter').dataset.page=page;
  $('filter').innerHTML='<option value="">Todos los estados / tipos</option>'+Object.entries(config?.options||{}).map(([key,value])=>'<option value="'+key+'">'+value+'</option>').join('');
@@ -513,7 +518,20 @@ function renderSellerWorkspaceSummary(){
  const urgent=rows.filter(row=>row.next_action_date&&Date.parse(row.next_action_date)<now).length;
  return '<section class="portfolio-strip"><span><b>'+active+'</b><small>Prospectos activos</small></span><span><b>'+high+'</b><small>Potencial alto</small></span><span><b>'+due+'</b><small>Seguimientos ≤7 días</small></span><span class="'+(urgent?'warn':'')+'"><b>'+urgent+'</b><small>Vencidos</small></span></section>';
 }
-function filtered(){const config=modules[page];const rows=filterRecords(filterExecutiveRows(scopedRows(page),page,executiveFilter,executiveOwner),$('search').value,config.filter,$('filter').value,row=>[relatedName(row),relationName('lead_id',row),row.supplier_sku,row.supplier_name,enums.documentCategory[row.category]].filter(Boolean).join(' '));if(page==='tasks')return sortTasksByUrgency(rows,Date.now());if(page==='meetings')return rows.slice().sort((a,b)=>String(a.start_at||'').localeCompare(String(b.start_at||'')));return page==='expenses'?rows.slice().sort((a,b)=>String(b.expense_date||'').localeCompare(String(a.expense_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||''))):rows;}
+function leadMatchesSellerQuickFilter(row){
+ if(page!=='leads'||!sellerQuickFilter)return true;
+ if(sellerQuickFilter==='active')return !['DISQUALIFIED','CONVERTED'].includes(row.status);
+ if(sellerQuickFilter==='mature')return Number(row.maturity_percent||0)>=70;
+ if(sellerQuickFilter==='action'){
+   const relatedTasks=(data.tasks||[]).filter(task=>task.lead_id===row.id&&!['COMPLETED','CANCELLED'].includes(task.status));
+   const urgentTask=relatedTasks.some(task=>['OVERDUE','TODAY'].includes(taskUrgency(task,Date.now()).band));
+   const overdueLead=row.next_action_date&&Date.parse(row.next_action_date)<=Date.now();
+   return urgentTask||overdueLead;
+ }
+ if(sellerQuickFilter==='meeting')return (data.meetings||[]).some(meeting=>meeting.lead_id===row.id&&!['COMPLETED','CANCELLED'].includes(meeting.status)&&Date.parse(meeting.start_at)>=Date.now());
+ return true;
+}
+function filtered(){const config=modules[page];let rows=filterRecords(filterExecutiveRows(scopedRows(page),page,executiveFilter,executiveOwner),$('search').value,config.filter,$('filter').value,row=>[relatedName(row),relationName('lead_id',row),row.supplier_sku,row.supplier_name,enums.documentCategory[row.category]].filter(Boolean).join(' '));rows=rows.filter(leadMatchesSellerQuickFilter);if(page==='tasks')return sortTasksByUrgency(rows,Date.now());if(page==='meetings')return rows.slice().sort((a,b)=>String(a.start_at||'').localeCompare(String(b.start_at||'')));return page==='expenses'?rows.slice().sort((a,b)=>String(b.expense_date||'').localeCompare(String(a.expense_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||''))):rows;}
 function urgencyCell(row){
  const u=taskUrgency(row,Date.now());
  const cls=['OVERDUE','TODAY'].includes(u.band)?'warn':['SOON','WEEK'].includes(u.band)?'active':'';
@@ -1048,8 +1066,9 @@ function renderRecords(){
  if(page==='mail'){renderMailRecords();return;}
  if(page==='tasks'){renderTaskRecords();return;}
  const isUsers=page==='users',isGoals=page==='goals',isExpenses=page==='expenses';
- $('recordContext').hidden=!executiveFilter&&!executiveOwner;
- $('recordContextLabel').textContent=[{won:'Ganadas con cierre previsto este mes',pipeline:'Cartera abierta',risk:'Cartera en riesgo'}[executiveFilter],executiveOwner?'Vendedor: '+(data.users.find(row=>row.id===executiveOwner)?.full_name||'seleccionado'):''].filter(Boolean).join(' · ');
+ $('recordContext').hidden=!executiveFilter&&!executiveOwner&&!sellerQuickFilter;
+ const sellerFilterLabel={active:'Prospectos activos',action:'Requieren acción',mature:'Madurez alta',meeting:'Con reunión próxima'}[sellerQuickFilter];
+ $('recordContextLabel').textContent=[{won:'Ganadas con cierre previsto este mes',pipeline:'Cartera abierta',risk:'Cartera en riesgo'}[executiveFilter],executiveOwner?'Vendedor: '+(data.users.find(row=>row.id===executiveOwner)?.full_name||'seleccionado'):'',sellerFilterLabel].filter(Boolean).join(' · ');
  $('importBtn').hidden=isUsers||isGoals||!writableFor(page);$('importBtn').disabled=loading||busy||!!failures[page];$('importHelp').hidden=isUsers||isGoals||!writableFor(page);
  $('sellerSummary').hidden=canViewDashboard()||!['leads','tasks'].includes(page);$('sellerSummary').innerHTML=page==='tasks'?renderTaskPrioritySummary():renderSellerWorkspaceSummary();
  const rows=filtered();const max=Math.max(1,Math.ceil(rows.length/size));pageIndex=Math.min(pageIndex,max-1);
@@ -1322,7 +1341,7 @@ async function saveRecord(event){
   }
  }
  if(!session||session.user.id!==userId||version!==loadVersion)return;
- $('editor').close();busy=false;await reload();if(!failures[table])notice('Registro guardado correctamente.');
+ $('editor').close();busy=false;await reload();if(!failures[table])notice('Registro guardado correctamente.',false,2400);
  }catch(error){
   if(table==='documents'&&uploadedPath){try{await sb.storage.from('crm-documents').remove([uploadedPath]);}catch(_cleanup){}}
   if(table==='documents'&&!id&&createdDocumentId){try{await sb.from('documents').delete().eq('id',createdDocumentId).eq('organization_id',org);}catch(_cleanup){}}
@@ -1457,13 +1476,13 @@ function init(){
  $('fields').addEventListener('change',event=>{syncEditorRelations(event.target?.name);updateQuotePreview();updateMovementPreview();updateMeetingPreview();});
  $('adminModeBtn').onclick=()=>setWorkspace(ADMIN);$('sellerModeBtn').onclick=()=>setWorkspace(SELLER);renderWorkspaceControls();
  $('sourceToggle').onclick=()=>setDataSource(dataSource==='demo'?'live':'demo');$('resetDemoBtn').onclick=resetDemo;$('demoSeller').onchange=selectDemoSeller;
- $('clearRecordContext').onclick=()=>{executiveFilter='';executiveOwner='';renderRecords();};
+ $('clearRecordContext').onclick=()=>{executiveFilter='';executiveOwner='';sellerQuickFilter='';renderRecords();};
  $('closeMethod').onclick=()=>$('methodDialog').close();
  $('methodText').textContent=EXECUTIVE_METHOD;
  $('dateLabel').textContent=new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long'});
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  $('sidebarToggle').onclick=()=>applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.radarLead){openLeadFromRadar(b.dataset.radarLead);return;}if(b.dataset.radarActivity){openActivityForLead(b.dataset.radarActivity);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.sellerFilter){navigate('leads');sellerQuickFilter=b.dataset.sellerFilter;renderRecords();return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.radarLead){openLeadFromRadar(b.dataset.radarLead);return;}if(b.dataset.radarActivity){openActivityForLead(b.dataset.radarActivity);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
