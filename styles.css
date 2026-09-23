@@ -97,3 +97,18 @@ html[data-theme="night"] .seller-focus,html[data-theme="night"] .admin-high-leve
  .opportunity-score-row{grid-template-columns:repeat(2,minmax(0,1fr))}
  .prospect-geo-board{padding:14px}
 }
+
+
+/* Economic opportunity intelligence · DEV */
+.economic-intelligence-board{margin:0 0 18px;padding:18px;border:1px solid var(--line,#d9dee8);border-radius:18px;background:var(--panel,#fff)}
+.economic-intelligence-head small{font-size:.72rem;letter-spacing:.12em;font-weight:800;opacity:.65}
+.economic-intelligence-head h3{margin:4px 0 6px;font-size:1.05rem}
+.economic-intelligence-head p{margin:0 0 14px;font-size:.82rem;line-height:1.45;opacity:.72;max-width:900px}
+.economic-intelligence-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.economic-intelligence-kpis span{display:flex;flex-direction:column;gap:3px;padding:11px 12px;border-radius:12px;background:rgba(127,127,127,.07)}
+.economic-intelligence-kpis b{font-size:1.1rem}
+.economic-intelligence-kpis small{font-size:.7rem;opacity:.67}
+.economic-matrix table{min-width:760px}
+.economic-matrix td small{display:block;margin-top:3px;opacity:.66}
+@media(max-width:820px){.economic-intelligence-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.economic-intelligence-board{padding:14px}.economic-intelligence-kpis{grid-template-columns:1fr 1fr}}
