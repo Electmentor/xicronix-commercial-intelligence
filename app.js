@@ -7,7 +7,7 @@ import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executiv
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
-import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260923-v2.40.40';
+import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260923-v2.40.42';
 
 const $ = id => document.getElementById(id);
 const enums = {
@@ -71,7 +71,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-23-v2.40.41';
+const CRM_RELEASE='2026-09-23-v2.40.42';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -82,6 +82,7 @@ let workspace=SELLER, workspaceIdentity=null, loading=false;
 let dataSource='live', sourceIdentity=null, demoData=null, demoSeller=DEMO_SELLERS[0].id, demoSaved=true, executiveFilter='', executiveOwner='', sellerQuickFilter='';
 let noticeTimer=null;
 let analyticsPeriod='year';
+let sellerManagementSearch='';
 let deferredInstallPrompt=null;
 let criticalPushState='unknown';
 let mailWebhookConfig=null;
@@ -321,7 +322,7 @@ function initSidebar(){let stored='';try{stored=localStorage.getItem(SIDEBAR_STO
 function navigate(next){
  if(busy||$('editor').open)return;
  if(!accessible(next))next=canViewDashboard()?'dashboard':'leads';
- page=next;pageIndex=0;executiveFilter='';executiveOwner='';sellerQuickFilter='';$('search').value='';
+ page=next;pageIndex=0;executiveFilter='';executiveOwner='';sellerQuickFilter='';if(next!=='leads')sellerManagementSearch='';$('search').value='';
  rememberPage();
  const config=modules[page];$('filter').dataset.page=page;
  $('filter').innerHTML='<option value="">Todos los estados / tipos</option>'+Object.entries(config?.options||{}).map(([key,value])=>'<option value="'+key+'">'+value+'</option>').join('');
@@ -360,6 +361,19 @@ function renderAttentionCenter(){
 function openAttention(){
  if(loading||busy||!profile)return;renderAttentionCenter();$('attentionDialog').showModal();
 }
+function renderSellerManagement(){
+  $('dashboard').innerHTML=renderSellerDashboard(data,{demo:dataSource==='demo',failures,searchQuery:sellerManagementSearch,showSearch:true});
+  const input=$('commercialSearch');
+  if(input){
+    input.addEventListener('input',event=>{
+      sellerManagementSearch=event.target.value;
+      const caret=event.target.selectionStart??sellerManagementSearch.length;
+      renderSellerManagement();
+      const next=$('commercialSearch');
+      if(next){next.focus({preventScroll:true});next.setSelectionRange(caret,caret);}
+    });
+  }
+}
 function render(){
  renderWorkspaceControls();
  renderAttentionButton();
@@ -385,7 +399,7 @@ function render(){
  });
  if(page==='dashboard')renderDashboard();
  else if(!admin&&page==='leads'){
-   $('dashboard').innerHTML=renderSellerDashboard(data,{demo:dataSource==='demo',failures});
+   renderSellerManagement();
  }else renderRecords();
 }
 const TERRITORIAL_REGION_CENTROIDS={
