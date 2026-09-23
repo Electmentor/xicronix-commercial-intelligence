@@ -198,13 +198,3 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
 .territorial-segment{margin-top:14px;border-top:1px solid var(--line);padding-top:13px}.territorial-segment header{display:flex;justify-content:space-between;gap:12px;align-items:end}.territorial-segment header h3{margin:3px 0 0;font-size:.92rem}.territorial-segment header>span{font-size:.65rem;color:var(--muted)}.territorial-segment>div{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}.territorial-segment>div p{margin:0;display:flex;gap:7px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:7px 10px;font-size:.72rem}.territorial-segment>div strong{font-size:.82rem}.territorial-segment>small{color:var(--muted);font-size:.7rem;line-height:1.4}
 @media(max-width:900px){.territorial-maps{grid-template-columns:1fr}.territorial-story{grid-template-columns:1fr 1fr}}
 @media(max-width:700px){.territorial-intelligence{padding:14px}.territorial-intelligence>header{flex-direction:column;gap:7px}.territorial-summary{grid-template-columns:1fr 1fr}.territorial-story{grid-template-columns:1fr}.territorial-map{height:270px}}
-
-/* V2.38.2 · Account access */
-.account-button{width:100%;margin:8px 0 4px;border:1px solid rgba(255,255,255,.22);background:transparent;color:inherit;border-radius:10px;padding:10px 12px;font-weight:700}
-.account-button:hover{background:rgba(255,255,255,.06)}
-.account-dialog{width:min(520px,92vw)}
-.account-content{display:grid;gap:10px;padding:4px 2px 2px}
-.account-content label{font-weight:700;font-size:.82rem}
-.account-content input{width:100%}
-.account-password-row{display:grid;gap:6px}
-.account-password-row span{font-size:.75rem;color:var(--muted)}
