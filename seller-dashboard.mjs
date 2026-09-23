@@ -1,5 +1,5 @@
 import {escapeHTML as esc, money, taskUrgency, sortTasksByUrgency} from './domain.mjs';
-import {milestoneLabel} from './commercial-core.mjs';
+import {MILESTONE_META,milestoneLabel,milestonePercent} from './commercial-core.mjs';
 
 const closedLead = row => ['DISQUALIFIED','CONVERTED'].includes(row.status);
 const safePct = value => Math.max(0,Math.min(100,Number(value)||0));
@@ -30,6 +30,24 @@ function compactDate(value){
   if(!value)return 'Sin fecha';
   const d=new Date(value);if(!Number.isFinite(d.getTime()))return 'Sin fecha';
   return d.toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'});
+}
+
+function renderProspectProgress(lead,maturity){
+  const percent=Math.max(0,Math.min(100,Number(maturity)||milestonePercent(lead.commercial_milestone)||0));
+  const currentCode=lead.commercial_milestone||'';
+  const nodes=Object.entries(MILESTONE_META).map(([code,meta],index)=>{
+    const reached=percent>=meta.percent;
+    const current=currentCode===code || (!currentCode && percent===meta.percent);
+    const state=current?'current':reached?'done':'future';
+    return '<div class="prospect-progress-node '+state+'" style="--node-pos:'+meta.percent+'%">'+
+      '<span class="prospect-progress-dot" aria-hidden="true"></span>'+
+      '<div><b>'+meta.percent+'%</b><small>'+esc(meta.label)+'</small></div>'+
+    '</div>';
+  }).join('');
+  return '<section class="prospect-progress" aria-label="Avance comercial '+percent+' por ciento">'+
+    '<div class="prospect-progress-head"><div><small>AVANCE COMERCIAL</small><strong>'+percent+'%</strong></div><span>'+esc(milestoneLabel(lead.commercial_milestone))+'</span></div>'+
+    '<div class="prospect-progress-track"><i style="width:'+percent+'%"></i>'+nodes+'</div>'+
+  '</section>';
 }
 
 function leadStory(data,lead){
@@ -111,6 +129,7 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
         :'Aún falta información clave antes de avanzar.';
     return '<article class="seller-priority-prospect '+(index===0?'primary-focus':'secondary-focus')+'">'+
       '<header><div><span class="seller-priority-rank">0'+(index+1)+'</span><div><small>PROSPECTO PRIORITARIO</small><h2>'+esc(name)+'</h2><p>'+esc(milestoneLabel(lead.commercial_milestone))+' · '+row.maturity+'% de madurez</p></div></div><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></header>'+
+      renderProspectProgress(lead,row.maturity)+
       '<div class="seller-priority-grid">'+
         '<section><small>SITUACIÓN ACTUAL</small><strong>'+esc(row.situation)+'</strong><p>'+esc(last?'Último movimiento: '+compactDate(last.occurred_at):'Sin interacción reciente')+'</p></section>'+
         '<section><small>QUÉ FALTA</small><strong>'+esc(row.missingText)+'</strong><p>'+(row.contact?esc('Contacto: '+([row.contact.first_name,row.contact.last_name].filter(Boolean).join(' ')||row.contact.job_title||'registrado')):'Sin contacto identificado')+'</p></section>'+
