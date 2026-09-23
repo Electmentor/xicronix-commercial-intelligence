@@ -71,7 +71,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-23-v2.40.36';
+const CRM_RELEASE='2026-09-23-v2.40.37';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -170,6 +170,7 @@ function renderWorkspaceControls(){
  $('adminModeBtn').disabled=$('sellerModeBtn').disabled=loading||busy;
  $('workspaceHint').textContent='';$('workspaceHint').hidden=true;
  $('workspaceLabel').textContent=admin?'DIRECCIÓN COMERCIAL':'MI ESPACIO DE VENTAS';
+ const identity=$('userIdentity');if(identity){const userLabel=profile?.full_name||session?.user?.email||'Usuario';identity.title=userLabel;identity.setAttribute('aria-label','Usuario: '+userLabel);}
  $('appView').dataset.workspace=admin?ADMIN:SELLER;
  const labels=admin?{dashboard:'Dashboard Ejecutivo',now:'Ahora',mail:'Correo Zoho'}:{dashboard:'Mi Dashboard',now:'Ahora',prospects:'Prospectos',leads:'Gestión comercial',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',deliverables:'Mis entregables',documents:'Mis documentos',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
  const keys=admin?['dashboard','now',...Object.keys(modules)]:['dashboard','now','prospects','leads','tasks','meetings','deliverables','documents','activities','opportunities','catalog_products','institutions','contacts'];
