@@ -70,7 +70,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-23-v2.35';
+const CRM_RELEASE='2026-09-23-v2.36';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -268,7 +268,7 @@ async function reload(){
  profile=result.data;
  if(!profile?.organization_id){profile=null;data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice('Tu cuenta está autenticada, pero aún no está vinculada a Xicronix. Un administrador debe asignarte una organización y un rol.',true);return;}
  restoreWorkspace();restoreSource();
- $('userRole').textContent=enums.role[profile.role]||'Sin rol';$('welcome').textContent=profile.full_name||session.user.email;
+ $('userRole').textContent='Cuenta: '+(enums.role[profile.role]||'Sin rol');$('welcome').textContent=profile.full_name||session.user.email;
  if(dataSource==='demo'){loadDemo();notice('');render();return;}
  const tables=[...Object.keys(modules).filter(accessible),'scores',...(accessible('documents')?['document_versions']:[])];
  const results=await Promise.allSettled(tables.map(k=>allRows(k,profile.organization_id)));
