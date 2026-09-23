@@ -1575,3 +1575,19 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
     font-size:.96rem!important;
   }
 }
+
+
+/* V2.40.46 · Refresh icon spins without loading banner */
+.icon-refresh.is-refreshing svg{
+  animation:xicronixRefreshSpin .8s linear infinite!important;
+}
+@keyframes xicronixRefreshSpin{
+  from{transform:rotate(0deg)}
+  to{transform:rotate(360deg)}
+}
+.icon-refresh.is-refreshing:hover svg{
+  transform:none;
+}
+@media(prefers-reduced-motion:reduce){
+  .icon-refresh.is-refreshing svg{animation-duration:1.8s!important}
+}
