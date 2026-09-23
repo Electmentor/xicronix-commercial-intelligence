@@ -153,7 +153,7 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
   const focus=priorityRows.length?'<section class="seller-priority-section"><div class="seller-priority-stack">'+priorityRows.map((row,index)=>{
     const lead=row.lead,name=row.institution?.name||lead.title;
     return '<article class="seller-priority-prospect '+(index===0?'primary-focus':'secondary-focus')+'">'+
-      '<header><div><span class="seller-priority-rank">0'+(index+1)+'</span><div><h2>'+esc(name)+'</h2><small class="prospect-id">ID '+esc(prospectDisplayId(lead))+'</small></div></div><div class="seller-priority-status"><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></div></header>'+
+      '<header><div><span class="seller-priority-rank">0'+(index+1)+'</span><div class="prospect-title-line"><h2>'+esc(name)+'</h2><span class="prospect-title-separator" aria-hidden="true"></span><span class="prospect-id">ID '+esc(prospectDisplayId(lead))+'</span></div></div><div class="seller-priority-status"><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></div></header>'+
       renderProspectProgress(lead,row.maturity)+
 
       '<footer class="prospect-action-footer">'+
