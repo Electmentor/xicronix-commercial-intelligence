@@ -534,17 +534,74 @@ function applyLocalMovementMilestone(payload){
  const current=milestonePercent(lead.commercial_milestone);
  if(current<meta.percent){lead.commercial_milestone=code;lead.maturity_percent=meta.percent;lead.milestone_updated_at=payload.occurred_at||new Date().toISOString();}
 }
+async function registerPotentialContact(institutionId){
+ if(dataSource!=='live'||!canViewDashboard()||busy||loading)return;
+ const row=(data.prospects||[]).find(item=>item.id===institutionId);
+ if(!row)return;
+ const channel=window.prompt('Canal del contacto humano verificado: CALL, EMAIL, WHATSAPP, REFERRAL, EVENT u OTHER','CALL');
+ if(channel===null)return;
+ const normalized=String(channel||'').trim().toUpperCase();
+ if(!['CALL','EMAIL','WHATSAPP','REFERRAL','EVENT','OTHER'].includes(normalized)){
+  notice('Canal no válido. Usa CALL, EMAIL, WHATSAPP, REFERRAL, EVENT u OTHER.',true);return;
+ }
+ const note=window.prompt('Evidencia breve del contacto (qué ocurrió y con quién). No pegues información sensible.','')??'';
+ if(!window.confirm('Esto convertirá a '+(row.name||'la institución')+' de potencial prospecto a lead CONTACTED. No creará oportunidad. ¿Continuar?'))return;
+ busy=true;notice('Registrando interacción humana…');
+ try{
+  const {data:leadId,error}=await sb.rpc('crm_register_human_contact',{
+   target_institution:institutionId,
+   p_channel:normalized,
+   p_note:note||null,
+   p_contact_id:null
+  });
+  if(error)throw error;
+  busy=false;await reload();
+  navigate('leads');
+  notice('Contacto registrado. Se creó/recuperó el lead '+String(leadId||'')+' y quedó trazabilidad para validar XWIN.');
+ }catch(error){notice(errorText(error),true);}
+ finally{busy=false;render();}
+}
+function prospectActionClass(row){
+ if(row.model_revalidation_status==='REVIEW_REQUIRED')return {label:'Revalidar',cls:'warn'};
+ if(Number(row.xpps_score)>=75&&Number(row.xwin_score)>=65)return {label:'Acción ahora',cls:'success'};
+ if(Number(row.rollout_potential_score)>=80)return {label:'Estratégica',cls:''};
+ return {label:'Monitorear',cls:''};
+}
 function renderPotentialProspects(){
  $('recordContext').hidden=true;$('sellerSummary').hidden=true;$('importBtn').hidden=true;$('importHelp').hidden=true;
  const search=normalize($('search').value),filter=$('filter').value;
- const rows=(data.prospects||[]).filter(row=>(!filter||row.prospect_state===filter)&&(!search||normalize([row.name,row.ruc,row.city].filter(Boolean).join(' ')).includes(search)))
-  .sort((a,b)=>Number(b.xpps_score||0)-Number(a.xpps_score||0)||Number(b.xpps_confidence||0)-Number(a.xpps_confidence||0)||String(a.name||'').localeCompare(String(b.name||'')));
+ const all=(data.prospects||[]);
+ const rows=all.filter(row=>(!filter||row.prospect_state===filter)&&(!search||normalize([row.name,row.ruc,row.city,row.procurement_model,row.xwin_band].filter(Boolean).join(' ')).includes(search)))
+  .sort((a,b)=>{
+   const aa=prospectActionClass(a),bb=prospectActionClass(b);
+   const rank=x=>x.label==='Acción ahora'?4:x.label==='Estratégica'?3:x.label==='Revalidar'?2:1;
+   return rank(bb)-rank(aa)||Number(b.xwin_score||0)-Number(a.xwin_score||0)||Number(b.xpps_score||0)-Number(a.xpps_score||0)||String(a.name||'').localeCompare(String(b.name||''));
+  });
+ const actionNow=all.filter(r=>r.model_revalidation_status!=='REVIEW_REQUIRED'&&Number(r.xpps_score)>=75&&Number(r.xwin_score)>=65).length;
+ const strategic=all.filter(r=>Number(r.rollout_potential_score)>=80).length;
+ const review=all.filter(r=>r.model_revalidation_status==='REVIEW_REQUIRED').length;
  const max=Math.max(1,Math.ceil(rows.length/size));pageIndex=Math.min(pageIndex,max-1);
- $('recordCount').textContent=failures.prospects?'Información no disponible':rows.length+' potenciales prospectos';
+ $('recordCount').innerHTML='<div class="seller-focus-metrics"><span><b>'+all.length+'</b><small>Potenciales</small></span><span><b>'+actionNow+'</b><small>Acción ahora</small></span><span><b>'+strategic+'</b><small>Multisede estratégicos</small></span><span><b>'+review+'</b><small>Revalidar</small></span></div>';
  $('exportBtn').disabled=true;$('pageNumber').textContent='Página '+(pageIndex+1)+' de '+max;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
- if(failures.prospects){$('recordList').innerHTML='<div class="panel empty">No pudimos cargar los potenciales prospectos. Pulsa Actualizar.</div>';return;}
- if(!rows.length){$('recordList').innerHTML='<div class="panel empty">No hay potenciales prospectos con este filtro.</div>';return;}
- $('recordList').innerHTML='<div class="table-wrap"><table><thead><tr><th>Institución</th><th>Estado</th><th>XPPS</th><th>Confianza</th><th>XAS</th><th>Relación</th></tr></thead><tbody>'+rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>'<tr><td><strong>'+esc(row.name||'Institución')+'</strong><small>'+esc([row.city,row.ruc&&('RUC '+row.ruc)].filter(Boolean).join(' · '))+'</small></td><td><span class="badge">'+esc(modules.prospects.options[row.prospect_state]||row.prospect_state||'Sin evaluar')+'</span></td><td><strong>'+Number(row.xpps_score||0)+'/100</strong></td><td>'+Number(row.xpps_confidence||0)+'%</td><td>'+((row.xas_score===null||row.xas_score===undefined)?'Pendiente':Number(row.xas_score)+'/100')+'</td><td><span class="badge">'+(row.human_interaction_verified?'Interacción humana':'Sin interacción')+'</span></td></tr>').join('')+'</tbody></table></div>';
+ if(failures.prospects){$('recordList').innerHTML='<div class="panel empty">No pudimos cargar las cuentas estratégicas. Pulsa Actualizar.</div>';return;}
+ if(!rows.length){$('recordList').innerHTML='<div class="panel empty">No hay cuentas con este filtro.</div>';return;}
+ $('recordList').innerHTML='<div class="table-wrap"><table><thead><tr><th>Cuenta</th><th>Prioridad</th><th>XPPS / XWIN</th><th>Acceso</th><th>Escala</th><th>Compras</th><th>Acción</th></tr></thead><tbody>'+
+ rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>{
+   const action=prospectActionClass(row);
+   const scale=Number(row.network_campus_count||1)>1?(Number(row.network_campus_count)+' sedes · '+Number(row.network_province_count||1)+' prov.'):'1 sede';
+   const rollout=row.rollout_potential_score==null?'—':Number(row.rollout_potential_score)+'/100';
+   const procurement=row.procurement_readiness_score==null?'Pendiente':Number(row.procurement_readiness_score)+'/100';
+   const revalidation=row.model_revalidation_status==='REVIEW_REQUIRED'?'<small class="muted">'+esc(row.model_revalidation_reason||'Revisión requerida')+'</small>':'';
+   return '<tr>'+
+    '<td><strong>'+esc(row.name||'Institución')+'</strong><small>'+esc([row.city,row.ruc&&('RUC '+row.ruc)].filter(Boolean).join(' · '))+'</small>'+revalidation+'</td>'+
+    '<td><span class="badge '+action.cls+'">'+esc(action.label)+'</span></td>'+
+    '<td><strong>XPPS '+(row.xpps_score==null?'—':Number(row.xpps_score))+'</strong><small>XWIN '+(row.xwin_score==null?'—':Number(row.xwin_score))+' · '+esc(row.xwin_band||'UNKNOWN')+'</small></td>'+
+    '<td><strong>XAS '+(row.xas_score==null?'—':Number(row.xas_score))+'</strong><small>Confianza XPPS '+(row.xpps_confidence==null?'—':Number(row.xpps_confidence)+'%')+'</small></td>'+
+    '<td><strong>'+esc(scale)+'</strong><small>Rollout '+esc(rollout)+'</small></td>'+
+    '<td><strong>'+esc(row.procurement_model||'UNKNOWN')+'</strong><small>Readiness '+esc(procurement)+'</small></td>'+
+    '<td><div class="row-actions">'+(row.has_lead?'<span class="badge success">Lead existente</span>':'<button type="button" class="primary" data-prospect-contact="'+row.id+'">Registrar contacto</button>')+'</div></td>'+
+   '</tr>';
+ }).join('')+'</tbody></table></div>';
 }
 
 function renderRecords(){
@@ -1000,7 +1057,7 @@ function init(){
  $('dateLabel').textContent=new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long'});
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  $('sidebarToggle').onclick=()=>applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.prospectContact){registerPotentialContact(b.dataset.prospectContact);return;}if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
  $('authForm').onsubmit=authenticate;$('passwordlessBtn').onclick=signInWithEmailLink;$('passwordlessBtn').hidden=!IS_DEV_PREVIEW;$('passwordlessHint').hidden=!IS_DEV_PREVIEW;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
