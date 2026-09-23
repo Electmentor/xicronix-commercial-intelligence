@@ -102,3 +102,5 @@ Documentación consultada: [recuperación](https://supabase.com/docs/reference/j
 - La puntuación representa potencial comercial calculado con señales disponibles; no es un porcentaje de avance del estado. El estado y la oportunidad vinculada son la fuente de verdad para saber si ya fue convertido.
 
 <!-- redeploy: 2026-09-19 after Vercel Pro upgrade -->
+
+<!-- redeploy-dev-v2.39: 2026-09-23 -->
