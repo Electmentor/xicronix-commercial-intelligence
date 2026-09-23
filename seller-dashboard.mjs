@@ -42,7 +42,17 @@ function leadStory(data,lead){
   const problem=needRow?.need_summary||latest?.need_summary||'Necesidad aún no precisada en el expediente.';
   const evidence=evidenceRow?.evidence_note||latest?.evidence_note||'Sin evidencia comercial explícita registrada.';
   const decision=[decisionRow?.decision_timeline,decisionRow?.budget_signal].filter(Boolean).join(' · ')||'Timing y presupuesto aún no confirmados.';
-  return {activities,latest,contact,problem,evidence,decision};
+  const missing=[];
+  if(!needRow?.need_summary&&!latest?.need_summary)missing.push('precisar la necesidad');
+  if(!evidenceRow?.evidence_note&&!latest?.evidence_note)missing.push('registrar evidencia');
+  if(!contact)missing.push('identificar al contacto');
+  if(!decisionRow?.decision_timeline)missing.push('confirmar timing');
+  if(!decisionRow?.budget_signal&&!(Number(lead.estimated_value)>0))missing.push('confirmar presupuesto');
+  const missingText=missing.length?missing.slice(0,2).join(' y '):'no hay un bloqueo crítico registrado';
+  const situation=latest?
+    'Último movimiento: '+(latest.subject||latest.type||'interacción registrada')+'.':
+    'No existe una interacción reciente registrada.';
+  return {activities,latest,contact,problem,evidence,decision,missingText,situation};
 }
 
 function prospectRows(data,now){
@@ -73,11 +83,11 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
     selected.urgency.label==='Alta'?'Prioridad: '+(selected.institution?.name||selected.lead.title)+'. '+selected.urgency.next+'.':
     'La cartera está bajo control. El siguiente movimiento con mayor impacto está en '+(selected.institution?.name||selected.lead.title)+'.';
 
-  const kpi=(label,value,detail,tone='')=>'<article class="seller-story-kpi '+tone+'"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong><span>'+esc(detail)+'</span></article>';
-  const kpis=kpi('Prospectos activos',String(rows.length),highPotential+' con potencial alto')+
-    kpi('Requieren acción',String(attention),overdue+' tareas vencidas','warning')+
-    kpi('Madurez alta',String(negotiation),'70% o más de madurez')+
-    kpi('Próxima reunión',upcomingMeetings[0]?compactDate(upcomingMeetings[0].start_at):'—',upcomingMeetings[0]?.title||'Sin reunión próxima');
+  const kpi=(key,label,value,detail,tone='')=>'<button type="button" class="seller-story-kpi '+tone+'" data-seller-filter="'+key+'" aria-label="'+esc(label)+': '+esc(value)+'. Abrir cartera filtrada"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong><span>'+esc(detail)+'</span><em>Ver cartera →</em></button>';
+  const kpis=kpi('active','Prospectos activos',String(rows.length),highPotential+' con potencial alto')+
+    kpi('action','Requieren acción',String(attention),overdue+' tareas vencidas','warning')+
+    kpi('mature','Madurez alta',String(negotiation),'70% o más de madurez')+
+    kpi('meeting','Próxima reunión',upcomingMeetings[0]?compactDate(upcomingMeetings[0].start_at):'—',upcomingMeetings[0]?.title||'Sin reunión próxima');
 
   const cards=rows.length?rows.map(row=>{
     const name=row.institution?.name||row.lead.title;
@@ -105,8 +115,13 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
       '</div></article>';
   }
 
+  const priorityStory=selected?'<div class="seller-priority-story">'+
+    '<p><small>SITUACIÓN ACTUAL</small><strong>'+esc(selected.situation)+'</strong></p>'+
+    '<p><small>QUÉ FALTA</small><strong>'+esc(selected.missingText)+'</strong></p>'+
+    '<p><small>SIGUIENTE ACCIÓN</small><strong>'+esc(selected.urgency.next)+(selected.urgency.date?' · '+esc(compactDate(selected.urgency.date)):'')+'</strong></p>'+
+    '</div>':'';
   return '<div class="seller-story-dashboard">'+
-    '<section class="seller-story-hero"><div><small>'+(demo?'DEMOSTRACIÓN':'MI DASHBOARD COMERCIAL')+'</small><h1>Qué está pasando y qué hacer ahora</h1><p>'+esc(narrative)+'</p></div><button data-page="leads">Ver toda mi cartera</button></section>'+
+    '<section class="seller-story-hero"><div><small>'+(demo?'DEMOSTRACIÓN':'MI DASHBOARD COMERCIAL')+'</small><h1>Qué está pasando y qué hacer ahora</h1><p>'+esc(narrative)+'</p>'+priorityStory+'</div><button data-page="leads">Ver toda mi cartera</button></section>'+
     '<section class="seller-story-kpis">'+kpis+'</section>'+
     focus+
     '<section class="seller-prospects-panel seller-prospects-panel--cards"><header><div><small>CANDIDATOS</small><h2>Problema, evidencia y siguiente acción</h2></div><span>Ordenados por urgencia y potencial</span></header><div class="seller-candidate-list">'+cards+'</div></section>'+
