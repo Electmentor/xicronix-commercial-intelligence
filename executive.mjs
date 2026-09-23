@@ -82,6 +82,35 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
   {label:'OPORTUNIDAD',text:radarCritical.length||radarHigh.length?(radarCritical.length+' críticas y '+radarHigh.length+' de alta prioridad en Radar'+(topSignal?' · foco: '+topSignal.institution_name+'.':'.')):(strongestOpportunity?'Mayor oportunidad abierta: '+strongestOpportunity.name+' · '+compactMoney(amount(strongestOpportunity))+'.':'No hay una oportunidad destacada por valor o Radar.'),action:radar.length?'Abrir Radar':'Ver oportunidades',target:radar.length?'radar':'opportunities'},
   {label:'DECISIÓN',text:m.decisions[0]?m.decisions[0].title+': '+m.decisions[0].detail+'. '+m.decisions[0].reason:(m.team[0]?'Mantener foco en '+m.team[0].user.full_name+' y revisar el siguiente cierre con mayor impacto.':'No hay una decisión crítica generada por las reglas actuales.'),action:m.decisions[0]?m.decisions[0].action:'Ver prospectos',target:m.decisions[0]?.table||'leads'}
  ];
+ const macrozoneFor=region=>{
+  const key=String(region||'').toUpperCase();
+  if(key==='LIMA'||key==='CALLAO')return 'LIMA';
+  if(['TUMBES','PIURA','LAMBAYEQUE','LA LIBERTAD','CAJAMARCA','AMAZONAS','SAN MARTIN','LORETO'].includes(key))return 'NORTE';
+  if(['ANCASH','HUANUCO','PASCO','JUNIN','HUANCAVELICA','AYACUCHO','UCAYALI'].includes(key))return 'CENTRO';
+  if(['ICA','AREQUIPA','MOQUEGUA','TACNA','CUSCO','PUNO','APURIMAC','MADRE DE DIOS'].includes(key))return 'SUR';
+  return 'OTROS';
+ };
+ const territorialRows=radar.filter(row=>row.region||row.city);
+ const macroCounts=territorialRows.reduce((acc,row)=>{const key=macrozoneFor(row.region);acc[key]=(acc[key]||0)+1;return acc;},{});
+ const limaRows=territorialRows.filter(row=>String(row.region||'').toUpperCase()==='LIMA');
+ const territoryCoverage=new Set(territorialRows.map(row=>String(row.region||'').trim()).filter(Boolean)).size;
+ const districtCoverage=new Set(limaRows.map(row=>String(row.city||'').trim()).filter(Boolean)).size;
+ const availableSegments=territorialRows.reduce((acc,row)=>{const key=row.ticket_band||row.institution_size||'SIN_PROXY';acc[key]=(acc[key]||0)+1;return acc;},{});
+ const territorialStory=[
+   macroCounts.LIMA?'Lima concentra '+macroCounts.LIMA+' de '+territorialRows.length+' señales georreferenciables de la cobertura actual.':'Lima aún no concentra señales en la cobertura actual.',
+   macroCounts.NORTE?'El norte aporta '+macroCounts.NORTE+' señal(es), hoy principalmente fuera de Lima.':'El norte todavía no tiene volumen suficiente para una lectura comparativa.',
+   districtCoverage?'En Lima hay '+districtCoverage+' distritos/ciudades representados en Radar.':'La cobertura distrital de Lima aún es insuficiente.',
+   'La segmentación económica formal está pendiente de transferir desde Prospect Intelligence; no se infiere NSE por ubicación.'
+ ];
+ const territorial='<section class="territorial-intelligence"><header><div><small>INTELIGENCIA TERRITORIAL</small><h2>¿Dónde se está moviendo la demanda observable?</h2><p>Lectura de señales actualmente visibles en Radar. No representa todavía el universo nacional ni una probabilidad de venta.</p></div><span>'+territorialRows.length+' señales · '+territoryCoverage+' regiones</span></header>'+
+ '<div class="territorial-summary">'+
+  ['LIMA','NORTE','CENTRO','SUR'].map(zone=>'<article><strong>'+Number(macroCounts[zone]||0)+'</strong><span>'+zone+'</span><small>'+Math.round((Number(macroCounts[zone]||0)/Math.max(1,territorialRows.length))*100)+'% de la cobertura visible</small></article>').join('')+
+ '</div>'+
+ '<div class="territorial-story">'+territorialStory.map((item,index)=>'<p><b>0'+(index+1)+'</b><span>'+esc(item)+'</span></p>').join('')+'</div>'+
+ '<div class="territorial-maps"><article><div class="territorial-map-head"><div><small>PERÚ</small><h3>Concentración regional</h3></div><span>Señales Radar</span></div><div id="territorialPeruMap" class="territorial-map" aria-label="Mapa territorial de Perú"></div></article>'+
+ '<article><div class="territorial-map-head"><div><small>LIMA</small><h3>Distribución por distrito/ciudad</h3></div><span>'+districtCoverage+' zonas visibles</span></div><div id="territorialLimaMap" class="territorial-map" aria-label="Mapa territorial de Lima"></div></article></div>'+
+ '<section class="territorial-segment"><header><div><small>CAPACIDAD / SEGMENTACIÓN</small><h3>Proxy comercial disponible hoy</h3></div><span>No es NSE oficial</span></header><div>'+Object.entries(availableSegments).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([key,count])=>'<p><strong>'+count+'</strong><span>'+esc(key==='SIN_PROXY'?'Sin proxy disponible':key)+'</span></p>').join('')+'</div><small>La estructura queda preparada para incorporar market_segment_proxy, matrícula, pensión e ingresos brutos estimados cuando se transfieran desde DEV.</small></section>'+
+ '</section>';
  const institutions=(data.institutions||[]).length;
  const activeLeads=(data.leads||[]).filter(row=>!['CONVERTED','DISQUALIFIED'].includes(row.status)).length;
  const kpis=kpi('Ventas ganadas · mes',incomplete?'—':compactMoney(m.revenue),m.wonCount+' cierres · '+progress,'won')+
@@ -97,6 +126,7 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  return '<div class="ceo-dashboard ceo-dashboard--analytics"><section class="ceo-signal"><div><small>'+statusTitle+' · '+esc(now.toLocaleDateString('es-PE',{month:'long',year:'numeric'}))+'</small><h2>'+esc(headline)+'</h2></div><button id="ceoMethodBtn" class="ceo-method" title="Ver cómo se calculan los indicadores">Cómo se calcula</button></section>'+
  '<section class="ceo-kpis" aria-label="Indicadores ejecutivos">'+kpis+'</section>'+
  '<section class="ceo-story ceo-story--decision"><header><small>STORYTELLING EJECUTIVO</small><h2>Situación → riesgo → oportunidad → decisión</h2></header><div>'+storyItems.map((item,index)=>'<button type="button" class="ceo-story-card" data-page="'+esc(item.target)+'"><span class="ceo-story-step">0'+(index+1)+'</span><small>'+esc(item.label)+'</small><strong>'+esc(item.text)+'</strong><em>'+esc(item.action)+' →</em></button>').join('')+'</div></section>'+
+ territorial+
  renderAnalytics(data,{now,period:analyticsPeriod,demo,failures})+
  '<section class="ceo-decisions" aria-label="Decisiones prioritarias">'+decisions+'</section>'+
  '<section class="ceo-bottom"><article class="ceo-panel"><header><h2>Equipo · avance contra meta</h2><button data-page="users">Ver equipo ↗</button></header>'+team+'<p class="ceo-caption">Orden: % de meta de ventas; desempate por ventas. No calcula bonos.</p></article>'+
