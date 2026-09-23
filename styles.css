@@ -73,3 +73,27 @@ html[data-theme="night"] .seller-focus,html[data-theme="night"] .admin-high-leve
  .opportunity-board-head{align-items:flex-start;flex-direction:column}
  .opportunity-board-grid{grid-template-columns:1fr}
 }
+
+
+/* Commercial geography + economic capacity · DEV */
+.prospect-geo-board{margin:0 0 18px;padding:18px;border:1px solid var(--line,#d9dee8);border-radius:18px;background:var(--panel,#fff)}
+.prospect-geo-head{display:flex;justify-content:space-between;gap:16px;margin-bottom:14px}
+.prospect-geo-head small{font-size:.72rem;letter-spacing:.12em;font-weight:800;opacity:.65}
+.prospect-geo-head h3{margin:4px 0 6px;font-size:1.05rem}
+.prospect-geo-head p{margin:0;font-size:.82rem;opacity:.7;max-width:760px}
+.prospect-map-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.prospect-map-grid article{min-width:0}
+.prospect-map-grid h4{margin:0 0 8px;font-size:.9rem}
+.prospect-map{height:330px;border:1px solid var(--line,#d9dee8);border-radius:14px;overflow:hidden;background:rgba(127,127,127,.06)}
+.leaflet-container{font:inherit}
+.leaflet-popup-content{line-height:1.45}
+.opportunity-score-row{grid-template-columns:repeat(4,minmax(0,1fr))}
+.opportunity-score-row span b{overflow-wrap:anywhere}
+@media(max-width:900px){
+ .prospect-map-grid{grid-template-columns:1fr}
+ .prospect-map{height:300px}
+}
+@media(max-width:720px){
+ .opportunity-score-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .prospect-geo-board{padding:14px}
+}
