@@ -71,7 +71,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-23-v2.40.45';
+const CRM_RELEASE='2026-09-23-v2.40.46';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -275,7 +275,7 @@ async function allRows(table,org){
 async function reload(){
  if(!session||recovery||busy)return;
  const version=++loadVersion;const userId=session.user.id;loading=true;renderWorkspaceControls();
- $('refreshBtn').disabled=true;$('newBtn').disabled=true;notice('Cargando información…');
+ $('refreshBtn').disabled=true;$('refreshBtn').classList.add('is-refreshing');$('newBtn').disabled=true;notice('');
  try{
  const result=await sb.from('profiles').select('id,organization_id,full_name,role').eq('id',userId).maybeSingle();
  if(version!==loadVersion)return;
@@ -305,7 +305,7 @@ async function reload(){
  }else mailWebhookConfig=null;
  render();const bad=Object.keys(failures);notice(bad.length?'No se pudo cargar: '+bad.map(k=>modules[k]?.label||k).join(', ')+'. Pulsa Actualizar para reintentar.':'',!!bad.length);
  }catch(error){if(version===loadVersion){profile=null;data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice(errorText(error),true);}}
- finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;render();applyEntryRoute();}}
+ finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;$('refreshBtn').classList.remove('is-refreshing');render();applyEntryRoute();}}
 }
 function applyTheme(theme,persist=false){
  const night=theme==='night';document.documentElement.dataset.theme=night?'night':'day';
