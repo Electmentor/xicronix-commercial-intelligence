@@ -1280,3 +1280,43 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
     width:100%!important;
   }
 }
+
+
+/* V2.40.37 · Align header controls with title and replace visible user name */
+.top{
+  align-items:flex-end!important;
+}
+.top-title-block{
+  display:grid;
+  gap:4px;
+}
+.top-title-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.top-title-row h1{
+  margin:0!important;
+}
+.user-identity{
+  width:34px;
+  height:34px;
+  min-width:34px;
+  padding:0!important;
+  display:grid;
+  place-items:center;
+  border-radius:50%!important;
+  background:var(--panel);
+}
+.user-identity svg{
+  width:18px;
+  height:18px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+}
+.top .workspace-controls{
+  margin:0 0 2px!important;
+  align-self:flex-end;
+}
+#welcome{display:none!important}
