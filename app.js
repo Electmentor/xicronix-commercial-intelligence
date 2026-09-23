@@ -62,9 +62,10 @@ const quantity=f('quantity','Cantidad','number');
 const discount=f('discount_pct','Descuento negociado (%)','number');
 const negotiatedPrice=f('negotiated_unit_price','Precio unitario negociado (USD)','number');
 const modules={
+ prospects:{label:'Potenciales',singular:'potencial prospecto',filter:'prospect_state',options:{COLD:'Frío',ACCESSIBLE:'Accesible',ACTIVATED:'Activado',QUALIFIED:'Calificado',CUSTOMER:'Cliente',UNASSESSED:'Sin evaluar'},fields:[]},
  institutions:{label:'Instituciones',singular:'institución',filter:'type',options:enums.type,fields:[f('name','Nombre','text',true),f('type','Tipo','select',true,enums.type),f('ruc','RUC'),f('city','Ciudad'),f('country','País','text',true),f('address','Dirección'),f('email','Correo','email'),f('phone','Teléfono','tel'),f('website','Sitio web','url'),f('notes','Notas','textarea')]},
  contacts:{label:'Contactos',singular:'contacto',filter:'decision_level',options:enums.decision_level,fields:[f('first_name','Nombres','text',true),f('last_name','Apellidos'),institution,f('job_title','Cargo'),f('decision_level','Nivel de decisión','select',true,enums.decision_level),f('email','Correo','email'),f('phone','Teléfono','tel'),f('notes','Notas','textarea')]},
- leads:{label:'Prospectos',singular:'prospecto',filter:'status',options:enums.status,fields:[f('title','Título','text',true),institution,contact,f('source','Canal de origen','select',false,enums.leadSource),f('status','Estado','select',true,enums.status),f('estimated_value','Valor estimado (S/)','number'),f('score','Calificación manual (0–100)','number'),owner,...followUp]},
+ leads:{label:'Leads',singular:'lead',filter:'status',options:enums.status,fields:[f('title','Título','text',true),institution,contact,f('source','Canal de origen','select',false,enums.leadSource),f('status','Estado','select',true,enums.status),f('estimated_value','Valor estimado (S/)','number'),f('score','Calificación manual (0–100)','number'),owner,...followUp]},
  opportunities:{label:'Oportunidades',singular:'oportunidad',filter:'stage',options:enums.stage,fields:[f('name','Nombre','text',true),institution,contact,catalogProduct,costProfile,quantity,discount,negotiatedPrice,f('stage','Etapa','select',true,enums.stage),f('value','Valor (S/)','number'),cost,owner,f('probability','Probabilidad manual (%)','number'),f('expected_close_date','Cierre esperado','date'),...followUp]},
  tasks:{label:'Tareas',singular:'tarea',filter:'status',options:enums.taskStatus,fields:[f('title','Título','text',true),f('lead_id','Prospecto','relation'),institution,contact,f('status','Estado','select',true,enums.taskStatus),f('priority','Importancia manual','select',true,enums.priority),f('due_at','Fecha límite','datetime-local'),assignee]},
  meetings:{label:'Agenda',singular:'reunión',filter:'status',options:enums.meetingStatus,fields:[f('title','Título','text',true),f('lead_id','Prospecto','relation'),institution,contact,f('status','Estado','select',true,enums.meetingStatus),f('attendee_status','Confirmación del cliente','select',true,enums.attendeeStatus),f('mode','Modalidad','select',true,enums.meetingMode),f('start_at','Inicio','datetime-local',true),f('end_at','Fin','datetime-local',true),f('location','Lugar / enlace'),owner,f('notes','Notas','textarea')]},
@@ -154,7 +155,7 @@ const accessible=table=>(!IS_DEV_PREVIEW||DEV_SUPPORTED_MODULES.has(table))&&can
 const writableFor=table=>canWriteModule(profile,workspace,table);
 const DEV_UNAVAILABLE_OPPORTUNITY_FIELDS=new Set(['catalog_product_id','cost_profile_id','quantity','discount_pct','negotiated_unit_price','estimated_cost']);
 const fieldsFor=table=>(modules[table]?.fields||[]).filter(field=>(!field.adminOnly||canViewDashboard())&&(!IS_DEV_PREVIEW||table!=='opportunities'||!DEV_UNAVAILABLE_OPPORTUNITY_FIELDS.has(field.key)));
-const databaseTable=table=>({users:'profiles',goals:'commercial_goals',expenses:'commercial_expenses'})[table]||table;
+const databaseTable=table=>({users:'profiles',goals:'commercial_goals',expenses:'commercial_expenses',prospects:'crm_prospect_registry'})[table]||table;
 function restoreWorkspace(){
  const identity=workspaceKey(session.user.id,profile.organization_id);
  if(workspaceIdentity!==identity){
@@ -181,7 +182,7 @@ function renderWorkspaceControls(){
  $('workspaceHint').textContent=IS_DEV_PREVIEW?'CRM DEV aislado · datos de prueba y evolución funcional.':admin?'Visión global: resultados, margen, metas y equipo.':'Mi cartera: prospectos, potencial, interacciones y próximas acciones.';
  $('workspaceLabel').textContent=admin?'DIRECCIÓN COMERCIAL':'MI ESPACIO DE VENTAS';
  $('appView').dataset.workspace=admin?ADMIN:SELLER;
- const labels=admin?{dashboard:'Dashboard Ejecutivo'}:{dashboard:'Mi Dashboard',leads:'Mi cartera',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',deliverables:'Mis entregables',documents:'Mis documentos',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
+ const labels=admin?{dashboard:'Dashboard Ejecutivo',prospects:'Potenciales',leads:'Leads'}:{dashboard:'Mi Dashboard',leads:'Mis leads',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',deliverables:'Mis entregables',documents:'Mis documentos',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
  const keys=admin?['dashboard',...Object.keys(modules)]:['dashboard','leads','tasks','meetings','deliverables','documents','activities','opportunities','catalog_products','institutions','contacts'];
  $('navigation').innerHTML=keys.filter(accessible).map((key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen ejecutivo')+'</button>').join('');
 }
@@ -533,7 +534,21 @@ function applyLocalMovementMilestone(payload){
  const current=milestonePercent(lead.commercial_milestone);
  if(current<meta.percent){lead.commercial_milestone=code;lead.maturity_percent=meta.percent;lead.milestone_updated_at=payload.occurred_at||new Date().toISOString();}
 }
+function renderPotentialProspects(){
+ $('recordContext').hidden=true;$('sellerSummary').hidden=true;$('importBtn').hidden=true;$('importHelp').hidden=true;
+ const search=normalize($('search').value),filter=$('filter').value;
+ const rows=(data.prospects||[]).filter(row=>(!filter||row.prospect_state===filter)&&(!search||normalize([row.name,row.ruc,row.city].filter(Boolean).join(' ')).includes(search)))
+  .sort((a,b)=>Number(b.xpps_score||0)-Number(a.xpps_score||0)||Number(b.xpps_confidence||0)-Number(a.xpps_confidence||0)||String(a.name||'').localeCompare(String(b.name||'')));
+ const max=Math.max(1,Math.ceil(rows.length/size));pageIndex=Math.min(pageIndex,max-1);
+ $('recordCount').textContent=failures.prospects?'Información no disponible':rows.length+' potenciales prospectos';
+ $('exportBtn').disabled=true;$('pageNumber').textContent='Página '+(pageIndex+1)+' de '+max;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
+ if(failures.prospects){$('recordList').innerHTML='<div class="panel empty">No pudimos cargar los potenciales prospectos. Pulsa Actualizar.</div>';return;}
+ if(!rows.length){$('recordList').innerHTML='<div class="panel empty">No hay potenciales prospectos con este filtro.</div>';return;}
+ $('recordList').innerHTML='<div class="table-wrap"><table><thead><tr><th>Institución</th><th>Estado</th><th>XPPS</th><th>Confianza</th><th>XAS</th><th>Relación</th></tr></thead><tbody>'+rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>'<tr><td><strong>'+esc(row.name||'Institución')+'</strong><small>'+esc([row.city,row.ruc&&('RUC '+row.ruc)].filter(Boolean).join(' · '))+'</small></td><td><span class="badge">'+esc(modules.prospects.options[row.prospect_state]||row.prospect_state||'Sin evaluar')+'</span></td><td><strong>'+Number(row.xpps_score||0)+'/100</strong></td><td>'+Number(row.xpps_confidence||0)+'%</td><td>'+((row.xas_score===null||row.xas_score===undefined)?'Pendiente':Number(row.xas_score)+'/100')+'</td><td><span class="badge">'+(row.human_interaction_verified?'Interacción humana':'Sin interacción')+'</span></td></tr>').join('')+'</tbody></table></div>';
+}
+
 function renderRecords(){
+ if(page==='prospects'){renderPotentialProspects();return;}
  const isUsers=page==='users',isGoals=page==='goals',isExpenses=page==='expenses';
  $('recordContext').hidden=!executiveFilter&&!executiveOwner;
  $('recordContextLabel').textContent=[{won:'Ganadas con cierre previsto este mes',pipeline:'Cartera abierta',risk:'Cartera en riesgo'}[executiveFilter],executiveOwner?'Vendedor: '+(data.users.find(row=>row.id===executiveOwner)?.full_name||'seleccionado'):''].filter(Boolean).join(' · ');
