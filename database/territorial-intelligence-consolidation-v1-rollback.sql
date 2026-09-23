@@ -2,6 +2,8 @@
 begin;
 revoke all on function public.get_territorial_intelligence(text) from public, anon, authenticated, service_role;
 drop function if exists public.get_territorial_intelligence(text);
+revoke all on function private.get_territorial_intelligence_internal(text) from public, anon, authenticated, service_role;
+drop function if exists private.get_territorial_intelligence_internal(text);
 drop view if exists public.territorial_intelligence_registry;
 
 update public.institution_economic_profiles
