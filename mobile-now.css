@@ -150,3 +150,53 @@ html[data-theme="night"] .now-kpis .now-kpi-card small{color:#8fc0ff}
   .app[data-page="now"] .now-grid{gap:10px;margin-bottom:10px}
   .app[data-page="now"] .now-update,.app[data-page="now"] .now-alerts{gap:10px}
 }
+
+
+/* V2.36 · Xicronix Ahora: command center first */
+@media(max-width:700px){
+  /* Keep navigation usable but secondary. */
+  .app[data-page="now"] .sidebar{padding-bottom:6px}
+  .app[data-page="now"] .sidebar .brand{font-size:1rem;padding-bottom:7px}
+  .app[data-page="now"] .sidebar nav{padding-bottom:2px}
+  .app[data-page="now"] .sidebar nav button{min-height:36px;padding:6px 10px;font-size:.79rem}
+  .app[data-page="now"] .sidebar-bottom{padding-top:3px}
+  .app[data-page="now"] .sidebar-bottom .release-label{font-size:.54rem}
+  .app[data-page="now"] .sidebar-bottom span{font-size:.66rem}
+  .app[data-page="now"] .sidebar-bottom button{min-height:30px;padding:4px 8px;font-size:.66rem}
+
+  /* Put intelligence before configuration. */
+  .app[data-page="now"] .workspace-controls{display:none!important}
+  .app[data-page="now"] .top{margin-bottom:7px}
+  .app[data-page="now"] .top h1{font-size:1.38rem;margin:3px 0 1px}
+  .app[data-page="now"] .top .eyebrow{font-size:.58rem}
+  .app[data-page="now"] #welcome{font-size:.7rem}
+
+  /* "Ahora" is a command center, not a table/list screen. */
+  .app[data-page="now"] .toolbar,
+  .app[data-page="now"] #importHelp,
+  .app[data-page="now"] #recordCount,
+  .app[data-page="now"] .pagination{display:none!important}
+
+  .app[data-page="now"] #records{margin-top:0}
+  .app[data-page="now"] #recordList{margin-top:0}
+  .app[data-page="now"] .now-status{margin-top:0}
+
+  /* Bring alert + KPIs into the first viewport. */
+  .app[data-page="now"] .now-status{padding:12px 14px;margin-bottom:8px}
+  .app[data-page="now"] .now-status .eyebrow{font-size:.62rem}
+  .app[data-page="now"] .now-status h2{font-size:1.28rem;margin:2px 0 4px}
+  .app[data-page="now"] .now-status p{font-size:.75rem}
+  .app[data-page="now"] .now-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:8px}
+  .app[data-page="now"] .now-kpis .now-kpi-card{min-height:82px;padding:10px}
+  .app[data-page="now"] .now-kpis .now-kpi-card b{font-size:1.38rem}
+  .app[data-page="now"] .now-kpis .now-kpi-card span{font-size:.62rem}
+  .app[data-page="now"] .now-kpis .now-kpi-card small{font-size:.61rem;margin-top:4px}
+
+  /* De-emphasize generic chrome. */
+  .app[data-page="now"] .header-actions{grid-template-columns:auto 1fr auto}
+  .app[data-page="now"] #themeToggle{font-size:.68rem}
+  .app[data-page="now"] #refreshBtn{font-size:.68rem}
+
+  /* Dashboard keeps workspace selector available, but labels are clearer. */
+  .workspace-switch button{font-weight:700}
+}
