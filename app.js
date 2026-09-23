@@ -561,6 +561,20 @@ async function registerPotentialContact(institutionId){
  }catch(error){notice(errorText(error),true);}
  finally{busy=false;render();}
 }
+function explainPotentialProspect(id){
+ const row=(data.prospects||[]).find(item=>item.id===id);if(!row)return;
+ const evidence=Array.isArray(row.evidence_preview)?row.evidence_preview:[];
+ $('methodTitle').textContent='Por qué importa · '+(row.name||'Cuenta');
+ $('methodText').textContent=[
+  'XPPS: '+(row.xpps_score??'—')+' · XWIN: '+(row.xwin_score??'—')+' · XAS: '+(row.xas_score??'—'),
+  'Rollout: '+(row.rollout_potential_score??'—')+' · Procurement: '+(row.procurement_readiness_score??'—')+' ('+(row.procurement_model||'UNKNOWN')+')',
+  row.promotion_reason?'Criterio: '+row.promotion_reason:'',
+  row.next_action?'Siguiente acción: '+row.next_action:'',
+  row.model_revalidation_reason?'Revalidación: '+row.model_revalidation_reason:'',
+  evidence.length?'Evidencia: '+evidence.map(e=>[e.source,e.note].filter(Boolean).join(' — ')).join(' | '):'Evidencia resumida no disponible.'
+ ].filter(Boolean).join('\n\n');
+ $('methodDialog').showModal();
+}
 function prospectActionClass(row){
  if(row.model_revalidation_status==='REVIEW_REQUIRED')return {label:'Revalidar',cls:'warn'};
  if(Number(row.xpps_score)>=75&&Number(row.xwin_score)>=65)return {label:'Acción ahora',cls:'success'};
@@ -599,7 +613,7 @@ function renderPotentialProspects(){
     '<td><strong>XAS '+(row.xas_score==null?'—':Number(row.xas_score))+'</strong><small>Confianza XPPS '+(row.xpps_confidence==null?'—':Number(row.xpps_confidence)+'%')+'</small></td>'+
     '<td><strong>'+esc(scale)+'</strong><small>Rollout '+esc(rollout)+'</small></td>'+
     '<td><strong>'+esc(row.procurement_model||'UNKNOWN')+'</strong><small>Readiness '+esc(procurement)+'</small></td>'+
-    '<td><div class="row-actions">'+(row.has_lead?'<span class="badge success">Lead existente</span>':'<button type="button" class="primary" data-prospect-contact="'+row.id+'">Registrar contacto</button>')+'</div></td>'+
+    '<td><div class="row-actions">'+'<button type="button" data-prospect-explain="'+row.id+'">Por qué</button>'+(row.has_lead?'<span class="badge success">Lead existente</span>':'<button type="button" class="primary" data-prospect-contact="'+row.id+'">Registrar contacto</button>')+'</div></td>'+
    '</tr>';
  }).join('')+'</tbody></table></div>';
 }
@@ -1057,7 +1071,7 @@ function init(){
  $('dateLabel').textContent=new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long'});
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  $('sidebarToggle').onclick=()=>applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.prospectContact){registerPotentialContact(b.dataset.prospectContact);return;}if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.prospectExplain){explainPotentialProspect(b.dataset.prospectExplain);return;}if(b.dataset.prospectContact){registerPotentialContact(b.dataset.prospectContact);return;}if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
  $('authForm').onsubmit=authenticate;$('passwordlessBtn').onclick=signInWithEmailLink;$('passwordlessBtn').hidden=!IS_DEV_PREVIEW;$('passwordlessHint').hidden=!IS_DEV_PREVIEW;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
