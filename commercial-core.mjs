@@ -1,8 +1,8 @@
 export const MILESTONE_META = {
-  M1: { percent: 15, label: 'Prospecto identificado y calificado' },
-  M2: { percent: 30, label: 'Necesidad y alcance definidos' },
+  M1: { percent: 15, label: 'Prospecto calificado' },
+  M2: { percent: 30, label: 'Diagnóstico y alcance validados' },
   M3: { percent: 50, label: 'Propuesta presentada' },
-  M4: { percent: 70, label: 'Negociación y validación comercial' },
+  M4: { percent: 70, label: 'Negociación y condiciones validadas' },
   M5: { percent: 85, label: 'Compromiso formal del cliente' },
   M6: { percent: 100, label: 'Venta cerrada' },
 };
