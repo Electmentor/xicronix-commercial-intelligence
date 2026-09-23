@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#081b32"><meta name="description" content="Xicronix: instituciones, contactos y seguimiento comercial.">
-<meta name="robots" content="noindex,nofollow"><meta name="xicronix-release" content="2026-09-23-v2.40.32">
+<meta name="robots" content="noindex,nofollow"><meta name="xicronix-release" content="2026-09-23-v2.40.33">
 <title>Xicronix V2 | Inteligencia comercial</title>
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
@@ -17,7 +17,7 @@
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Xicronix">
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script type="module" src="app.js?v=20260923-v2.40.32"></script>
+<script type="module" src="app.js?v=20260923-v2.40.33"></script>
 </head>
 <body>
 <section id="authView" class="auth">
@@ -35,7 +35,7 @@
   <p class="auth-note">Una cuenta nueva necesita ser vinculada a tu organización por un administrador.</p></main>
 </section>
 <section id="appView" class="app" hidden>
-  <aside id="mainSidebar" class="sidebar"><div class="brand">XICRONIX<span>INTELIGENCIA COMERCIAL</span></div><p id="workspaceLabel" class="nav-label">ESPACIO COMERCIAL</p><nav id="navigation" aria-label="Navegación principal"></nav><div class="sidebar-bottom"><small class="release-label">V2.40.32 · 23 SEP 2026</small><a id="complaintsLink" class="complaints-link" href="complaints.html" hidden>Libro de Reclamaciones</a><span id="userRole"></span><button id="logoutBtn">Cerrar sesión</button></div></aside>
+  <aside id="mainSidebar" class="sidebar"><div class="brand">XICRONIX<span>INTELIGENCIA COMERCIAL</span></div><p id="workspaceLabel" class="nav-label">ESPACIO COMERCIAL</p><nav id="navigation" aria-label="Navegación principal"></nav><div class="sidebar-bottom"><small class="release-label">V2.40.33 · 23 SEP 2026</small><a id="complaintsLink" class="complaints-link" href="complaints.html" hidden>Libro de Reclamaciones</a><span id="userRole"></span><button id="logoutBtn">Cerrar sesión</button></div></aside>
   <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-expanded="true" aria-controls="mainSidebar" aria-label="Ocultar navegación" title="Ocultar navegación">‹</button>
   <main class="main"><header class="top"><div><p class="eyebrow">XICRONIX / <span id="dateLabel"></span></p><h1 id="pageTitle">Resumen comercial</h1><p id="welcome"></p></div></header>
   <section id="workspaceControls" class="workspace-controls" aria-label="Experiencia de trabajo" hidden>
@@ -46,7 +46,7 @@
     <p id="workspaceHint" role="status" aria-live="polite"></p>
     <div class="source-controls"><span id="sourceBadge" class="source-badge" role="status"></span><button id="sourceToggle" type="button">Ver demostración</button><button id="resetDemoBtn" type="button" hidden title="Restablece solo los casos ficticios de este navegador">Reiniciar demo</button></div>
     <div id="demoSellerField" class="demo-seller" hidden><label for="demoSeller">Explorar vendedor ficticio</label><select id="demoSeller"></select></div>
-    <div class="header-actions workspace-actions"><button id="attentionBtn" type="button" class="attention-button" aria-haspopup="dialog" aria-controls="attentionDialog"><span>Atención</span><b id="attentionCount" aria-label="Solicitudes pendientes">0</b></button><button id="themeToggle" type="button" aria-pressed="false" title="Cambiar contraste de la interfaz">🌙 Modo nocturno</button><button id="refreshBtn">Actualizar</button><button id="newBtn" class="primary">+ Nueva institución</button></div>
+    <div class="header-actions workspace-actions"><button id="themeToggle" type="button" aria-pressed="false" title="Cambiar contraste de la interfaz">🌙 Modo nocturno</button><button id="refreshBtn">Actualizar</button><button id="newBtn" class="primary">+ Nueva institución</button></div>
   </section>
   <p id="status" class="notice" role="status" aria-live="polite" hidden></p>
   <section id="dashboard"></section>
