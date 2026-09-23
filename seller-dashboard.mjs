@@ -123,21 +123,11 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
 
   const priorityRows=rows.slice(0,2);
   const focus=priorityRows.length?'<section class="seller-priority-section"><header><div><small>PROSPECTOS QUE REQUIEREN ATENCIÓN AHORA</small><h2>¿A quién atender primero y qué hacer?</h2></div><span>'+priorityRows.length+' en foco</span></header><div class="seller-priority-stack">'+priorityRows.map((row,index)=>{
-    const lead=row.lead,name=row.institution?.name||lead.title,last=row.latest;
-    const why=row.urgency.label==='Alta'
-      ?'La acción está vencida o requiere atención inmediata.'
-      :row.evidence!=='Sin evidencia comercial explícita registrada.'
-        ?'Existe evidencia suficiente para mantener este prospecto en foco.'
-        :'Aún falta información clave antes de avanzar.';
+    const lead=row.lead,name=row.institution?.name||lead.title;
     return '<article class="seller-priority-prospect '+(index===0?'primary-focus':'secondary-focus')+'">'+
       '<header><div><span class="seller-priority-rank">0'+(index+1)+'</span><div><h2>'+esc(name)+'</h2><small class="seller-priority-label">PROSPECTO PRIORITARIO</small></div></div><div class="seller-priority-status"><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></div></header>'+
       renderProspectProgress(lead,row.maturity)+
-      '<div class="seller-priority-grid">'+
-        '<section><small>SITUACIÓN ACTUAL</small><strong>'+esc(row.situation)+'</strong><p>'+esc(last?'Último movimiento: '+compactDate(last.occurred_at):'Sin interacción reciente')+'</p></section>'+
-        '<section><small>QUÉ FALTA</small><strong>'+esc(row.missingText)+'</strong><p>'+(row.contact?esc('Contacto: '+([row.contact.first_name,row.contact.last_name].filter(Boolean).join(' ')||row.contact.job_title||'registrado')):'Sin contacto identificado')+'</p></section>'+
-        '<section class="action-box"><small>SIGUIENTE ACCIÓN</small><strong>'+esc(row.urgency.next)+'</strong><p>'+esc(row.urgency.date?'Fecha clave: '+compactDate(row.urgency.date):'Sin fecha comprometida')+'</p></section>'+
-        '<section><small>POR QUÉ IMPORTA</small><strong>'+esc(why)+'</strong><p>'+(row.potential===null?'Potencial pendiente':row.potential+'% potencial')+' · '+esc(row.decision)+'</p></section>'+
-      '</div>'+
+
       '<footer><div><small>Problema detectado</small><strong>'+esc(row.problem)+'</strong></div><button class="primary" data-lead-detail="'+esc(lead.id)+'">Abrir expediente</button></footer>'+
     '</article>';
   }).join('')+'</div></section>':'<div class="seller-story-empty">No hay prospectos activos en tu cartera.</div>';
