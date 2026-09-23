@@ -1320,3 +1320,22 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
   align-self:flex-end;
 }
 #welcome{display:none!important}
+
+
+/* V2.40.38 · User icon as compact rounded card */
+.user-identity{
+  width:36px!important;
+  height:36px!important;
+  min-width:36px!important;
+  padding:0!important;
+  display:grid!important;
+  place-items:center!important;
+  border-radius:10px!important;
+  background:var(--panel)!important;
+  border:1px solid var(--line)!important;
+  box-shadow:none!important;
+}
+.user-identity svg{
+  width:18px!important;
+  height:18px!important;
+}
