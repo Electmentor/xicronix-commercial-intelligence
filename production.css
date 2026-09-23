@@ -275,3 +275,28 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
  .prospect-progress-track{min-width:680px;margin-right:36px}
  .prospect-progress-head{position:sticky;left:0}
 }
+
+
+/* V2.40.5 · Prospect progress gradient refinement */
+.prospect-progress-track{
+  background:linear-gradient(90deg,
+    rgba(214,45,45,.18) 0%,
+    rgba(214,45,45,.18) 25%,
+    rgba(236,153,35,.18) 55%,
+    rgba(44,164,92,.18) 100%);
+}
+.prospect-progress-track>i{
+  background:linear-gradient(90deg,
+    #d62d2d 0%,
+    #d62d2d 25%,
+    #ec9923 55%,
+    #2ca45c 100%);
+  background-size:calc(100% / max(var(--progress-ratio, .01), .01)) 100%;
+  background-position:left center;
+  color:transparent;
+}
+.prospect-progress-dot{display:none!important}
+.prospect-progress-node{top:50%;height:6px}
+.prospect-progress-node>div{top:12px}
+.prospect-progress-node.current>div b,
+.prospect-progress-node.current>div small{font-weight:900;color:var(--text)}
