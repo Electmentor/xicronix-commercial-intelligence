@@ -572,6 +572,12 @@ function explainPotentialProspect(id){
   row.promotion_reason?'Criterio: '+row.promotion_reason:'',
   row.operating_recommendation?'Recomendación operativa: '+row.operating_recommendation:'',
   row.next_action?'Siguiente acción PI: '+row.next_action:'',
+  row.precontact_brief?.target_personas?.length?'Personas objetivo: '+row.precontact_brief.target_personas.map(p=>[p.name,p.role,p.confidence&&('conf. '+p.confidence)].filter(Boolean).join(' · ')).join(' | '):'',
+  row.precontact_brief?.need_hypothesis?'Hipótesis de necesidad: '+row.precontact_brief.need_hypothesis:'',
+  row.precontact_brief?.value_hypothesis?'Hipótesis de valor: '+row.precontact_brief.value_hypothesis:'',
+  row.precontact_brief?.diagnostic_questions?.length?'Preguntas de diagnóstico: '+row.precontact_brief.diagnostic_questions.join(' | '):'',
+  row.precontact_brief?.known_risks?.length?'Riesgos: '+row.precontact_brief.known_risks.join(' | '):'',
+  row.precontact_brief?.recommended_first_step?'Primer paso recomendado: '+row.precontact_brief.recommended_first_step:'',
   row.model_revalidation_reason?'Revalidación: '+row.model_revalidation_reason:'',
   evidence.length?'Evidencia: '+evidence.map(e=>[e.source,e.note].filter(Boolean).join(' — ')).join(' | '):'Evidencia resumida no disponible.'
  ].filter(Boolean).join('\n\n');
