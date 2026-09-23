@@ -783,3 +783,123 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
   color:var(--muted);
   text-align:right;
 }
+
+
+/* V2.40.18 · Compact progress shell + solid green pulse */
+.prospect-progress{
+  margin:2px 0 22px;
+  padding:12px 4px 54px;
+}
+.prospect-progress-shell{
+  width:min(980px,calc(100% - 150px));
+  margin-left:110px;
+  position:relative;
+}
+.prospect-progress-head{
+  position:relative;
+  min-height:44px;
+  display:block;
+  margin-bottom:10px;
+}
+.prospect-progress-title{
+  position:absolute;
+  left:0;
+  top:14px;
+  margin:0;
+  font-size:.68rem;
+  letter-spacing:.10em;
+  font-weight:900;
+  color:#24476b;
+  white-space:nowrap;
+}
+.prospect-progress-value{
+  position:absolute;
+  left:var(--progress-label-pos);
+  top:0;
+  transform:translateX(-50%);
+  margin:0;
+  font-size:1.28rem;
+  line-height:1;
+  font-weight:900;
+  color:#0f2747;
+  text-align:center;
+  white-space:nowrap;
+}
+.prospect-progress-head>span{
+  position:absolute;
+  right:0;
+  top:14px;
+  max-width:38%;
+  font-size:.76rem;
+  font-weight:700;
+  color:var(--muted);
+  text-align:right;
+}
+.prospect-progress-track{
+  position:relative;
+  height:8px;
+  border-radius:999px;
+  overflow:visible;
+  background:linear-gradient(
+    90deg,
+    #eef6ff 0%,
+    #dceeff 18%,
+    #c2e0ff 36%,
+    #9fd0ff 56%,
+    #73b7f8 72%,
+    #4b92dd 85%,
+    #2f6fbf 94%,
+    #163a6b 100%
+  )!important;
+  box-shadow:inset 0 0 0 1px rgba(18,60,116,.12);
+}
+.prospect-progress-track>i{display:none!important}
+.prospect-progress-comet{
+  position:absolute;
+  left:var(--comet-pos);
+  top:50%;
+  width:16px!important;
+  height:16px!important;
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  z-index:5;
+  background:#22c55e!important;
+  opacity:1!important;
+  box-shadow:
+    0 0 0 2px #22c55e,
+    0 0 10px #22c55e,
+    0 0 18px #22c55e,
+    0 0 28px rgba(34,197,94,.70)!important;
+  animation:greenPulseSolid 1.15s ease-in-out infinite!important;
+}
+.prospect-progress-comet::before,
+.prospect-progress-comet::after{
+  display:none!important;
+  content:none!important;
+}
+@keyframes greenPulseSolid{
+  0%,100%{
+    transform:translate(-50%,-50%) scale(.92);
+    opacity:1;
+    box-shadow:
+      0 0 0 2px #22c55e,
+      0 0 10px #22c55e,
+      0 0 18px #22c55e,
+      0 0 28px rgba(34,197,94,.70);
+  }
+  50%{
+    transform:translate(-50%,-50%) scale(1.20);
+    opacity:1;
+    box-shadow:
+      0 0 0 2px #22c55e,
+      0 0 14px #22c55e,
+      0 0 24px #22c55e,
+      0 0 38px rgba(34,197,94,.78);
+  }
+}
+@media(max-width:900px){
+  .prospect-progress-shell{
+    width:calc(100% - 60px);
+    margin-left:42px;
+  }
+}
