@@ -251,3 +251,27 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
 .seller-secondary-list[open]>summary{margin-bottom:10px}
 @media(max-width:1000px){.seller-priority-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:700px){.seller-priority-grid{grid-template-columns:1fr}.seller-priority-prospect>footer{flex-direction:column;align-items:stretch}.seller-priority-prospect>footer .primary{width:100%}}
+
+
+/* V2.40.4 · Prospect horizontal progress */
+.prospect-progress{margin:2px 0 22px;padding:12px 4px 22px}
+.prospect-progress-head{display:flex;justify-content:space-between;gap:14px;align-items:end;margin-bottom:14px}
+.prospect-progress-head>div{display:flex;align-items:baseline;gap:9px}
+.prospect-progress-head small{font-size:.64rem;letter-spacing:.09em;font-weight:800;color:var(--muted)}
+.prospect-progress-head strong{font-size:1.35rem}
+.prospect-progress-head>span{font-size:.76rem;font-weight:700;color:var(--muted);text-align:right}
+.prospect-progress-track{position:relative;height:6px;border-radius:999px;background:color-mix(in srgb,var(--line) 88%,transparent);margin:0 18px}
+.prospect-progress-track>i{position:absolute;inset:0 auto 0 0;border-radius:999px;background:currentColor;width:0;transition:width .25s ease}
+.prospect-progress-node{position:absolute;left:var(--node-pos);top:50%;transform:translate(-50%,-50%);z-index:2}
+.prospect-progress-dot{display:block;width:15px;height:15px;border-radius:50%;border:3px solid var(--panel);background:var(--line);box-shadow:0 0 0 1px var(--line)}
+.prospect-progress-node.done .prospect-progress-dot{background:currentColor;box-shadow:0 0 0 1px currentColor}
+.prospect-progress-node.current .prospect-progress-dot{width:19px;height:19px;background:var(--panel);box-shadow:0 0 0 4px currentColor}
+.prospect-progress-node>div{position:absolute;top:16px;left:50%;transform:translateX(-50%);width:120px;text-align:center}
+.prospect-progress-node>div b{display:block;font-size:.66rem;line-height:1.2}
+.prospect-progress-node>div small{display:block;font-size:.58rem;line-height:1.18;color:var(--muted);margin-top:2px}
+.prospect-progress-node:last-child>div{left:auto;right:-8px;transform:none;text-align:right}
+@media(max-width:760px){
+ .prospect-progress{overflow-x:auto;padding-bottom:56px}
+ .prospect-progress-track{min-width:680px;margin-right:36px}
+ .prospect-progress-head{position:sticky;left:0}
+}
