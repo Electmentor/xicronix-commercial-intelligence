@@ -14,3 +14,12 @@ html[data-theme="night"] .ceo-dashboard{--surface:#111f31}html[data-theme="night
 /* Keep the executive ranking readable without pushing the decision surface below the first viewport. */
 @media(min-width:1100px){.ceo-team-table th{padding:3px 2px}.ceo-team-table td{padding:3px 2px;line-height:1.05}.ceo-team-table td>button{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:20px}.ceo-team-table td:last-child b{margin-top:1px}.ceo-caption{padding-top:3px}}
 @media(min-width:1100px) and (min-height:650px){.app[data-page="dashboard"] .main{padding-bottom:0}.ceo-dashboard{height:calc(100dvh - 173px);gap:8px}.ceo-bottom{gap:8px}.ceo-kpi{padding:8px 12px}.ceo-kpi>strong{margin:4px 0}.ceo-decision{padding:8px 12px}.ceo-decision h3{margin:4px 0 3px}.ceo-panel{padding:9px 12px}.ceo-stage{margin:4px 0}.ceo-event{min-height:34px;padding:4px 0}.ceo-target{padding-top:6px}}
+
+
+/* V2.37 executive decision storytelling */
+.ceo-story--decision{align-items:start}.ceo-story--decision>div{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.ceo-story-card{min-height:132px;text-align:left;border:1px solid var(--line);border-radius:13px;padding:12px;background:var(--surface);color:inherit;display:flex;flex-direction:column;align-items:flex-start}
+.ceo-story-card:hover,.ceo-story-card:focus-visible{border-color:var(--blue)}
+.ceo-story-step{font-size:.65rem;color:var(--muted);font-weight:800}.ceo-story-card>small{font-size:.64rem;letter-spacing:.08em;font-weight:800;color:var(--muted);margin:5px 0}.ceo-story-card>strong{font-size:.78rem;line-height:1.4;font-weight:650}.ceo-story-card>em{margin-top:auto;padding-top:8px;font-size:.68rem;color:var(--blue);font-style:normal;font-weight:800}
+@media(max-width:1100px){.ceo-story--decision>div{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.ceo-story--decision{padding:14px}.ceo-story--decision>div{grid-template-columns:1fr}.ceo-story-card{min-height:0}}
