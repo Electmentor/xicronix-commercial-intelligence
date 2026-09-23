@@ -130,7 +130,7 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
         ?'Existe evidencia suficiente para mantener este prospecto en foco.'
         :'Aún falta información clave antes de avanzar.';
     return '<article class="seller-priority-prospect '+(index===0?'primary-focus':'secondary-focus')+'">'+
-      '<header><div><span class="seller-priority-rank">0'+(index+1)+'</span><div><h2>'+esc(name)+'</h2><small class="seller-priority-label">PROSPECTO PRIORITARIO</small></div></div><div class="seller-priority-status"><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span><span class="seller-current-stage">'+esc(milestoneLabel(lead.commercial_milestone))+' · '+row.maturity+'%</span></div></header>'+
+      '<header><div><span class="seller-priority-rank">0'+(index+1)+'</span><div><h2>'+esc(name)+'</h2><small class="seller-priority-label">PROSPECTO PRIORITARIO</small></div></div><div class="seller-priority-status"><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></div></header>'+
       renderProspectProgress(lead,row.maturity)+
       '<div class="seller-priority-grid">'+
         '<section><small>SITUACIÓN ACTUAL</small><strong>'+esc(row.situation)+'</strong><p>'+esc(last?'Último movimiento: '+compactDate(last.occurred_at):'Sin interacción reciente')+'</p></section>'+
