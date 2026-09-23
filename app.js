@@ -569,6 +569,7 @@ function explainPotentialProspect(id){
   'XPPS: '+(row.xpps_score??'—')+' · XWIN: '+(row.xwin_score??'—')+' · XAS: '+(row.xas_score??'—'),
   'Rollout: '+(row.rollout_potential_score??'—')+' · Procurement: '+(row.procurement_readiness_score??'—')+' ('+(row.procurement_model||'UNKNOWN')+')',
   'Pre-contacto: '+(row.precontact_completion_pct??'—')+'% · pendientes '+(row.open_items??0)+' · no encontrados '+(row.not_found_items??0),
+  row.student_count!=null?'Perfil económico: '+economicLabel(row)+(row.monthly_tuition_pen!=null?' · pensión '+prospectMoney(row.monthly_tuition_pen):'')+' · segmento '+marketSegmentLabel(row.market_segment_proxy)+' · confianza '+(row.economic_profile_confidence??'—')+'%':'',
   row.student_count!=null?'Matrícula observada: '+Number(row.student_count).toLocaleString('es-PE')+' · alcance '+(row.student_count_scope||'UNKNOWN'):'',
   row.monthly_tuition_pen!=null?'Pensión observada: '+prospectMoney(row.monthly_tuition_pen)+' · ingreso mensual bruto estimado '+prospectMoney(row.monthly_gross_revenue_estimate_pen):'',
   row.market_segment_proxy&&row.market_segment_proxy!=='UNKNOWN'?'Segmento comercial proxy: '+marketSegmentLabel(row.market_segment_proxy)+' · confianza económica '+(row.economic_profile_confidence??'—')+'%':'',
@@ -623,7 +624,10 @@ function prospectMoney(value){
 }
 function economicLabel(row){
  if(row.monthly_gross_revenue_estimate_pen!=null)return prospectMoney(row.monthly_gross_revenue_estimate_pen)+'/mes';
- if(row.student_count!=null)return Number(row.student_count).toLocaleString('es-PE')+' alumnos';
+ if(row.student_count!=null){
+   const partial=row.student_count_scope==='CAMPUS_LEVEL_ONLY';
+   return (partial?'≥ ':'')+Number(row.student_count).toLocaleString('es-PE')+' alumnos'+(partial?' · parcial':'');
+ }
  return 'Sin estimación';
 }
 function marketSegmentLabel(value){
