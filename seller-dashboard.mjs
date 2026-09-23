@@ -87,7 +87,17 @@ function prospectRows(data,now){
   }).sort((a,b)=>b.urgency.rank-a.urgency.rank||(b.potential??-1)-(a.potential??-1)||b.maturity-a.maturity);
 }
 
-export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={}}={}){
+function prospectDisplayId(lead){return String(lead?.id||'').slice(0,8).toUpperCase();}
+function matchesProspectSearch(row,query){
+  const q=String(query||'').trim().toLowerCase();
+  if(!q)return true;
+  const name=row.institution?.name||row.lead.title||'';
+  const fullId=String(row.lead.id||'').toLowerCase();
+  const shortId=prospectDisplayId(row.lead).toLowerCase();
+  return name.toLowerCase().includes(q)||fullId.includes(q)||shortId.includes(q);
+}
+
+export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={},searchQuery='',showSearch=false}={}){
   const rows=prospectRows(data,now),tasks=data.tasks||[],meetings=data.meetings||[];
   const incomplete=Object.keys(failures).length>0;
   const openTasks=tasks.filter(row=>!['COMPLETED','CANCELLED'].includes(row.status));
@@ -121,23 +131,26 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
     '</button>';
   }).join(''):'<div class="seller-story-empty">No hay prospectos activos en tu cartera.</div>';
 
-  const priorityRows=rows.slice(0,4);
+  const searchedRows=String(searchQuery||'').trim()?rows.filter(row=>matchesProspectSearch(row,searchQuery)):rows;
+  const priorityRows=searchedRows.slice(0,4);
   const focus=priorityRows.length?'<section class="seller-priority-section"><div class="seller-priority-stack">'+priorityRows.map((row,index)=>{
     const lead=row.lead,name=row.institution?.name||lead.title;
     return '<article class="seller-priority-prospect '+(index===0?'primary-focus':'secondary-focus')+'">'+
-      '<header><div><span class="seller-priority-rank">0'+(index+1)+'</span><div><h2>'+esc(name)+'</h2></div></div><div class="seller-priority-status"><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></div></header>'+
+      '<header><div><span class="seller-priority-rank">0'+(index+1)+'</span><div><h2>'+esc(name)+'</h2><small class="prospect-id">ID '+esc(prospectDisplayId(lead))+'</small></div></div><div class="seller-priority-status"><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></div></header>'+
       renderProspectProgress(lead,row.maturity)+
 
       '<footer><div><small>Problema detectado</small><strong>'+esc(row.problem)+'</strong></div><button class="primary" data-lead-detail="'+esc(lead.id)+'">Abrir expediente</button></footer>'+
     '</article>';
-  }).join('')+'</div></section>':'<div class="seller-story-empty">No hay prospectos activos en tu cartera.</div>';
+  }).join('')+'</div></section>':'<div class="seller-story-empty">'+(String(searchQuery||'').trim()?'No se encontraron prospectos con ese ID o nombre.':'No hay prospectos activos en tu cartera.')+'</div>';
 
   const priorityStory=selected?'<div class="seller-priority-story">'+
     '<p><small>SITUACIÓN ACTUAL</small><strong>'+esc(selected.situation)+'</strong></p>'+
     '<p><small>QUÉ FALTA</small><strong>'+esc(selected.missingText)+'</strong></p>'+
     '<p><small>SIGUIENTE ACCIÓN</small><strong>'+esc(selected.urgency.next)+(selected.urgency.date?' · '+esc(compactDate(selected.urgency.date)):'')+'</strong></p>'+
     '</div>':'';
+  const searchBox=showSearch?'<section class="commercial-search"><div class="commercial-search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg><input id="commercialSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Buscar por ID o nombre…" value="'+esc(searchQuery)+'" aria-label="Buscar prospecto por ID o nombre"></div><small>'+searchedRows.length+' resultado'+(searchedRows.length===1?'':'s')+'</small></section>':'';
   return '<div class="seller-story-dashboard">'+
+    searchBox+
     focus+
     '<details class="seller-prospects-panel seller-prospects-panel--cards seller-secondary-list"><summary>Ver otros prospectos de mi cartera</summary><div class="seller-candidate-list">'+cards+'</div></details>'+
     '</div>';
