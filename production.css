@@ -1339,3 +1339,27 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
   width:18px!important;
   height:18px!important;
 }
+
+
+/* V2.40.40 · Square priority badges and user card */
+.seller-urgency{
+  min-width:56px!important;
+  height:38px!important;
+  padding:0 10px!important;
+  display:inline-grid!important;
+  place-items:center!important;
+  border-radius:10px!important;
+  font-size:.78rem!important;
+  font-weight:800!important;
+  line-height:1!important;
+}
+.seller-urgency.danger{background:#f8dddd!important;color:#b42318!important}
+.seller-urgency.warning{background:#fff0c2!important;color:#8a5a00!important}
+.seller-urgency.calm{background:#e1f3e5!important;color:#067647!important}
+.user-identity{
+  width:36px!important;
+  height:36px!important;
+  min-width:36px!important;
+  border-radius:8px!important;
+  padding:0!important;
+}
