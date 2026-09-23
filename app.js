@@ -50,6 +50,7 @@ const quantity=f('quantity','Cantidad','number');
 const discount=f('discount_pct','Descuento negociado (%)','number');
 const negotiatedPrice=f('negotiated_unit_price','Precio unitario negociado (USD)','number');
 const modules={
+ prospects:{label:'Potenciales',singular:'potencial prospecto',filter:'operating_bucket',options:{ACTION_NOW:'Acción ahora',RESEARCH_FIRST:'Investigar primero',STRATEGIC_WATCH:'Vigilancia estratégica',MONITOR:'Monitorear',REVALIDATE:'Revalidar'},fields:[]},
  radar:{label:'Radar Comercial',singular:'señal radar',filter:'classification',options:enums.radarClass,fields:[]},
  mail:{label:'Correo Zoho',singular:'correo',filter:'status',options:enums.mailStatus,fields:[]},
  institutions:{label:'Instituciones',singular:'institución',filter:'type',options:enums.type,fields:[f('name','Nombre','text',true),f('type','Tipo','select',true,enums.type),f('ruc','RUC'),f('city','Ciudad'),f('country','País','text',true),f('address','Dirección'),f('email','Correo','email'),f('phone','Teléfono','tel'),f('website','Sitio web','url'),f('notes','Notas','textarea')]},
@@ -70,7 +71,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-23-v2.38.4';
+const CRM_RELEASE='2026-09-23-v2.40';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -259,7 +260,7 @@ function rowQuery(table,org){
  return query;
 }
 async function allRows(table,org){
- const rows=[];const orderColumn=table==='scores'?'calculated_at':'created_at';for(let offset=0;;offset+=500){
+ const rows=[];const orderColumn=table==='scores'?'calculated_at':table==='prospects'?'snapshot_at':'created_at';for(let offset=0;;offset+=500){
  const {data:batch,error}=await rowQuery(table,org).order(orderColumn,{ascending:false}).order('id').range(offset,offset+499);
  if(error)throw error;rows.push(...batch);if(batch.length<500)return rows;
  }
@@ -282,6 +283,15 @@ async function reload(){
  if(version!==loadVersion)return;
  data=emptyData();failures={};tables.forEach((k,i)=>{if(results[i].status==='fulfilled')data[k]=results[i].value;else failures[k]=true;});
  data=scopeWorkspaceData(realOnly(data),profile,userId,workspace);
+ if(canViewDashboard()){
+   const territorial=await sb.from('territorial_intelligence_snapshot').select('*').eq('organization_id',profile.organization_id).order('level').order('physical_accounts',{ascending:false});
+   if(!territorial.error){
+     data.territorial=territorial.data||[];
+     data.territorialMacro=data.territorial.filter(row=>row.level==='MACROZONE');
+     data.territorialDepartment=data.territorial.filter(row=>row.level==='DEPARTMENT');
+     data.territorialLima=data.territorial.filter(row=>row.level==='LIMA_DISTRICT');
+   } else failures.territorial=true;
+ }
  if(canViewDashboard()){
    const cfg=await sb.from('commercial_mail_webhook_config').select('organization_id,setup_token,status,limited_data,last_webhook_at,last_error').eq('organization_id',profile.organization_id).maybeSingle();
    mailWebhookConfig=cfg.error?null:cfg.data;
@@ -387,6 +397,8 @@ function normalizeTerritorialName(value){return String(value||'').normalize('NFD
 function renderTerritorialMaps(){
  if(!canViewDashboard()||!window.L)return;
  const rows=(data.radar||[]).filter(row=>row.region||row.city);
+ const departmentAgg=Array.isArray(data.territorialDepartment)?data.territorialDepartment:[];
+ const limaAgg=Array.isArray(data.territorialLima)?data.territorialLima:[];
  const peruEl=document.getElementById('territorialPeruMap'),limaEl=document.getElementById('territorialLimaMap');
  if(!peruEl||!limaEl)return;
  const makeMap=(el,center,zoom)=>{
@@ -397,6 +409,15 @@ function renderTerritorialMaps(){
  };
  const peru=makeMap(peruEl,[-9.2,-75],5);
  if(peru){
+  if(departmentAgg.length){
+   const total=departmentAgg.reduce((sum,row)=>sum+Number(row.physical_accounts||0),0);
+   departmentAgg.forEach(row=>{
+    const key=normalizeTerritorialName(row.group_key);if(!key||!TERRITORIAL_REGION_CENTROIDS[key])return;
+    const physical=Number(row.physical_accounts||0),decisions=Number(row.commercial_decisions||0);
+    L.circleMarker(TERRITORIAL_REGION_CENTROIDS[key],{radius:Math.min(24,6+Math.sqrt(physical)*2.1),weight:Number(row.action_now||0)?4:Number(row.research_first||0)?3:2,fillOpacity:.58})
+     .addTo(peru).bindPopup('<strong>'+esc(key)+'</strong><br>'+physical+' sedes procesadas · '+Math.round(physical/Math.max(1,total)*100)+'% de cobertura<br>'+decisions+' decisiones comerciales independientes<br>XPPS prom. '+(row.avg_xpps??'—')+' · XWIN prom. '+(row.avg_xwin??'—')+'<br>Readiness prom. '+(row.avg_readiness??'—')+' · '+Number(row.economic_profiles||0)+' perfiles económicos');
+   });
+  } else {
   const grouped=new Map();
   rows.forEach(row=>{
    const key=normalizeTerritorialName(row.region);if(!key||!TERRITORIAL_REGION_CENTROIDS[key])return;
@@ -407,9 +428,19 @@ function renderTerritorialMaps(){
    L.circleMarker(TERRITORIAL_REGION_CENTROIDS[key],{radius:Math.min(24,7+g.count*2.4),weight:g.critical?4:g.high?3:2,fillOpacity:.58})
     .addTo(peru).bindPopup('<strong>'+esc(key)+'</strong><br>'+g.count+' señal(es)<br>Score prom. '+Math.round(g.score/g.count)+'<br>'+g.critical+' críticas · '+g.high+' altas<br>'+g.actionable+' accionables');
   });
+  }
  }
  const lima=makeMap(limaEl,[-12.08,-77.02],10);
  if(lima){
+  if(limaAgg.length){
+   const total=limaAgg.reduce((sum,row)=>sum+Number(row.physical_accounts||0),0);
+   limaAgg.forEach(row=>{
+    const key=normalizeTerritorialName(row.group_key);const coord=TERRITORIAL_LIMA_CENTROIDS[key]||TERRITORIAL_LIMA_CENTROIDS.LIMA;
+    const physical=Number(row.physical_accounts||0),decisions=Number(row.commercial_decisions||0);
+    L.circleMarker(coord,{radius:Math.min(22,5+Math.sqrt(physical)*2.2),weight:Number(row.action_now||0)?4:Number(row.research_first||0)?3:2,fillOpacity:.58})
+     .addTo(lima).bindPopup('<strong>'+esc(key)+'</strong><br>'+physical+' sedes procesadas · '+Math.round(physical/Math.max(1,total)*100)+'% de Lima<br>'+decisions+' decisiones comerciales independientes<br>XPPS prom. '+(row.avg_xpps??'—')+' · XWIN prom. '+(row.avg_xwin??'—')+'<br>'+Number(row.economic_profiles||0)+' perfiles económicos');
+   });
+  } else {
   const grouped=new Map();
   rows.filter(row=>normalizeTerritorialName(row.region)==='LIMA').forEach(row=>{
    let key=normalizeTerritorialName(row.city);
@@ -422,11 +453,31 @@ function renderTerritorialMaps(){
    L.circleMarker(g.coord,{radius:Math.min(21,6+g.count*2.4),weight:g.critical?4:g.high?3:2,fillOpacity:.58})
     .addTo(lima).bindPopup('<strong>'+esc(key||'LIMA')+'</strong><br>'+g.count+' señal(es)<br>Score prom. '+Math.round(g.score/g.count)+'<br>'+g.critical+' críticas · '+g.high+' altas<br>'+g.names.slice(0,4).map(esc).join('<br>'));
   });
+  }
  }
 }
 function renderDashboard(){
  const admin=canViewDashboard();
  $('dashboard').innerHTML=admin?renderExecutive(data,{demo:dataSource==='demo',failures,analyticsPeriod}):renderSellerDashboard(data,{demo:dataSource==='demo',failures});
+ if(admin&&dataSource==='live'&&Array.isArray(data.territorialMacro)&&data.territorialMacro.length){
+   const section=$('dashboard').querySelector('.territorial-intelligence');
+   if(section){
+     const total=data.territorialMacro.reduce((s,r)=>s+Number(r.physical_accounts||0),0);
+     const decisions=data.territorialMacro.reduce((s,r)=>s+Number(r.commercial_decisions||0),0);
+     const economic=data.territorialMacro.reduce((s,r)=>s+Number(r.economic_profiles||0),0);
+     const head=section.querySelector('header');
+     if(head)head.innerHTML='<div><small>INTELIGENCIA TERRITORIAL CONSOLIDADA</small><h2>¿Dónde está el potencial observable?</h2><p>'+total+' sedes procesadas · '+decisions+' unidades de decisión comercial independientes · '+economic+' perfiles económicos. No equivale a demanda total ni probabilidad de venta.</p></div><span>Snapshot V2.39</span>';
+     const summary=section.querySelector('.territorial-summary');
+     if(summary)summary.innerHTML=data.territorialMacro.map(row=>'<article><strong>'+Number(row.physical_accounts||0)+'</strong><span>'+esc(row.group_key)+'</span><small>'+Number(row.commercial_decisions||0)+' decisiones · XWIN '+(row.avg_xwin??'—')+'</small></article>').join('');
+     const story=section.querySelector('.territorial-story');
+     if(story)story.innerHTML=[
+       'Lima concentra '+Number(data.territorialMacro.find(r=>r.group_key==='LIMA')?.physical_accounts||0)+' sedes procesadas, pero el mapa separa presencia física de decisiones independientes.',
+       'El sur ya contiene '+Number(data.territorialMacro.find(r=>r.group_key==='SUR')?.xwin_count||0)+' observaciones XWIN y '+Number(data.territorialMacro.find(r=>r.group_key==='SUR')?.economic_profiles||0)+' perfiles económicos.',
+       'Las zonas sin XPPS/XWIN permanecen como cobertura investigada, no como oportunidad comercial confirmada.',
+       'La capa económica es un proxy comercial basado en evidencia; no es NSE oficial.'
+     ].map((t,i)=>'<p><b>0'+(i+1)+'</b><span>'+esc(t)+'</span></p>').join('');
+   }
+ }
  if(admin)requestAnimationFrame(renderTerritorialMaps);
 }
 function setAnalyticsPeriod(period){
@@ -941,7 +992,57 @@ function renderLeadCards(rows){
  }).join('')+'</section>';
 }
 
+
+function prospectBucketMeta(row){
+ const map={
+  ACTION_NOW:{label:'Acción ahora',cls:'success'},
+  RESEARCH_FIRST:{label:'Investigar primero',cls:'warn'},
+  STRATEGIC_WATCH:{label:'Vigilancia estratégica',cls:'active'},
+  MONITOR:{label:'Monitorear',cls:''},
+  REVALIDATE:{label:'Revalidar',cls:'warn'}
+ };
+ return map[row.operating_bucket]||{label:row.operating_bucket||'Sin clasificar',cls:''};
+}
+function prospectEconomicLabel(row){
+ if(row.monthly_gross_revenue_estimate_pen!=null)return money(Number(row.monthly_gross_revenue_estimate_pen))+'/mes estimado';
+ if(row.student_count!=null)return Number(row.student_count).toLocaleString('es-PE')+' alumnos';
+ return 'Sin perfil económico completo';
+}
+function renderPotentialProspects(){
+ $('recordContext').hidden=true;$('sellerSummary').hidden=true;$('importBtn').hidden=true;$('importHelp').hidden=true;
+ const all=data.prospects||[];
+ const search=normalize($('search').value),filter=$('filter').value;
+ const rows=all.filter(row=>(!filter||row.operating_bucket===filter)&&(!search||normalize([row.name,row.ruc,row.city,row.district,row.department,row.market_segment_proxy,row.procurement_model].filter(Boolean).join(' ')).includes(search)))
+   .sort((a,b)=>{
+     const rank={ACTION_NOW:5,RESEARCH_FIRST:4,STRATEGIC_WATCH:3,REVALIDATE:2,MONITOR:1};
+     return (rank[b.operating_bucket]||0)-(rank[a.operating_bucket]||0)||Number(b.xwin_score||0)-Number(a.xwin_score||0)||Number(b.xpps_score||0)-Number(a.xpps_score||0);
+   });
+ const counts=Object.fromEntries(['ACTION_NOW','RESEARCH_FIRST','STRATEGIC_WATCH','MONITOR','REVALIDATE'].map(key=>[key,all.filter(r=>r.operating_bucket===key).length]));
+ $('recordCount').innerHTML='<section class="prospect-command-center"><div class="prospect-command-head"><div><small>PROSPECT INTELLIGENCE · SNAPSHOT CONSOLIDADO</small><h3>Qué merece atención y por qué</h3><p>Resultados ya procesados transferidos como lectura de solo consulta. No crea leads, oportunidades ni contactos automáticamente.</p></div><span>'+all.length+' candidatos consolidados</span></div><div class="prospect-bucket-grid">'+[
+  ['ACTION_NOW','Acción ahora','Listo para revisión humana'],
+  ['RESEARCH_FIRST','Investigar primero','Aún falta cerrar incertidumbre'],
+  ['STRATEGIC_WATCH','Vigilancia','Escala relevante, esperar trigger'],
+  ['MONITOR','Monitorear','Mantener observación'],
+  ['REVALIDATE','Revalidar','Evidencia/modelo a revisar']
+ ].map(([key,label,help])=>'<button type="button" class="prospect-bucket '+(filter===key?'active':'')+'" data-prospect-bucket="'+key+'"><strong>'+counts[key]+'</strong><span>'+label+'</span><small>'+help+'</small></button>').join('')+'</div></section>';
+ $('exportBtn').disabled=true;
+ const max=Math.max(1,Math.ceil(rows.length/size));pageIndex=Math.min(pageIndex,max-1);
+ $('pageNumber').textContent='Página '+(pageIndex+1)+' de '+max;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
+ if(!rows.length){$('recordList').innerHTML='<div class="panel empty">No hay candidatos con este filtro.</div>';return;}
+ const pageRows=rows.slice(pageIndex*size,(pageIndex+1)*size);
+ const cards='<div class="pi-modern-grid">'+pageRows.map(row=>{
+   const b=prospectBucketMeta(row);
+   return '<article class="pi-modern-card"><header><div><span class="badge '+b.cls+'">'+esc(b.label)+'</span><h3>'+esc(row.name||'Institución')+'</h3><small>'+esc([row.district,row.department,row.ruc&&('RUC '+row.ruc)].filter(Boolean).join(' · '))+'</small></div><strong>XWIN '+(row.xwin_score??'—')+'</strong></header>'+
+   '<div class="pi-score-strip"><span><b>'+(row.xpps_score??'—')+'</b><small>XPPS</small></span><span><b>'+(row.xwin_confidence??'—')+'%</b><small>Confianza XWIN</small></span><span><b>'+(row.procurement_readiness_score??'—')+'</b><small>Readiness</small></span><span><b>'+(row.rollout_potential_score??'—')+'</b><small>Rollout</small></span></div>'+
+   '<div class="pi-story"><p><b>Economía</b>'+esc(prospectEconomicLabel(row))+(row.market_segment_proxy?'<small>'+esc(row.market_segment_proxy)+' · conf. '+(row.economic_profile_confidence??'—')+'%</small>':'')+'</p>'+
+   '<p><b>Escala</b>'+Number(row.network_campus_count||1)+' sede(s) · '+Number(row.network_department_count||1)+' departamento(s)<small>'+esc(row.procurement_model||'Modelo de compra no confirmado')+'</small></p>'+
+   '<p><b>Siguiente lectura</b>'+esc(row.next_action||row.operating_recommendation||'Monitorear nueva evidencia.')+'</p></div></article>';
+ }).join('')+'</div>';
+ $('recordList').innerHTML=cards;
+ document.querySelectorAll('[data-prospect-bucket]').forEach(button=>button.addEventListener('click',()=>{$('filter').value=button.dataset.prospectBucket||'';pageIndex=0;renderPotentialProspects();}));
+}
 function renderRecords(){
+ if(page==='prospects'){renderPotentialProspects();return;}
  if(page==='now'){renderNow();return;}
  if(page==='radar'){renderRadarRecords();return;}
  if(page==='mail'){renderMailRecords();return;}
