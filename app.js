@@ -568,6 +568,7 @@ function explainPotentialProspect(id){
  $('methodText').textContent=[
   'XPPS: '+(row.xpps_score??'—')+' · XWIN: '+(row.xwin_score??'—')+' · XAS: '+(row.xas_score??'—'),
   'Rollout: '+(row.rollout_potential_score??'—')+' · Procurement: '+(row.procurement_readiness_score??'—')+' ('+(row.procurement_model||'UNKNOWN')+')',
+  'Pre-contacto: '+(row.precontact_completion_pct??'—')+'% · pendientes '+(row.open_items??0)+' · no encontrados '+(row.not_found_items??0),
   row.promotion_reason?'Criterio: '+row.promotion_reason:'',
   row.operating_recommendation?'Recomendación operativa: '+row.operating_recommendation:'',
   row.next_action?'Siguiente acción PI: '+row.next_action:'',
@@ -617,7 +618,7 @@ function renderPotentialProspects(){
     '<td><strong>XAS '+(row.xas_score==null?'—':Number(row.xas_score))+'</strong><small>Confianza XPPS '+(row.xpps_confidence==null?'—':Number(row.xpps_confidence)+'%')+'</small></td>'+
     '<td><strong>'+esc(scale)+'</strong><small>Rollout '+esc(rollout)+'</small></td>'+
     '<td><strong>'+esc(row.procurement_model||'UNKNOWN')+'</strong><small>Readiness '+esc(procurement)+'</small></td>'+
-    '<td><div class="row-actions">'+'<button type="button" data-prospect-explain="'+row.id+'">Por qué</button>'+(row.has_lead?'<span class="badge success">Lead existente</span>':'<button type="button" class="primary" data-prospect-contact="'+row.id+'">Registrar contacto</button>')+'</div></td>'+
+    '<td><div class="row-actions">'+'<button type="button" data-prospect-explain="'+row.id+'">Por qué</button>'+(row.has_lead?'<span class="badge success">Lead existente</span>':row.operating_bucket==='ACTION_NOW'?'<button type="button" class="primary" data-prospect-contact="'+row.id+'">Registrar contacto</button>':'<span class="badge warn">Contacto bloqueado</span>')+'</div></td>'+
    '</tr>';
  }).join('')+'</tbody></table></div>';
 }
