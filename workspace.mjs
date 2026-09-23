@@ -2,7 +2,7 @@
 // The database remains responsible for enforcing the authenticated account's permissions.
 export const ADMIN = 'admin';
 export const SELLER = 'seller';
-const operational = ['radar', 'mail', 'institutions', 'contacts', 'leads', 'opportunities', 'tasks', 'meetings', 'deliverables', 'documents', 'activities', 'catalog_products'];
+const operational = ['prospects', 'radar', 'mail', 'institutions', 'contacts', 'leads', 'opportunities', 'tasks', 'meetings', 'deliverables', 'documents', 'activities', 'catalog_products'];
 export function effectiveWorkspace(profile, requested = ADMIN) {
   return profile?.role === 'ADMIN' && requested === ADMIN ? ADMIN : SELLER;
 }
@@ -11,7 +11,7 @@ export function workspaceKey(userId, organizationId) {
 }
 export function canAccessPage(profile, workspace, page) {
   if (!profile?.organization_id || !['ADMIN','MANAGER','SALES','VIEWER'].includes(profile.role)) return false;
-  return (page==='mail' ? effectiveWorkspace(profile, workspace)===ADMIN : operational.includes(page)) || ['dashboard','now'].includes(page) || (effectiveWorkspace(profile, workspace) === ADMIN && ['prospects','users','goals','cost_profiles','expenses'].includes(page));
+  return (page==='mail' ? effectiveWorkspace(profile, workspace)===ADMIN : operational.includes(page)) || ['dashboard','now'].includes(page) || (effectiveWorkspace(profile, workspace) === ADMIN && ['users','goals','cost_profiles','expenses'].includes(page));
 }
 export function canWriteModule(profile, workspace, table) {
   if (!canAccessPage(profile, workspace, table) || ['dashboard','radar','now','prospects'].includes(table) || !['ADMIN','MANAGER','SALES'].includes(profile.role)) return false;
@@ -42,6 +42,7 @@ export function scopeWorkspaceData(source, profile, userId, workspace) {
     (!row.lead_id && !row.opportunity_id && row.created_by === userId));
   result.scores = (organization.scores || []).filter(row => leadIds.has(row.lead_id) || opportunityIds.has(row.opportunity_id));
   result.catalog_products = organization.catalog_products || [];
+  result.prospects = organization.prospects || [];
   result.radar = organization.radar || [];
   result.mail = organization.mail || [];
   result.cost_profiles = [];
