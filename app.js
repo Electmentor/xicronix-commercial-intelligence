@@ -88,7 +88,7 @@ const DEV_SUPABASE_KEY='sb_publishable_pqqyMTcBovUi4sbp2Cn6yw_sL0_Xs__';
 const CRM_SUPABASE_URL=IS_DEV_PREVIEW?DEV_SUPABASE_URL:PROD_SUPABASE_URL;
 const CRM_SUPABASE_KEY=IS_DEV_PREVIEW?DEV_SUPABASE_KEY:PROD_SUPABASE_KEY;
 const PUBLIC_APP_URL=IS_DEV_PREVIEW?'https://xicronix-commercial-intelligence-git-dev-xicronix.vercel.app/':'https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE=IS_DEV_PREVIEW?'2026-09-23-v2.34-dev':'2026-09-19-v2.9';
+const CRM_RELEASE=IS_DEV_PREVIEW?'2026-09-23-v2.35-dev':'2026-09-19-v2.9';
 const DEV_SUPPORTED_MODULES=new Set(['dashboard','prospects','institutions','contacts','leads','opportunities','tasks','activities']);
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -363,7 +363,7 @@ function render(){
  $('dashboard').hidden=page!=='dashboard';$('records').hidden=page==='dashboard';
  $('pageTitle').textContent=page==='dashboard'?(admin?'Dashboard Ejecutivo':'Mi Dashboard Comercial'):!admin&&page==='leads'?'Mi cartera de prospectos':modules[page].label;
  const target=page==='dashboard'?(admin?'institutions':'leads'):page;
- $('newBtn').hidden=target==='users'||!writableFor(target);
+ $('newBtn').hidden=page==='dashboard'||target==='users'||!writableFor(target);
  $('newBtn').textContent='+ Crear '+modules[target].singular;
  $('newBtn').disabled=loading||busy||!writableFor(target)||!!failures[target];
  $('refreshBtn').disabled=loading||busy;
