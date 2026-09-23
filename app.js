@@ -409,7 +409,7 @@ function renderNowDashboard(){
   '<button class="now-card '+(attention.length?'urgent':'')+'" data-now-target="leads" data-now-filter=""><span>Atención humana</span><strong>'+attention.length+'</strong><small>Solicitudes web sin primera respuesta</small></button>'+
   '<button class="now-card '+(actionNow.length?'ready':'')+'" data-now-target="prospects" data-now-filter="ACTION_NOW"><span>Acción ahora</span><strong>'+actionNow.length+'</strong><small>Potenciales que superaron los gates comerciales</small></button>'+
   '<button class="now-card '+(researchFirst.length?'research':'')+'" data-now-target="prospects" data-now-filter="RESEARCH_FIRST"><span>Investigar primero</span><strong>'+researchFirst.length+'</strong><small>No contactar hasta cerrar evidencia o confianza</small></button>'+
-  '<button class="now-card '+(overdue.length?'urgent':'')+'" data-now-target="tasks" data-now-filter="OVERDUE"><span>Tareas vencidas</span><strong>'+overdue.length+'</strong><small>'+today.length+' adicionales vencen hoy</small></button>'+
+  '<button class="now-card '+(overdue.length?'urgent':'')+'" data-now-target="tasks" data-now-filter=""><span>Tareas vencidas</span><strong>'+overdue.length+'</strong><small>'+today.length+' adicionales vencen hoy · al abrir se ordenan por urgencia</small></button>'+
   '<button class="now-card" data-now-target="leads" data-now-filter=""><span>Leads activos</span><strong>'+leads.length+'</strong><small>Interacciones humanas ya registradas</small></button>'+
   '<button class="now-card" data-now-target="prospects" data-now-filter="STRATEGIC_WATCH"><span>Vigilancia estratégica</span><strong>'+strategic.length+'</strong><small>Seguir observando sin forzar contacto</small></button>'+
  '</div>'+
