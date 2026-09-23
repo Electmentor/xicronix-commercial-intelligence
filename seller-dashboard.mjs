@@ -122,7 +122,7 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
   }).join(''):'<div class="seller-story-empty">No hay prospectos activos en tu cartera.</div>';
 
   const priorityRows=rows.slice(0,2);
-  const focus=priorityRows.length?'<section class="seller-priority-section"><header><div><small>PROSPECTOS QUE REQUIEREN ATENCIÓN AHORA</small><h2>¿A quién atender primero y qué hacer?</h2></div><span>'+priorityRows.length+' en foco</span></header><div class="seller-priority-stack">'+priorityRows.map((row,index)=>{
+  const focus=priorityRows.length?'<section class="seller-priority-section"><div class="seller-priority-stack">'+priorityRows.map((row,index)=>{
     const lead=row.lead,name=row.institution?.name||lead.title;
     return '<article class="seller-priority-prospect '+(index===0?'primary-focus':'secondary-focus')+'">'+
       '<header><div><span class="seller-priority-rank">0'+(index+1)+'</span><div><h2>'+esc(name)+'</h2><small class="seller-priority-label">PROSPECTO PRIORITARIO</small></div></div><div class="seller-priority-status"><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></div></header>'+
