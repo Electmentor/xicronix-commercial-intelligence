@@ -963,3 +963,14 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
     line-height:1.1;
   }
 }
+
+
+/* V2.40.20 · Remove progress title and percentage label */
+.prospect-progress-head{display:none!important}
+.prospect-progress-shell{
+  margin-left:0!important;
+  width:100%!important;
+}
+.prospect-progress{
+  padding-top:12px!important;
+}
