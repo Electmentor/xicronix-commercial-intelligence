@@ -70,7 +70,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-23-v2.37';
+const CRM_RELEASE='2026-09-23-v2.38';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -360,9 +360,67 @@ function render(){
  });
  if(page==='dashboard')renderDashboard();else renderRecords();
 }
+const TERRITORIAL_REGION_CENTROIDS={
+ 'AMAZONAS':[-6.23,-77.87],'ANCASH':[-9.53,-77.53],'APURIMAC':[-13.63,-72.88],'AREQUIPA':[-16.40,-71.54],
+ 'AYACUCHO':[-13.16,-74.22],'CAJAMARCA':[-7.16,-78.51],'CALLAO':[-12.06,-77.15],'CUSCO':[-13.52,-71.97],
+ 'HUANCAVELICA':[-12.79,-74.97],'HUANUCO':[-9.93,-76.24],'ICA':[-14.07,-75.73],'JUNIN':[-12.07,-75.21],
+ 'LA LIBERTAD':[-8.11,-79.03],'LAMBAYEQUE':[-6.77,-79.84],'LIMA':[-12.05,-77.04],'LORETO':[-3.75,-73.25],
+ 'MADRE DE DIOS':[-12.59,-69.19],'MOQUEGUA':[-17.19,-70.94],'PASCO':[-10.68,-76.26],'PIURA':[-5.19,-80.63],
+ 'PUNO':[-15.84,-70.02],'SAN MARTIN':[-6.49,-76.36],'TACNA':[-18.01,-70.25],'TUMBES':[-3.57,-80.46],'UCAYALI':[-8.38,-74.55]
+};
+const TERRITORIAL_LIMA_CENTROIDS={
+ 'SAN ISIDRO':[-12.097,-77.036],'SANTIAGO DE SURCO':[-12.146,-77.006],'LA MOLINA':[-12.083,-76.947],
+ 'MIRAFLORES':[-12.122,-77.030],'PUEBLO LIBRE':[-12.074,-77.063],'SAN MIGUEL':[-12.078,-77.090],
+ 'ATE':[-12.026,-76.922],'LIMA':[-12.046,-77.043],'SURQUILLO':[-12.111,-77.013],'SAN BORJA':[-12.107,-76.999],
+ 'JESUS MARIA':[-12.075,-77.046],'MAGDALENA DEL MAR':[-12.091,-77.068],'LINCE':[-12.084,-77.034],
+ 'CHORRILLOS':[-12.176,-77.016],'VILLA EL SALVADOR':[-12.213,-76.937],'VILLA MARIA DEL TRIUNFO':[-12.163,-76.944],
+ 'SAN JUAN DE MIRAFLORES':[-12.163,-76.972],'LOS OLIVOS':[-11.970,-77.074],'COMAS':[-11.938,-77.057]
+};
+function normalizeTerritorialName(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();}
+function renderTerritorialMaps(){
+ if(!canViewDashboard()||!window.L)return;
+ const rows=(data.radar||[]).filter(row=>row.region||row.city);
+ const peruEl=document.getElementById('territorialPeruMap'),limaEl=document.getElementById('territorialLimaMap');
+ if(!peruEl||!limaEl)return;
+ const makeMap=(el,center,zoom)=>{
+  if(el._leaflet_id)return null;
+  const map=L.map(el,{scrollWheelZoom:false,attributionControl:true}).setView(center,zoom);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
+  return map;
+ };
+ const peru=makeMap(peruEl,[-9.2,-75],5);
+ if(peru){
+  const grouped=new Map();
+  rows.forEach(row=>{
+   const key=normalizeTerritorialName(row.region);if(!key||!TERRITORIAL_REGION_CENTROIDS[key])return;
+   const g=grouped.get(key)||{count:0,score:0,critical:0,high:0,actionable:0};g.count++;g.score+=Number(row.weighted_score||0);
+   if(row.classification==='CRITICAL')g.critical++;if(row.classification==='HIGH')g.high++;if(row.actionable)g.actionable++;grouped.set(key,g);
+  });
+  grouped.forEach((g,key)=>{
+   L.circleMarker(TERRITORIAL_REGION_CENTROIDS[key],{radius:Math.min(24,7+g.count*2.4),weight:g.critical?4:g.high?3:2,fillOpacity:.58})
+    .addTo(peru).bindPopup('<strong>'+esc(key)+'</strong><br>'+g.count+' señal(es)<br>Score prom. '+Math.round(g.score/g.count)+'<br>'+g.critical+' críticas · '+g.high+' altas<br>'+g.actionable+' accionables');
+  });
+ }
+ const lima=makeMap(limaEl,[-12.08,-77.02],10);
+ if(lima){
+  const grouped=new Map();
+  rows.filter(row=>normalizeTerritorialName(row.region)==='LIMA').forEach(row=>{
+   let key=normalizeTerritorialName(row.city);
+   if(key.includes('/'))key=key.split('/')[0].trim();
+   const coord=TERRITORIAL_LIMA_CENTROIDS[key]||TERRITORIAL_LIMA_CENTROIDS.LIMA;
+   const g=grouped.get(key)||{coord,count:0,score:0,critical:0,high:0,names:[]};g.count++;g.score+=Number(row.weighted_score||0);
+   if(row.classification==='CRITICAL')g.critical++;if(row.classification==='HIGH')g.high++;g.names.push(row.institution_name);grouped.set(key,g);
+  });
+  grouped.forEach((g,key)=>{
+   L.circleMarker(g.coord,{radius:Math.min(21,6+g.count*2.4),weight:g.critical?4:g.high?3:2,fillOpacity:.58})
+    .addTo(lima).bindPopup('<strong>'+esc(key||'LIMA')+'</strong><br>'+g.count+' señal(es)<br>Score prom. '+Math.round(g.score/g.count)+'<br>'+g.critical+' críticas · '+g.high+' altas<br>'+g.names.slice(0,4).map(esc).join('<br>'));
+  });
+ }
+}
 function renderDashboard(){
  const admin=canViewDashboard();
  $('dashboard').innerHTML=admin?renderExecutive(data,{demo:dataSource==='demo',failures,analyticsPeriod}):renderSellerDashboard(data,{demo:dataSource==='demo',failures});
+ if(admin)requestAnimationFrame(renderTerritorialMaps);
 }
 function setAnalyticsPeriod(period){
  if(!canViewDashboard()||loading||busy||!['month','quarter','year'].includes(period))return;
