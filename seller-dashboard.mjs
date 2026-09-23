@@ -46,7 +46,7 @@ function renderProspectProgress(lead,maturity){
   }).join('');
   return '<section class="prospect-progress" aria-label="Avance comercial '+percent+' por ciento">'+
     '<div class="prospect-progress-shell">'+
-      '<div class="prospect-progress-head"><small class="prospect-progress-title">AVANCE COMERCIAL</small><strong class="prospect-progress-value" style="--progress-label-pos:'+percent+'%">'+percent+'%</strong><span>'+esc(milestoneLabel(lead.commercial_milestone))+'</span></div>'+
+      '<div class="prospect-progress-head" aria-hidden="true"></div>'+
       '<div class="prospect-progress-track"><span class="prospect-progress-comet" style="--comet-pos:'+percent+'%" aria-hidden="true"></span>'+nodes+'</div>'+
     '</div>'+
   '</section>';
