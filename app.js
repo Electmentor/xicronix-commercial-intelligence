@@ -71,7 +71,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-23-v2.40.24';
+const CRM_RELEASE='2026-09-23-v2.40.25';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -171,8 +171,8 @@ function renderWorkspaceControls(){
  $('workspaceHint').textContent=admin?'Visión global: resultados, margen, metas y equipo.':'Mi cartera: prospectos, potencial, interacciones y próximas acciones.';
  $('workspaceLabel').textContent=admin?'DIRECCIÓN COMERCIAL':'MI ESPACIO DE VENTAS';
  $('appView').dataset.workspace=admin?ADMIN:SELLER;
- const labels=admin?{dashboard:'Dashboard Ejecutivo',now:'Ahora',mail:'Correo Zoho'}:{dashboard:'Mi Dashboard',now:'Ahora',leads:'Mi cartera',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',deliverables:'Mis entregables',documents:'Mis documentos',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
- const keys=admin?['dashboard','now',...Object.keys(modules)]:['dashboard','now','leads','tasks','meetings','deliverables','documents','activities','opportunities','catalog_products','institutions','contacts'];
+ const labels=admin?{dashboard:'Dashboard Ejecutivo',now:'Ahora',mail:'Correo Zoho'}:{dashboard:'Mi Dashboard',now:'Ahora',prospects:'Prospectos',leads:'Gestión comercial',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',deliverables:'Mis entregables',documents:'Mis documentos',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
+ const keys=admin?['dashboard','now',...Object.keys(modules)]:['dashboard','now','prospects','leads','tasks','meetings','deliverables','documents','activities','opportunities','catalog_products','institutions','contacts'];
  $('navigation').innerHTML=keys.filter(accessible).map((key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen ejecutivo')+'</button>').join('');
 }
 async function setWorkspace(next){
@@ -370,7 +370,7 @@ function render(){
  const admin=canViewDashboard();
  $('appView').dataset.page=page;$('appView').dataset.source=dataSource;
  $('dashboard').hidden=page!=='dashboard';$('records').hidden=page==='dashboard';
- $('pageTitle').textContent=page==='dashboard'?(admin?'Dashboard Ejecutivo':'Mi Dashboard Comercial'):page==='now'?'Xicronix Ahora':!admin&&page==='leads'?'Mi cartera de prospectos':modules[page].label;
+ $('pageTitle').textContent=page==='dashboard'?(admin?'Dashboard Ejecutivo':'Mi Dashboard Comercial'):page==='now'?'Xicronix Ahora':!admin&&page==='prospects'?'Prospectos':!admin&&page==='leads'?'Gestión comercial':modules[page].label;
  const target=page==='dashboard'?(admin?'institutions':'leads'):page==='now'?'leads':page;
  $('newBtn').hidden=page==='dashboard'||page==='now'||target==='users'||!writableFor(target);
  $('newBtn').textContent='+ Crear '+modules[target].singular;
