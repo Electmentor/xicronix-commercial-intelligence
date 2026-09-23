@@ -31,6 +31,11 @@ function compactDate(value){
   const d=new Date(value);if(!Number.isFinite(d.getTime()))return 'Sin fecha';
   return d.toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'});
 }
+function compactDateTime(value){
+  if(!value)return 'Sin fecha ni hora';
+  const d=new Date(value);if(!Number.isFinite(d.getTime()))return 'Sin fecha ni hora';
+  return d.toLocaleString('es-PE',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
 
 function renderProspectProgress(lead,maturity){
   const percent=Math.max(0,Math.min(100,Number(maturity)||milestonePercent(lead.commercial_milestone)||0));
@@ -151,7 +156,14 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
       '<header><div><span class="seller-priority-rank">0'+(index+1)+'</span><div><h2>'+esc(name)+'</h2><small class="prospect-id">ID '+esc(prospectDisplayId(lead))+'</small></div></div><div class="seller-priority-status"><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></div></header>'+
       renderProspectProgress(lead,row.maturity)+
 
-      '<footer><div><small>Problema detectado</small><strong>'+esc(row.problem)+'</strong></div><button class="primary" data-lead-detail="'+esc(lead.id)+'">Abrir expediente</button></footer>'+
+      '<footer class="prospect-action-footer">'+
+        '<div class="prospect-action-flow">'+
+          '<section class="prospect-action-col"><small>ÚLTIMA ACCIÓN</small><strong>'+esc(row.latest?.subject||row.latest?.type||'Sin acción registrada')+'</strong><span>'+esc(compactDateTime(row.latest?.occurred_at))+'</span></section>'+
+          '<span class="prospect-action-divider" aria-hidden="true"></span>'+
+          '<section class="prospect-action-col"><small>SIGUIENTE ACCIÓN</small><strong>'+esc(row.urgency.next||'Por definir')+'</strong><span>'+esc(row.urgency.date?compactDateTime(row.urgency.date):'Por definir')+'</span></section>'+
+        '</div>'+
+        '<button class="primary" data-lead-detail="'+esc(lead.id)+'">Abrir expediente</button>'+
+      '</footer>'+
     '</article>';
   }).join('')+'</div></section>':'<div class="seller-story-empty">'+(String(searchQuery||'').trim()?'No se encontraron prospectos con ese ID o nombre.':'No hay prospectos activos en tu cartera.')+'</div>';
 
