@@ -146,3 +146,44 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
 .mail-setup{margin-bottom:16px}.mail-setup h2{margin:.3rem 0 .5rem}.mail-setup p{line-height:1.5}.mail-webhook-url{font-family:monospace;font-size:.72rem;word-break:break-all;border:1px solid var(--line);background:var(--panel-raised);border-radius:10px;padding:12px;margin:12px 0}
 .mail-list{display:grid;gap:12px}.mail-card{border:1px solid var(--line);border-radius:17px;padding:17px;background:var(--panel);color:var(--ink)}.mail-card.new{border-left:4px solid var(--blue)}.mail-card header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.mail-card h3{margin:5px 0 0;font-size:1rem}.mail-from{font-size:.75rem;font-weight:800;color:var(--muted)}.mail-meta{font-size:.8rem;color:var(--muted);margin:10px 0}.mail-summary{line-height:1.5;margin:10px 0}.mail-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.mail-actions button,.mail-actions a{min-height:44px}
 @media(max-width:700px){.now-mail-card{align-items:flex-start;flex-direction:column}.mail-connection{align-items:flex-start;flex-direction:column}.mail-card{padding:15px}.mail-actions{display:grid;grid-template-columns:1fr 1fr}.mail-actions>*{width:100%}.mail-actions .primary{grid-column:1/-1}}
+
+
+/* V2.37 · Candidate storytelling */
+.portfolio-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 12px}
+.portfolio-strip span{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel)}
+.portfolio-strip b,.portfolio-strip small{display:block}.portfolio-strip b{font-size:1.2rem}.portfolio-strip small{color:var(--muted);font-size:.7rem;margin-top:3px}.portfolio-strip .warn{border-color:color-mix(in srgb,var(--warning) 55%,var(--line))}
+.lead-mobile-list{display:none}
+.lead-mobile-card{border:1px solid var(--line);border-radius:17px;padding:15px;background:var(--panel);box-shadow:var(--shadow)}
+.lead-mobile-card.overdue{border-left:4px solid #d94841}
+.lead-mobile-card header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.lead-mobile-card h3{margin:4px 0 2px;font-size:1rem}.lead-mobile-card header small{color:var(--muted)}
+.lead-mobile-kicker{font-size:.66rem;letter-spacing:.1em;font-weight:800;color:var(--muted)}
+.lead-mobile-story{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.lead-mobile-story p{margin:0;padding:10px;border:1px solid var(--line);border-radius:11px;line-height:1.35}.lead-mobile-story b,.lead-mobile-story span{display:block}.lead-mobile-story b{font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px}.lead-mobile-story span{font-size:.8rem}
+.lead-mobile-scores{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:10px 0}.lead-mobile-scores span{padding:9px;border-radius:10px;background:color-mix(in srgb,var(--panel) 88%,var(--blue) 12%)}.lead-mobile-scores b,.lead-mobile-scores small{display:block}.lead-mobile-scores b{font-size:.94rem}.lead-mobile-scores small{font-size:.64rem;color:var(--muted);margin-top:2px}
+.lead-mobile-next{margin:10px 0;font-size:.82rem;line-height:1.4}.lead-mobile-actions{display:flex;gap:7px;flex-wrap:wrap}.lead-mobile-actions button{flex:1 1 auto;min-height:40px;font-size:.75rem}
+.candidate-story{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}.candidate-story article{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--panel)}.candidate-story small{display:block;color:var(--muted);font-weight:800;letter-spacing:.05em}.candidate-story h3{margin:6px 0 7px;font-size:.95rem;line-height:1.35}.candidate-story p{margin:0;color:var(--muted);font-size:.8rem;line-height:1.4}
+
+.seller-candidate-list{display:grid;gap:9px}.seller-candidate-card{width:100%;text-align:left;border:1px solid var(--line);border-radius:14px;padding:13px;background:var(--panel);color:var(--ink)}.seller-candidate-card header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.seller-candidate-card h3{margin:4px 0 0;font-size:.95rem}.seller-candidate-kicker{font-size:.63rem;letter-spacing:.1em;font-weight:800;color:var(--muted)}.seller-candidate-problem,.seller-candidate-next{font-size:.79rem;line-height:1.4;margin:10px 0}.seller-candidate-evidence{display:block;color:var(--muted);font-size:.72rem;line-height:1.35}.seller-candidate-meta{display:grid;grid-template-columns:1fr 1fr;gap:7px}.seller-candidate-meta span{padding:8px;border-radius:9px;background:color-mix(in srgb,var(--panel) 90%,var(--blue) 10%)}.seller-candidate-meta b,.seller-candidate-meta small{display:block}.seller-candidate-meta small{color:var(--muted);font-size:.64rem;margin-top:2px}
+.seller-story-questions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.seller-story-questions section{border:1px solid var(--line);border-radius:13px;padding:12px}.seller-story-questions small{display:block;color:var(--muted);font-weight:800;letter-spacing:.05em}.seller-story-questions strong{display:block;margin:6px 0;font-size:.88rem;line-height:1.35}.seller-story-questions p{margin:0;color:var(--muted);font-size:.76rem;line-height:1.35}
+
+@media(max-width:900px){.candidate-story,.seller-story-questions{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){
+ .app[data-page="leads"] .workspace-controls{display:none!important}
+ .app[data-page="leads"] .top{margin-bottom:8px}
+ .app[data-page="leads"] .portfolio-strip{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+ .app[data-page="leads"] .portfolio-strip span{padding:8px 7px}
+ .app[data-page="leads"] .portfolio-strip b{font-size:1.05rem}
+ .app[data-page="leads"] .portfolio-strip small{font-size:.58rem}
+ .lead-mobile-list{display:grid;gap:10px;margin:12px 0}
+ .lead-desktop-table{display:none}
+ .lead-mobile-story{grid-template-columns:1fr}
+ .lead-mobile-actions{display:grid;grid-template-columns:1fr 1fr}
+ .lead-mobile-actions .primary{grid-column:1/-1}
+ .candidate-story,.seller-story-questions{grid-template-columns:1fr}
+ .seller-story-hero{padding:16px}
+ .seller-story-hero h1{font-size:1.35rem}
+ .seller-story-kpis{grid-template-columns:1fr 1fr}
+ .seller-focus-card--story{padding:14px}
+ .seller-prospects-panel--cards{padding:14px}
+}
+@media(max-width:420px){.portfolio-strip{grid-template-columns:1fr 1fr}.seller-story-kpis{grid-template-columns:1fr 1fr}}
