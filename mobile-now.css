@@ -200,3 +200,15 @@ html[data-theme="night"] .now-kpis .now-kpi-card small{color:#8fc0ff}
   /* Dashboard keeps workspace selector available, but labels are clearer. */
   .workspace-switch button{font-weight:700}
 }
+
+
+/* V2.37 · Final mobile hierarchy */
+@media(max-width:700px){
+ .app[data-page="dashboard"] .workspace-controls{padding:7px 9px;margin-bottom:9px}
+ .app[data-page="dashboard"] .workspace-switch button{min-height:36px;font-size:.68rem}
+ .app[data-page="dashboard"] #workspaceHint{display:none}
+ .app[data-page="dashboard"] .source-controls{gap:5px}
+ .app[data-page="dashboard"] .source-controls button{min-height:32px;font-size:.64rem}
+ .app[data-page="dashboard"] .seller-story-dashboard{gap:10px}
+ .app[data-page="dashboard"] .seller-story-hero{margin-top:0}
+}
