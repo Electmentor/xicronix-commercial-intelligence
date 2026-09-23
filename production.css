@@ -458,3 +458,10 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
     0 0 12px rgba(59,130,246,.10);
 }
 .prospect-progress-track>i::after{display:none!important;animation:none!important;content:none!important}
+
+
+/* V2.40.10 · TEMP visual preview: full prospect progress bar */
+.prospect-progress-track>i{
+  width:100%!important;
+  background-size:100% 100%!important;
+}
