@@ -218,3 +218,36 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
 .seller-priority-story p{margin:0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.55)}
 .seller-priority-story small,.seller-priority-story strong{display:block}.seller-priority-story small{font-size:.64rem;letter-spacing:.08em;color:var(--muted);margin-bottom:5px}.seller-priority-story strong{font-size:.82rem;line-height:1.35}
 @media(max-width:760px){.seller-priority-story{grid-template-columns:1fr}}
+
+
+/* V2.40.3 · Focused prospect grouping */
+.seller-priority-section{display:grid;gap:14px;margin:18px 0}
+.seller-priority-section>header{display:flex;justify-content:space-between;gap:16px;align-items:end}
+.seller-priority-section>header small{font-size:.68rem;letter-spacing:.1em;font-weight:800;color:var(--muted)}
+.seller-priority-section>header h2{margin:4px 0 0;font-size:1.2rem}
+.seller-priority-section>header>span{font-size:.72rem;color:var(--muted)}
+.seller-priority-stack{display:grid;gap:14px}
+.seller-priority-prospect{border:1px solid var(--line);border-radius:18px;padding:18px;background:var(--panel);box-shadow:0 8px 24px rgba(13,45,79,.06)}
+.seller-priority-prospect.primary-focus{border-width:2px}
+.seller-priority-prospect>header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:14px}
+.seller-priority-prospect>header>div{display:flex;gap:12px;align-items:flex-start}
+.seller-priority-rank{display:grid;place-items:center;min-width:38px;height:38px;border-radius:999px;background:rgba(47,125,225,.10);font-weight:900;font-size:.78rem}
+.seller-priority-prospect>header small{font-size:.64rem;letter-spacing:.09em;font-weight:800;color:var(--muted)}
+.seller-priority-prospect>header h2{margin:3px 0 4px;font-size:1.15rem}
+.seller-priority-prospect>header p{margin:0;color:var(--muted);font-size:.78rem}
+.seller-priority-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.seller-priority-grid section{border:1px solid var(--line);border-radius:12px;padding:12px;background:color-mix(in srgb,var(--panel) 96%,var(--blue) 4%)}
+.seller-priority-grid section.action-box{background:color-mix(in srgb,var(--panel) 90%,#2f7de1 10%)}
+.seller-priority-grid small,.seller-priority-grid strong,.seller-priority-grid p{display:block}
+.seller-priority-grid small{font-size:.63rem;letter-spacing:.08em;font-weight:800;color:var(--muted);margin-bottom:5px}
+.seller-priority-grid strong{font-size:.86rem;line-height:1.4}
+.seller-priority-grid p{margin:6px 0 0;font-size:.72rem;color:var(--muted);line-height:1.35}
+.seller-priority-prospect>footer{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.seller-priority-prospect>footer small,.seller-priority-prospect>footer strong{display:block}
+.seller-priority-prospect>footer small{font-size:.63rem;color:var(--muted);margin-bottom:3px}
+.seller-priority-prospect>footer strong{font-size:.82rem}
+.seller-secondary-list{margin-top:12px}
+.seller-secondary-list>summary{cursor:pointer;font-weight:800;padding:12px 0}
+.seller-secondary-list[open]>summary{margin-bottom:10px}
+@media(max-width:1000px){.seller-priority-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.seller-priority-grid{grid-template-columns:1fr}.seller-priority-prospect>footer{flex-direction:column;align-items:stretch}.seller-priority-prospect>footer .primary{width:100%}}
