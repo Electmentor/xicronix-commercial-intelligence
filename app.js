@@ -62,7 +62,7 @@ const quantity=f('quantity','Cantidad','number');
 const discount=f('discount_pct','Descuento negociado (%)','number');
 const negotiatedPrice=f('negotiated_unit_price','Precio unitario negociado (USD)','number');
 const modules={
- prospects:{label:'Potenciales',singular:'potencial prospecto',filter:'operating_bucket',options:{ACTION_NOW:'Acción ahora',STRATEGIC_WATCH:'Vigilancia estratégica',MONITOR:'Monitorear',REVALIDATE:'Revalidar'},fields:[]},
+ prospects:{label:'Potenciales',singular:'potencial prospecto',filter:'operating_bucket',options:{ACTION_NOW:'Acción ahora',RESEARCH_FIRST:'Investigar primero',STRATEGIC_WATCH:'Vigilancia estratégica',MONITOR:'Monitorear',REVALIDATE:'Revalidar'},fields:[]},
  institutions:{label:'Instituciones',singular:'institución',filter:'type',options:enums.type,fields:[f('name','Nombre','text',true),f('type','Tipo','select',true,enums.type),f('ruc','RUC'),f('city','Ciudad'),f('country','País','text',true),f('address','Dirección'),f('email','Correo','email'),f('phone','Teléfono','tel'),f('website','Sitio web','url'),f('notes','Notas','textarea')]},
  contacts:{label:'Contactos',singular:'contacto',filter:'decision_level',options:enums.decision_level,fields:[f('first_name','Nombres','text',true),f('last_name','Apellidos'),institution,f('job_title','Cargo'),f('decision_level','Nivel de decisión','select',true,enums.decision_level),f('email','Correo','email'),f('phone','Teléfono','tel'),f('notes','Notas','textarea')]},
  leads:{label:'Leads',singular:'lead',filter:'status',options:enums.status,fields:[f('title','Título','text',true),institution,contact,f('source','Canal de origen','select',false,enums.leadSource),f('status','Estado','select',true,enums.status),f('estimated_value','Valor estimado (S/)','number'),f('score','Calificación manual (0–100)','number'),owner,...followUp]},
@@ -580,6 +580,7 @@ function prospectActionClass(row){
  const bucket=row.operating_bucket||'MONITOR';
  if(bucket==='REVALIDATE')return {label:'Revalidar',cls:'warn'};
  if(bucket==='ACTION_NOW')return {label:'Acción ahora',cls:'success'};
+ if(bucket==='RESEARCH_FIRST')return {label:'Investigar primero',cls:'warn'};
  if(bucket==='STRATEGIC_WATCH')return {label:'Vigilancia estratégica',cls:''};
  return {label:'Monitorear',cls:''};
 }
@@ -590,14 +591,15 @@ function renderPotentialProspects(){
  const rows=all.filter(row=>(!filter||row.prospect_state===filter)&&(!search||normalize([row.name,row.ruc,row.city,row.procurement_model,row.xwin_band].filter(Boolean).join(' ')).includes(search)))
   .sort((a,b)=>{
    const aa=prospectActionClass(a),bb=prospectActionClass(b);
-   const rank=x=>x.label==='Acción ahora'?4:x.label==='Estratégica'?3:x.label==='Revalidar'?2:1;
+   const rank=x=>x.label==='Acción ahora'?5:x.label==='Investigar primero'?4:x.label==='Vigilancia estratégica'?3:x.label==='Revalidar'?2:1;
    return rank(bb)-rank(aa)||Number(b.xwin_score||0)-Number(a.xwin_score||0)||Number(b.xpps_score||0)-Number(a.xpps_score||0)||String(a.name||'').localeCompare(String(b.name||''));
   });
  const actionNow=all.filter(r=>r.operating_bucket==='ACTION_NOW').length;
+ const research=all.filter(r=>r.operating_bucket==='RESEARCH_FIRST').length;
  const strategic=all.filter(r=>r.operating_bucket==='STRATEGIC_WATCH').length;
  const review=all.filter(r=>r.operating_bucket==='REVALIDATE').length;
  const max=Math.max(1,Math.ceil(rows.length/size));pageIndex=Math.min(pageIndex,max-1);
- $('recordCount').innerHTML='<div class="seller-focus-metrics"><span><b>'+all.length+'</b><small>Potenciales</small></span><span><b>'+actionNow+'</b><small>Acción ahora</small></span><span><b>'+strategic+'</b><small>Multisede estratégicos</small></span><span><b>'+review+'</b><small>Revalidar</small></span></div>';
+ $('recordCount').innerHTML='<div class="seller-focus-metrics"><span><b>'+all.length+'</b><small>Potenciales</small></span><span><b>'+actionNow+'</b><small>Acción ahora</small></span><span><b>'+research+'</b><small>Investigar primero</small></span><span><b>'+strategic+'</b><small>Vigilancia estratégica</small></span><span><b>'+review+'</b><small>Revalidar</small></span></div>';
  $('exportBtn').disabled=true;$('pageNumber').textContent='Página '+(pageIndex+1)+' de '+max;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
  if(failures.prospects){$('recordList').innerHTML='<div class="panel empty">No pudimos cargar las cuentas estratégicas. Pulsa Actualizar.</div>';return;}
  if(!rows.length){$('recordList').innerHTML='<div class="panel empty">No hay cuentas con este filtro.</div>';return;}
