@@ -701,3 +701,42 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
 }
 
 .prospect-progress-track>i{width:0!important}
+
+
+/* V2.40.16 · Green pulsing progress marker */
+.prospect-progress-comet{
+  background:#22c55e!important;
+  width:14px!important;
+  height:14px!important;
+  border-radius:50%!important;
+  box-shadow:
+    0 0 5px rgba(255,255,255,.95),
+    0 0 10px rgba(34,197,94,.95),
+    0 0 20px rgba(34,197,94,.55),
+    0 0 30px rgba(34,197,94,.25)!important;
+  animation:prospectGreenPulse 1.15s ease-in-out infinite!important;
+}
+.prospect-progress-comet::before,
+.prospect-progress-comet::after{
+  display:none!important;
+  content:none!important;
+}
+@keyframes prospectGreenPulse{
+  0%,100%{
+    transform:translate(-50%,-50%) scale(.88);
+    opacity:.82;
+    box-shadow:
+      0 0 4px rgba(255,255,255,.85),
+      0 0 8px rgba(34,197,94,.60),
+      0 0 14px rgba(34,197,94,.28);
+  }
+  50%{
+    transform:translate(-50%,-50%) scale(1.22);
+    opacity:1;
+    box-shadow:
+      0 0 6px rgba(255,255,255,1),
+      0 0 12px rgba(34,197,94,1),
+      0 0 24px rgba(34,197,94,.68),
+      0 0 38px rgba(34,197,94,.30);
+  }
+}
