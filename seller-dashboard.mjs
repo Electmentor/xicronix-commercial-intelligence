@@ -1,5 +1,5 @@
 import {escapeHTML as esc, money, taskUrgency, sortTasksByUrgency} from './domain.mjs';
-import {MILESTONE_META,milestoneLabel,milestonePercent} from './commercial-core.mjs';
+import {MILESTONE_META,milestoneLabel,milestonePercent} from './commercial-core.mjs?v=20260923-v2.40.21';
 
 const closedLead = row => ['DISQUALIFIED','CONVERTED'].includes(row.status);
 const safePct = value => Math.max(0,Math.min(100,Number(value)||0));
