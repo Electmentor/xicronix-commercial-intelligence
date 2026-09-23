@@ -605,3 +605,20 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
     font-size:.53rem;
   }
 }
+
+
+/* V2.40.14 · Right-align milestone labels */
+.prospect-progress-node>div,
+.prospect-progress-node:first-of-type>div,
+.prospect-progress-node:last-child>div{
+  width:104px;
+  max-width:104px;
+  text-align:right!important;
+  left:auto!important;
+  right:0!important;
+  transform:none!important;
+}
+.prospect-progress-node>div b,
+.prospect-progress-node>div small{
+  text-align:right!important;
+}
