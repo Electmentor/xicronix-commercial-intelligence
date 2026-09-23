@@ -71,7 +71,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-23-v2.40.31';
+const CRM_RELEASE='2026-09-23-v2.40.32';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -168,7 +168,7 @@ function renderWorkspaceControls(){
  $('adminModeBtn').setAttribute('aria-pressed',String(admin));
  $('sellerModeBtn').setAttribute('aria-pressed',String(!admin));
  $('adminModeBtn').disabled=$('sellerModeBtn').disabled=loading||busy;
- $('workspaceHint').textContent=admin?'Visión global: resultados, margen, metas y equipo.':'Mi cartera: prospectos, potencial, interacciones y próximas acciones.';
+ $('workspaceHint').textContent='';$('workspaceHint').hidden=true;
  $('workspaceLabel').textContent=admin?'DIRECCIÓN COMERCIAL':'MI ESPACIO DE VENTAS';
  $('appView').dataset.workspace=admin?ADMIN:SELLER;
  const labels=admin?{dashboard:'Dashboard Ejecutivo',now:'Ahora',mail:'Correo Zoho'}:{dashboard:'Mi Dashboard',now:'Ahora',prospects:'Prospectos',leads:'Gestión comercial',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',deliverables:'Mis entregables',documents:'Mis documentos',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
@@ -307,7 +307,7 @@ async function reload(){
 }
 function applyTheme(theme,persist=false){
  const night=theme==='night';document.documentElement.dataset.theme=night?'night':'day';
- const button=$('themeToggle');if(button){button.textContent=night?'☀️ Modo diurno':'🌙 Modo nocturno';button.setAttribute('aria-pressed',String(night));button.setAttribute('aria-label',night?'Cambiar a modo diurno':'Cambiar a modo nocturno');button.title=night?'Usar fondo claro':'Usar fondo oscuro';}
+ const button=$('themeToggle');if(button){button.textContent=night?'☀️':'🌙';button.setAttribute('aria-pressed',String(night));button.setAttribute('aria-label',night?'Cambiar a modo diurno':'Cambiar a modo nocturno');button.title=night?'Cambiar a modo diurno':'Cambiar a modo nocturno';}
  if(persist){try{localStorage.setItem(THEME_STORAGE_KEY,night?'night':'day');}catch(_error){}}
 }
 function initTheme(){let stored='';try{stored=localStorage.getItem(THEME_STORAGE_KEY)||'';}catch(_error){}applyTheme(stored==='night'?'night':'day');}
