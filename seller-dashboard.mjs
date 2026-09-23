@@ -149,7 +149,6 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
     '</div>':'';
   return '<div class="seller-story-dashboard">'+
     '<section class="seller-story-hero"><div><small>'+(demo?'DEMOSTRACIÓN':'MI DASHBOARD COMERCIAL')+'</small><h1>Qué está pasando y qué hacer ahora</h1><p>'+esc(narrative)+'</p>'+priorityStory+'</div><button data-page="leads">Ver toda mi cartera</button></section>'+
-    '<section class="seller-story-kpis">'+kpis+'</section>'+
     focus+
     '<details class="seller-prospects-panel seller-prospects-panel--cards seller-secondary-list"><summary>Ver otros prospectos de mi cartera</summary><div class="seller-candidate-list">'+cards+'</div></details>'+
     '</div>';
