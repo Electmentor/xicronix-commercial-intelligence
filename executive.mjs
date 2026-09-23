@@ -61,15 +61,26 @@ export function filterExecutiveRows(rows,table,filter,owner,now=new Date()){
 export function renderExecutive(data,{now=new Date(),demo=false,failures={},analyticsPeriod='year'}={}){
  const m=executiveMetrics(data,now),incomplete=Object.keys(failures).length>0;
  const progress=m.attainment===null?'Sin meta':Math.round(m.attainment)+'% de la meta';
- const headline=incomplete?'Datos incompletos: actualiza antes de decidir.':m.target===null?'Define la meta para orientar al equipo.':m.attainment>=100?'Meta alcanzada. Protege el margen del siguiente cierre.':'Faltan '+compactMoney(m.gap)+' para alcanzar la meta.';
+ const radar=(data.radar||[]).filter(row=>!['DISCARD'].includes(row.classification));
+ const radarCritical=radar.filter(row=>row.classification==='CRITICAL');
+ const radarHigh=radar.filter(row=>row.classification==='HIGH');
+ const topSignal=radar.slice().sort((a,b)=>Number(b.weighted_score||0)-Number(a.weighted_score||0))[0]||null;
+ const openOpportunities=(data.opportunities||[]).filter(row=>!closed(row));
+ const strongestOpportunity=openOpportunities.slice().sort((a,b)=>amount(b)-amount(a))[0]||null;
+ const headline=incomplete?'Datos incompletos: actualiza antes de decidir.':
+   radarCritical.length?radarCritical.length+' señal(es) crítica(s) requieren revisión ejecutiva.':
+   m.atRisk.length?m.atRisk.length+' oportunidad(es) presentan riesgo operativo o de margen.':
+   m.target===null?'Define la meta para orientar al equipo.':
+   m.attainment>=100?'Meta alcanzada. Protege el margen del siguiente cierre.':'Faltan '+compactMoney(m.gap)+' para alcanzar la meta.';
  const kpi=(label,value,hint,view,tone='')=>'<button class="ceo-kpi '+tone+'" data-ceo-view="'+view+'"><span>'+label+'</span><strong>'+value+'</strong><small>'+esc(hint)+'</small></button>';
  const statusTitle=incomplete?'INFORMACIÓN PARCIAL':demo?'ESCENARIO SIMULADO':'LECTURA EJECUTIVA';
  const storyItems=incomplete?[
-  'Hay módulos incompletos; actualiza antes de interpretar el desempeño.'
+  {label:'SITUACIÓN',text:'Hay módulos incompletos; actualiza antes de interpretar el desempeño.',action:'Actualizar antes de decidir',target:'dashboard'}
  ]:[
-  m.pipeline>0?'La cartera abierta suma '+compactMoney(m.pipeline)+' en '+m.openCount+' oportunidades.':'Aún no hay cartera abierta registrada.',
-  m.atRisk.length?m.atRisk.length+' oportunidad(es) requieren atención por seguimiento vencido o margen bajo.':'No hay oportunidades abiertas clasificadas como riesgo por las reglas actuales.',
-  m.team[0]?(m.team[0].user.full_name+' lidera el avance del equipo'+(m.team[0].attainment===null?' sin meta comparable.':' con '+Math.round(m.team[0].attainment)+'% de su meta.')):'Aún no hay vendedores con resultados comparables.'
+  {label:'SITUACIÓN',text:m.pipeline>0?'La cartera abierta suma '+compactMoney(m.pipeline)+' en '+m.openCount+' oportunidades y '+(data.leads||[]).filter(row=>!['CONVERTED','DISQUALIFIED'].includes(row.status)).length+' prospectos activos.':'Aún no hay cartera abierta registrada.',action:'Ver cartera',target:'opportunities'},
+  {label:'RIESGO',text:m.atRisk.length?m.atRisk.length+' oportunidad(es) exponen '+compactMoney(m.riskValue)+' por seguimiento vencido o margen bajo; además hay '+m.overdueTasks+' tareas vencidas.':'No hay oportunidades abiertas clasificadas como riesgo por las reglas actuales.',action:m.atRisk.length?'Revisar riesgo':'Ver tareas',target:m.atRisk.length?'opportunities':'tasks'},
+  {label:'OPORTUNIDAD',text:radarCritical.length||radarHigh.length?(radarCritical.length+' críticas y '+radarHigh.length+' de alta prioridad en Radar'+(topSignal?' · foco: '+topSignal.institution_name+'.':'.')):(strongestOpportunity?'Mayor oportunidad abierta: '+strongestOpportunity.name+' · '+compactMoney(amount(strongestOpportunity))+'.':'No hay una oportunidad destacada por valor o Radar.'),action:radar.length?'Abrir Radar':'Ver oportunidades',target:radar.length?'radar':'opportunities'},
+  {label:'DECISIÓN',text:m.decisions[0]?m.decisions[0].title+': '+m.decisions[0].detail+'. '+m.decisions[0].reason:(m.team[0]?'Mantener foco en '+m.team[0].user.full_name+' y revisar el siguiente cierre con mayor impacto.':'No hay una decisión crítica generada por las reglas actuales.'),action:m.decisions[0]?m.decisions[0].action:'Ver prospectos',target:m.decisions[0]?.table||'leads'}
  ];
  const institutions=(data.institutions||[]).length;
  const activeLeads=(data.leads||[]).filter(row=>!['CONVERTED','DISQUALIFIED'].includes(row.status)).length;
@@ -85,7 +96,7 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  const activity=activities.map(row=>'<button class="ceo-event" data-edit="'+esc(row.id)+'" data-table="activities"><span class="ceo-event-dot"></span><span><strong>'+esc(row.subject||row.type)+'</strong><small>'+esc((data.users||[]).find(user=>user.id===row.created_by)?.full_name||'Equipo')+' · '+new Date(row.occurred_at).toLocaleDateString('es-PE',{day:'2-digit',month:'short'})+'</small></span><span aria-hidden="true">↗</span></button>').join('')||'<p class="ceo-empty">Aún no hay interacciones.</p>';
  return '<div class="ceo-dashboard ceo-dashboard--analytics"><section class="ceo-signal"><div><small>'+statusTitle+' · '+esc(now.toLocaleDateString('es-PE',{month:'long',year:'numeric'}))+'</small><h2>'+esc(headline)+'</h2></div><button id="ceoMethodBtn" class="ceo-method" title="Ver cómo se calculan los indicadores">Cómo se calcula</button></section>'+
  '<section class="ceo-kpis" aria-label="Indicadores ejecutivos">'+kpis+'</section>'+
- '<section class="ceo-story"><header><small>LO MÁS IMPORTANTE AHORA</small><h2>Lectura del negocio</h2></header><div>'+storyItems.map((item,index)=>'<p><b>0'+(index+1)+'</b><span>'+esc(item)+'</span></p>').join('')+'</div></section>'+
+ '<section class="ceo-story ceo-story--decision"><header><small>STORYTELLING EJECUTIVO</small><h2>Situación → riesgo → oportunidad → decisión</h2></header><div>'+storyItems.map((item,index)=>'<button type="button" class="ceo-story-card" data-page="'+esc(item.target)+'"><span class="ceo-story-step">0'+(index+1)+'</span><small>'+esc(item.label)+'</small><strong>'+esc(item.text)+'</strong><em>'+esc(item.action)+' →</em></button>').join('')+'</div></section>'+
  renderAnalytics(data,{now,period:analyticsPeriod,demo,failures})+
  '<section class="ceo-decisions" aria-label="Decisiones prioritarias">'+decisions+'</section>'+
  '<section class="ceo-bottom"><article class="ceo-panel"><header><h2>Equipo · avance contra meta</h2><button data-page="users">Ver equipo ↗</button></header>'+team+'<p class="ceo-caption">Orden: % de meta de ventas; desempate por ventas. No calcula bonos.</p></article>'+
