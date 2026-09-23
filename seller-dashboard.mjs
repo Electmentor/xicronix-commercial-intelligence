@@ -26,6 +26,25 @@ function potentialForLead(lead,scores){
   return score?safePct(score.total_score):null;
 }
 
+function compactDate(value){
+  if(!value)return 'Sin fecha';
+  const d=new Date(value);if(!Number.isFinite(d.getTime()))return 'Sin fecha';
+  return d.toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'});
+}
+
+function leadStory(data,lead){
+  const activities=(data.activities||[]).filter(row=>row.lead_id===lead.id).sort((a,b)=>String(b.occurred_at||'').localeCompare(String(a.occurred_at||'')));
+  const latest=activities[0]||null;
+  const needRow=activities.find(row=>row.need_summary);
+  const evidenceRow=activities.find(row=>row.evidence_note);
+  const decisionRow=activities.find(row=>row.decision_timeline||row.budget_signal);
+  const contact=(data.contacts||[]).find(row=>row.id===lead.contact_id);
+  const problem=needRow?.need_summary||latest?.need_summary||'Necesidad aún no precisada en el expediente.';
+  const evidence=evidenceRow?.evidence_note||latest?.evidence_note||'Sin evidencia comercial explícita registrada.';
+  const decision=[decisionRow?.decision_timeline,decisionRow?.budget_signal].filter(Boolean).join(' · ')||'Timing y presupuesto aún no confirmados.';
+  return {activities,latest,contact,problem,evidence,decision};
+}
+
 function prospectRows(data,now){
   const institutions=data.institutions||[],tasks=data.tasks||[],scores=data.scores||[];
   return (data.leads||[]).filter(row=>!closedLead(row)).map(lead=>{
@@ -33,18 +52,9 @@ function prospectRows(data,now){
     const institution=institutions.find(row=>row.id===lead.institution_id);
     const maturity=safePct(lead.maturity_percent);
     const potential=potentialForLead(lead,scores);
-    return {lead,institution,urgency,maturity,potential};
-  }).sort((a,b)=>b.urgency.rank-a.urgency.rank||b.maturity-a.maturity||(b.potential??-1)-(a.potential??-1));
-}
-
-function timelineForLead(data,lead){
-  return (data.activities||[]).filter(row=>row.lead_id===lead.id).sort((a,b)=>String(b.occurred_at||'').localeCompare(String(a.occurred_at||''))).slice(0,4);
-}
-
-function compactDate(value){
-  if(!value)return 'Sin fecha';
-  const d=new Date(value);if(!Number.isFinite(d.getTime()))return 'Sin fecha';
-  return d.toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'});
+    const story=leadStory(data,lead);
+    return {lead,institution,urgency,maturity,potential,...story};
+  }).sort((a,b)=>b.urgency.rank-a.urgency.rank||(b.potential??-1)-(a.potential??-1)||b.maturity-a.maturity);
 }
 
 export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={}}={}){
@@ -54,44 +64,51 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
   const overdue=openTasks.filter(row=>row.due_at&&Date.parse(row.due_at)<now.getTime()).length;
   const upcomingMeetings=meetings.filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&Date.parse(row.start_at)>=now.getTime()).sort((a,b)=>Date.parse(a.start_at)-Date.parse(b.start_at));
   const selected=rows[0]||null;
-  const narrative=incomplete?'Hay información pendiente de carga. Actualiza antes de priorizar.':
-    !selected?'No hay prospectos activos. Registra o asigna el siguiente prospecto.':
-    selected.urgency.label==='Alta'?'Tu prioridad inmediata es '+(selected.institution?.name||selected.lead.title)+'. '+selected.urgency.next+'.':
-    'Tu cartera está bajo control. La mejor siguiente acción está en '+(selected.institution?.name||selected.lead.title)+'.';
-
-  const kpi=(label,value,detail,tone='')=>'<article class="seller-story-kpi '+tone+'"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong><span>'+esc(detail)+'</span></article>';
+  const attention=rows.filter(row=>row.urgency.label==='Alta').length;
   const highPotential=rows.filter(row=>(row.potential??0)>=75).length;
   const negotiation=rows.filter(row=>row.maturity>=70).length;
+
+  const narrative=incomplete?'Hay información pendiente de carga. Actualiza antes de priorizar.':
+    !selected?'No hay prospectos activos. Registra o asigna el siguiente prospecto.':
+    selected.urgency.label==='Alta'?'Prioridad: '+(selected.institution?.name||selected.lead.title)+'. '+selected.urgency.next+'.':
+    'La cartera está bajo control. El siguiente movimiento con mayor impacto está en '+(selected.institution?.name||selected.lead.title)+'.';
+
+  const kpi=(label,value,detail,tone='')=>'<article class="seller-story-kpi '+tone+'"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong><span>'+esc(detail)+'</span></article>';
   const kpis=kpi('Prospectos activos',String(rows.length),highPotential+' con potencial alto')+
-    kpi('Requieren atención',String(rows.filter(row=>row.urgency.label==='Alta').length),overdue+' tareas vencidas','warning')+
-    kpi('Avance alto',String(negotiation), '70% o más de madurez')+
+    kpi('Requieren acción',String(attention),overdue+' tareas vencidas','warning')+
+    kpi('Madurez alta',String(negotiation),'70% o más de madurez')+
     kpi('Próxima reunión',upcomingMeetings[0]?compactDate(upcomingMeetings[0].start_at):'—',upcomingMeetings[0]?.title||'Sin reunión próxima');
 
-  const bars=rows.length?rows.map(row=>{
+  const cards=rows.length?rows.map(row=>{
     const name=row.institution?.name||row.lead.title;
-    const stage=milestoneLabel(row.lead.commercial_milestone);
-    return '<button class="seller-prospect-row" data-lead-detail="'+esc(row.lead.id)+'" aria-label="Abrir expediente comercial de '+esc(name)+'">'+
-      '<span class="seller-prospect-main"><strong>'+esc(name)+'</strong><small>'+esc(stage)+' · '+esc(row.urgency.label)+'</small></span>'+
-      '<span class="seller-progress-track" aria-hidden="true"><i style="width:'+row.maturity+'%"></i></span>'+
-      '<b>'+row.maturity+'%</b><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span><span aria-hidden="true">›</span></button>';
+    const potential=row.potential===null?'Potencial pendiente':row.potential+'% potencial';
+    return '<button class="seller-candidate-card" data-lead-detail="'+esc(row.lead.id)+'" aria-label="Abrir expediente comercial de '+esc(name)+'">'+
+      '<header><div><span class="seller-candidate-kicker">PROSPECTO</span><h3>'+esc(name)+'</h3></div><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></header>'+
+      '<p class="seller-candidate-problem"><b>Problema:</b> '+esc(row.problem)+'</p>'+
+      '<div class="seller-candidate-meta"><span><b>'+row.maturity+'%</b><small>Madurez</small></span><span><b>'+esc(potential)+'</b><small>Calidad comercial</small></span></div>'+
+      '<p class="seller-candidate-next"><b>Siguiente:</b> '+esc(row.urgency.next)+(row.urgency.date?' · '+esc(compactDate(row.urgency.date)):'')+'</p>'+
+      '<small class="seller-candidate-evidence">'+esc(row.evidence)+'</small>'+
+    '</button>';
   }).join(''):'<div class="seller-story-empty">No hay prospectos activos en tu cartera.</div>';
 
   let focus='';
   if(selected){
     const lead=selected.lead,name=selected.institution?.name||lead.title;
-    const events=timelineForLead(data,lead);
-    const last=events[0];
-    focus='<article class="seller-focus-card">'+
-      '<header><div><small>PROSPECTO PRIORITARIO</small><h2>'+esc(name)+'</h2><p>'+esc(milestoneLabel(lead.commercial_milestone))+' · '+selected.maturity+'% de madurez</p></div><button class="primary" data-lead-detail="'+esc(lead.id)+'">Abrir expediente comercial</button></header>'+
-      '<div class="seller-situation-grid"><section><small>Situación</small><strong>'+esc(last?.subject||'Sin movimiento reciente')+'</strong><p>'+esc(last?.notes||last?.need_summary||'Aún no hay suficiente actividad registrada para resumir la última interacción.')+'</p></section>'+
-      '<section><small>Acción</small><strong>'+esc(selected.urgency.next)+'</strong><p>'+esc(selected.urgency.date?'Fecha clave: '+compactDate(selected.urgency.date):'Aún no hay fecha comprometida.')+'</p></section>'+
-      '<section><small>Potencial</small><strong>'+(selected.potential===null?'Pendiente':selected.potential+'%')+'</strong><p>'+esc(lead.estimated_value?money(lead.estimated_value):'Valor económico aún no definido')+'</p></section></div>'+
-      '<div class="seller-timeline"><h3>Últimos movimientos</h3>'+(events.length?events.map((event,index)=>'<div class="seller-timeline-item '+(index===0?'current':'')+'"><i></i><span><strong>'+esc(event.subject||event.type||'Movimiento')+'</strong><small>'+esc(compactDate(event.occurred_at))+'</small></span></div>').join(''):'<p>Sin movimientos registrados.</p>')+'</div></article>';
+    const last=selected.latest;
+    focus='<article class="seller-focus-card seller-focus-card--story">'+
+      '<header><div><small>PROSPECTO QUE EXIGE DECISIÓN</small><h2>'+esc(name)+'</h2><p>'+esc(milestoneLabel(lead.commercial_milestone))+' · '+selected.maturity+'% de madurez · urgencia '+esc(selected.urgency.label.toLowerCase())+'</p></div><button class="primary" data-lead-detail="'+esc(lead.id)+'">Abrir expediente</button></header>'+
+      '<div class="seller-story-questions">'+
+        '<section><small>1 · PROBLEMA</small><strong>'+esc(selected.problem)+'</strong><p>'+(selected.contact?esc('Contacto: '+([selected.contact.first_name,selected.contact.last_name].filter(Boolean).join(' ')||selected.contact.job_title||'registrado')):'Sin contacto decisor identificado')+'</p></section>'+
+        '<section><small>2 · EVIDENCIA</small><strong>'+esc(selected.evidence)+'</strong><p>'+esc(last?'Último movimiento: '+compactDate(last.occurred_at):'Sin interacción reciente registrada')+'</p></section>'+
+        '<section><small>3 · ACCIÓN</small><strong>'+esc(selected.urgency.next)+'</strong><p>'+esc(selected.urgency.date?'Fecha clave: '+compactDate(selected.urgency.date):'Sin fecha comprometida')+'</p></section>'+
+        '<section><small>4 · VALOR / DECISIÓN</small><strong>'+(selected.potential===null?'Potencial pendiente':selected.potential+'% potencial')+'</strong><p>'+esc(lead.estimated_value?money(lead.estimated_value):selected.decision)+'</p></section>'+
+      '</div></article>';
   }
 
   return '<div class="seller-story-dashboard">'+
     '<section class="seller-story-hero"><div><small>'+(demo?'DEMOSTRACIÓN':'MI DASHBOARD COMERCIAL')+'</small><h1>Qué está pasando y qué hacer ahora</h1><p>'+esc(narrative)+'</p></div><button data-page="leads">Ver toda mi cartera</button></section>'+
     '<section class="seller-story-kpis">'+kpis+'</section>'+
-    '<section class="seller-story-grid"><article class="seller-prospects-panel"><header><div><small>RADIOGRAFÍA DE CARTERA</small><h2>Mis prospectos y avance comercial</h2></div><span>Ordenados por prioridad</span></header><div class="seller-prospect-list">'+bars+'</div></article>'+focus+'</section>'+
+    focus+
+    '<section class="seller-prospects-panel seller-prospects-panel--cards"><header><div><small>CANDIDATOS</small><h2>Problema, evidencia y siguiente acción</h2></div><span>Ordenados por urgencia y potencial</span></header><div class="seller-candidate-list">'+cards+'</div></section>'+
     '</div>';
 }
