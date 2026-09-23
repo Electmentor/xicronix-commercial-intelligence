@@ -88,7 +88,7 @@ const DEV_SUPABASE_KEY='sb_publishable_pqqyMTcBovUi4sbp2Cn6yw_sL0_Xs__';
 const CRM_SUPABASE_URL=IS_DEV_PREVIEW?DEV_SUPABASE_URL:PROD_SUPABASE_URL;
 const CRM_SUPABASE_KEY=IS_DEV_PREVIEW?DEV_SUPABASE_KEY:PROD_SUPABASE_KEY;
 const PUBLIC_APP_URL=IS_DEV_PREVIEW?'https://xicronix-commercial-intelligence-git-dev-xicronix.vercel.app/':'https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE=IS_DEV_PREVIEW?'2026-09-23-v2.35-dev':'2026-09-19-v2.9';
+const CRM_RELEASE=IS_DEV_PREVIEW?'2026-09-23-v2.39-dev':'2026-09-19-v2.9';
 const DEV_SUPPORTED_MODULES=new Set(['dashboard','prospects','institutions','contacts','leads','opportunities','tasks','activities']);
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -274,6 +274,18 @@ async function allRows(table,org){
  if(error)throw error;rows.push(...batch);if(batch.length<500)return rows;
  }
 }
+async function loadTerritorialAggregates(){
+ if(!IS_DEV_PREVIEW||!canViewDashboard())return {};
+ const levels=[['territorialMacro','MACROZONE'],['territorialDepartment','DEPARTMENT'],['territorialLima','LIMA_DISTRICT']];
+ const results=await Promise.allSettled(levels.map(([,level])=>sb.rpc('get_territorial_intelligence',{p_level:level})));
+ const out={};
+ levels.forEach(([key],index)=>{
+   const result=results[index];
+   if(result.status==='fulfilled'&&!result.value.error)out[key]=result.value.data||[];
+   else out[key]=[];
+ });
+ return out;
+}
 async function reload(){
  if(!session||recovery||busy)return;
  const version=++loadVersion;const userId=session.user.id;loading=true;renderWorkspaceControls();
@@ -292,6 +304,11 @@ async function reload(){
  if(version!==loadVersion)return;
  data=emptyData();failures={};tables.forEach((k,i)=>{if(results[i].status==='fulfilled')data[k]=results[i].value;else failures[k]=true;});
  data=scopeWorkspaceData(realOnly(data),profile,userId,workspace);
+ if(IS_DEV_PREVIEW&&canViewDashboard()){
+   const territorial=await loadTerritorialAggregates();
+   if(version!==loadVersion)return;
+   Object.assign(data,territorial);
+ }
  render();const bad=Object.keys(failures);notice(bad.length?'No se pudo cargar: '+bad.map(k=>modules[k]?.label||k).join(', ')+'. Pulsa Actualizar para reintentar.':'',!!bad.length);
  }catch(error){if(version===loadVersion){profile=null;data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice(errorText(error),true);}}
  finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;render();applyEntryRoute();}}
@@ -678,6 +695,8 @@ function marketSegmentLabel(value){
 }
 function renderProspectMaps(rows){
  if(!window.L)return;
+ const departmentAgg=Array.isArray(data.territorialDepartment)?data.territorialDepartment:[];
+ const limaAgg=Array.isArray(data.territorialLima)?data.territorialLima:[];
  const peruEl=document.getElementById('prospectPeruMap'),limaEl=document.getElementById('prospectLimaMap');
  if(!peruEl||!limaEl)return;
  const init=(el,center,zoom)=>{
@@ -688,34 +707,55 @@ function renderProspectMaps(rows){
  };
  const peru=init(peruEl,[-9.2,-75.0],5);
  if(peru){
-   const grouped=new Map();
-   rows.forEach(row=>{
-     const key=String(row.department||'').toUpperCase().trim();if(!key||!PERU_DEPARTMENT_CENTROIDS[key])return;
-     const current=grouped.get(key)||{count:0,xpps:0,xwin:0,ready:0};current.count++;
-     current.xpps+=Number(row.xpps_score||0);current.xwin+=Number(row.xwin_score||0);
-     if(row.operating_bucket==='ACTION_NOW')current.ready++;grouped.set(key,current);
-   });
-   grouped.forEach((v,key)=>{
-     const avgXpps=Math.round(v.xpps/v.count),avgXwin=Math.round(v.xwin/v.count);
-     const share=rows.length?Math.round((v.count/rows.length)*100):0;
-     L.circleMarker(PERU_DEPARTMENT_CENTROIDS[key],{radius:Math.min(22,7+v.count*3),weight:v.ready?4:2,fillOpacity:.55})
-      .addTo(peru).bindPopup('<strong>'+esc(key)+'</strong><br>'+v.count+' prospecto(s) · '+share+'% del foco visible<br>XPPS prom. '+avgXpps+' · XWIN prom. '+avgXwin+(v.ready?'<br><b>'+v.ready+' ACTION_NOW</b>':''));
-   });
+   if(departmentAgg.length){
+     const total=departmentAgg.reduce((sum,row)=>sum+Number(row.physical_accounts||0),0);
+     departmentAgg.forEach(row=>{
+       const key=String(row.group_key||'').toUpperCase().trim();if(!key||!PERU_DEPARTMENT_CENTROIDS[key])return;
+       const physical=Number(row.physical_accounts||0),decisions=Number(row.commercial_decisions||0),share=total?Math.round(physical/total*100):0;
+       L.circleMarker(PERU_DEPARTMENT_CENTROIDS[key],{radius:Math.min(24,6+Math.sqrt(physical)*2.1),weight:Number(row.action_now||0)?4:Number(row.research_first||0)?3:2,fillOpacity:.55})
+        .addTo(peru).bindPopup('<strong>'+esc(key)+'</strong><br>'+physical+' sedes procesadas · '+share+'% de cobertura<br>'+decisions+' decisiones comerciales independientes<br>XPPS prom. '+(row.avg_xpps??'—')+' · XWIN prom. '+(row.avg_xwin??'—')+'<br>Readiness prom. '+(row.avg_readiness??'—')+' · '+Number(row.economic_profiles||0)+' perfiles económicos'+(Number(row.action_now||0)?'<br><b>'+Number(row.action_now)+' ACTION_NOW</b>':''));
+     });
+   }else{
+     const grouped=new Map();
+     rows.forEach(row=>{
+       const key=String(row.department||'').toUpperCase().trim();if(!key||!PERU_DEPARTMENT_CENTROIDS[key])return;
+       const current=grouped.get(key)||{count:0,xpps:0,xwin:0,ready:0};current.count++;
+       current.xpps+=Number(row.xpps_score||0);current.xwin+=Number(row.xwin_score||0);
+       if(row.operating_bucket==='ACTION_NOW')current.ready++;grouped.set(key,current);
+     });
+     grouped.forEach((v,key)=>{
+       const avgXpps=Math.round(v.xpps/v.count),avgXwin=Math.round(v.xwin/v.count);
+       const share=rows.length?Math.round((v.count/rows.length)*100):0;
+       L.circleMarker(PERU_DEPARTMENT_CENTROIDS[key],{radius:Math.min(22,7+v.count*3),weight:v.ready?4:2,fillOpacity:.55})
+        .addTo(peru).bindPopup('<strong>'+esc(key)+'</strong><br>'+v.count+' prospecto(s) · '+share+'% del foco visible<br>XPPS prom. '+avgXpps+' · XWIN prom. '+avgXwin+(v.ready?'<br><b>'+v.ready+' ACTION_NOW</b>':''));
+     });
+   }
  }
  const limaRows=rows.filter(row=>String(row.department||'').toUpperCase()==='LIMA');
  const lima=init(limaEl,[-12.08,-77.02],10);
  if(lima){
-   const grouped=new Map();
-   limaRows.forEach(row=>{
-     const key=String(row.district||'').toUpperCase().trim();if(!key)return;
-     const current=grouped.get(key)||{count:0,xpps:0,xwin:0,names:[]};current.count++;current.xpps+=Number(row.xpps_score||0);current.xwin+=Number(row.xwin_score||0);current.names.push(row.name);grouped.set(key,current);
-   });
-   grouped.forEach((v,key)=>{
-     const coord=LIMA_DISTRICT_CENTROIDS[key]||LIMA_DISTRICT_CENTROIDS.LIMA;
-     const share=limaRows.length?Math.round((v.count/limaRows.length)*100):0;
-     L.circleMarker(coord,{radius:Math.min(20,6+v.count*3),weight:2,fillOpacity:.55})
-      .addTo(lima).bindPopup('<strong>'+esc(key)+'</strong><br>'+v.count+' prospecto(s) · '+share+'% de Lima visible<br>XPPS prom. '+Math.round(v.xpps/v.count)+' · XWIN prom. '+Math.round(v.xwin/v.count)+'<br>'+v.names.slice(0,4).map(esc).join('<br>'));
-   });
+   if(limaAgg.length){
+     const total=limaAgg.reduce((sum,row)=>sum+Number(row.physical_accounts||0),0);
+     limaAgg.forEach(row=>{
+       const key=String(row.group_key||'').toUpperCase().trim();if(!key)return;
+       const coord=LIMA_DISTRICT_CENTROIDS[key]||LIMA_DISTRICT_CENTROIDS.LIMA;
+       const physical=Number(row.physical_accounts||0),decisions=Number(row.commercial_decisions||0),share=total?Math.round(physical/total*100):0;
+       L.circleMarker(coord,{radius:Math.min(22,5+Math.sqrt(physical)*2.2),weight:Number(row.action_now||0)?4:Number(row.research_first||0)?3:2,fillOpacity:.55})
+        .addTo(lima).bindPopup('<strong>'+esc(key)+'</strong><br>'+physical+' sedes procesadas · '+share+'% de Lima<br>'+decisions+' decisiones comerciales independientes<br>XPPS prom. '+(row.avg_xpps??'—')+' · XWIN prom. '+(row.avg_xwin??'—')+'<br>'+Number(row.economic_profiles||0)+' perfiles económicos');
+     });
+   }else{
+     const grouped=new Map();
+     limaRows.forEach(row=>{
+       const key=String(row.district||'').toUpperCase().trim();if(!key)return;
+       const current=grouped.get(key)||{count:0,xpps:0,xwin:0,names:[]};current.count++;current.xpps+=Number(row.xpps_score||0);current.xwin+=Number(row.xwin_score||0);current.names.push(row.name);grouped.set(key,current);
+     });
+     grouped.forEach((v,key)=>{
+       const coord=LIMA_DISTRICT_CENTROIDS[key]||LIMA_DISTRICT_CENTROIDS.LIMA;
+       const share=limaRows.length?Math.round((v.count/limaRows.length)*100):0;
+       L.circleMarker(coord,{radius:Math.min(20,6+v.count*3),weight:2,fillOpacity:.55})
+        .addTo(lima).bindPopup('<strong>'+esc(key)+'</strong><br>'+v.count+' prospecto(s) · '+share+'% de Lima visible<br>XPPS prom. '+Math.round(v.xpps/v.count)+' · XWIN prom. '+Math.round(v.xwin/v.count)+'<br>'+v.names.slice(0,4).map(esc).join('<br>'));
+     });
+   }
  }
 }
 function renderPotentialProspects(){
@@ -766,7 +806,11 @@ function renderPotentialProspects(){
   .sort((a,b)=>Number(b.xwin_score||0)-Number(a.xwin_score||0)||Number(b.xpps_score||0)-Number(a.xpps_score||0))
   .map(row=>'<tr><td><strong>'+esc(row.name||'Institución')+'</strong><small>'+esc([row.district,row.department].filter(Boolean).join(' · '))+'</small></td><td>'+esc(marketSegmentLabel(row.market_segment_proxy))+'<small>Conf. '+(row.economic_profile_confidence??'—')+'%</small></td><td>'+esc(economicLabel(row))+'<small>'+(row.monthly_tuition_pen!=null?'Pensión '+prospectMoney(row.monthly_tuition_pen):'Pensión no verificada')+'</small></td><td><strong>XPPS '+(row.xpps_score??'—')+'</strong><small>XWIN '+(row.xwin_score??'—')+' · conf. '+(row.xwin_confidence??'—')+'%</small></td><td><span class="badge '+prospectActionClass(row).cls+'">'+esc(prospectActionClass(row).label)+'</span></td></tr>').join('');
  const economicLens='<section class="economic-intelligence-board"><div class="economic-intelligence-head"><div><small>INTELIGENCIA ECONÓMICA</small><h3>Economía × oportunidad × geografía</h3><p>Lente descriptiva basada en evidencia. No modifica XPPS/XWIN ni representa probabilidad de venta hasta contar con outcomes reales suficientes.</p></div></div><div class="economic-intelligence-kpis"><span><b>'+economicCovered.length+'/'+economicFocus.length+'</b><small>Foco con perfil económico</small></span><span><b>'+revenueReady.length+'</b><small>Ingresos brutos estimables</small></span><span><b>'+Object.keys(segments).length+'</b><small>Segmentos observados</small></span><span><b>'+economicCovered.filter(r=>Number(r.economic_profile_confidence||0)>=80).length+'</b><small>Perfiles ≥80% confianza</small></span></div>'+(economicMatrix?'<div class="table-wrap economic-matrix"><table><thead><tr><th>Cuenta</th><th>Segmento proxy</th><th>Capacidad</th><th>Señal comercial</th><th>Estado</th></tr></thead><tbody>'+economicMatrix+'</tbody></table></div>':'<p class="muted">Aún no hay perfiles económicos suficientes.</p>')+'</section>';
- const geoBoard='<section class="prospect-geo-board"><div class="prospect-geo-head"><div><small>MAPA COMERCIAL</small><h3>Concentración geográfica de prospectos</h3><p>El tamaño de cada punto refleja concentración de cuentas investigadas; no representa población total de colegios.</p></div></div><div class="prospect-map-grid"><article><h4>Perú</h4><div id="prospectPeruMap" class="prospect-map" aria-label="Mapa de prospectos por departamento"></div></article><article><h4>Lima por distrito</h4><div id="prospectLimaMap" class="prospect-map" aria-label="Mapa de prospectos por distrito de Lima"></div></article></div></section>';
+ const territorialMacro=Array.isArray(data.territorialMacro)?data.territorialMacro:[];
+ const territorialPhysical=territorialMacro.reduce((sum,row)=>sum+Number(row.physical_accounts||0),0);
+ const territorialDecisions=territorialMacro.reduce((sum,row)=>sum+Number(row.commercial_decisions||0),0);
+ const territorialEconomic=territorialMacro.reduce((sum,row)=>sum+Number(row.economic_profiles||0),0);
+ const geoBoard='<section class="prospect-geo-board"><div class="prospect-geo-head"><div><small>MAPA COMERCIAL · DEV</small><h3>Presencia física vs. decisión comercial</h3><p>'+(territorialPhysical?territorialPhysical+' sedes procesadas · '+territorialDecisions+' unidades de decisión comercial independientes · '+territorialEconomic+' perfiles económicos. ':'')+'El tamaño del punto representa cobertura procesada; no es población total ni probabilidad de venta.</p></div></div><div class="prospect-map-grid"><article><h4>Perú</h4><div id="prospectPeruMap" class="prospect-map" aria-label="Mapa de inteligencia territorial por departamento"></div></article><article><h4>Lima por distrito</h4><div id="prospectLimaMap" class="prospect-map" aria-label="Mapa de inteligencia territorial por distrito de Lima"></div></article></div></section>';
  const mobileCards='<div class="mobile-prospect-list">'+rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>{const action=prospectActionClass(row);const next=row.next_action||row.operating_recommendation||'Sin siguiente acción definida.';return '<article class="mobile-prospect-card"><header><div><span class="badge '+action.cls+'">'+esc(action.label)+'</span><h4>'+esc(row.name||'Institución')+'</h4><small>'+esc([row.district,row.department,row.ruc&&('RUC '+row.ruc)].filter(Boolean).join(' · '))+'</small></div><strong class="mobile-prospect-xwin">XWIN '+(row.xwin_score==null?'—':Number(row.xwin_score))+'</strong></header><div class="mobile-prospect-scores"><span><b>'+(row.xpps_score==null?'—':Number(row.xpps_score))+'</b><small>XPPS</small></span><span><b>'+(row.xwin_confidence==null?'—':Number(row.xwin_confidence)+'%')+'</b><small>Confianza XWIN</small></span><span><b>'+(row.xas_score==null?'—':Number(row.xas_score))+'</b><small>XAS</small></span><span><b>'+esc(row.precontact_completion_pct==null?'—':Number(row.precontact_completion_pct)+'%')+'</b><small>Pre-contacto</small></span></div><p><b>Siguiente:</b> '+esc(next)+'</p><div class="mobile-prospect-actions"><button type="button" data-prospect-explain="'+row.id+'">Ver evidencia</button>'+(row.has_lead?'<span class="badge success">Lead existente</span>':row.operating_bucket==='ACTION_NOW'?'<button type="button" class="primary" data-prospect-contact="'+row.id+'">Registrar contacto real</button>':'<span class="badge warn">Contacto bloqueado por gate</span>')+'</div></article>';}).join('')+'</div>';
  $('recordList').innerHTML=focusBoard+economicLens+geoBoard+mobileCards+'<div class="table-wrap prospect-desktop-table"><table><thead><tr><th>Cuenta</th><th>Prioridad</th><th>XPPS / XWIN</th><th>Economía</th><th>Acceso</th><th>Escala</th><th>Compras</th><th>Acción</th></tr></thead><tbody>'+
  rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>{
