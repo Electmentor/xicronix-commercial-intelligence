@@ -1591,3 +1591,17 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
 @media(prefers-reduced-motion:reduce){
   .icon-refresh.is-refreshing svg{animation-duration:1.8s!important}
 }
+
+
+/* V2.40.47 · Simplify prospect title line */
+.prospect-title-separator{display:none!important}
+.prospect-title-line{
+  gap:8px!important;
+}
+.prospect-title-line .prospect-id{
+  font-size:.56rem!important;
+  line-height:1.1!important;
+  font-weight:700!important;
+  color:var(--muted)!important;
+  letter-spacing:.04em!important;
+}
