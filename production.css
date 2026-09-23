@@ -492,3 +492,67 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
   )!important;
   background-size:100% 100%!important;
 }
+
+
+/* V2.40.12 · Milestones distributed along the progress bar */
+.prospect-progress{padding-bottom:54px}
+.prospect-progress-track{overflow:visible}
+.prospect-progress-node{
+  position:absolute;
+  left:var(--node-pos);
+  top:50%;
+  transform:translate(-50%,-50%);
+  z-index:3;
+  height:8px;
+}
+.prospect-progress-tick{
+  position:absolute;
+  left:50%;
+  top:-5px;
+  transform:translateX(-50%);
+  width:2px;
+  height:18px;
+  border-radius:2px;
+  background:rgba(15,39,71,.36);
+  box-shadow:0 0 0 1px rgba(255,255,255,.38);
+}
+.prospect-progress-node.done .prospect-progress-tick{
+  background:rgba(15,57,104,.62);
+}
+.prospect-progress-node.current .prospect-progress-tick{
+  width:3px;
+  background:#174f91;
+  box-shadow:0 0 0 2px rgba(255,255,255,.76),0 0 8px rgba(23,79,145,.28);
+}
+.prospect-progress-node>div{
+  position:absolute;
+  top:18px;
+  left:50%;
+  transform:translateX(-50%);
+  width:126px;
+  text-align:center;
+}
+.prospect-progress-node>div b{
+  display:block;
+  font-size:.67rem;
+  line-height:1.1;
+  color:var(--text);
+}
+.prospect-progress-node>div small{
+  display:block;
+  margin-top:3px;
+  font-size:.58rem;
+  line-height:1.18;
+  color:var(--muted);
+}
+.prospect-progress-node:first-of-type>div{
+  left:-4px;
+  transform:none;
+  text-align:left;
+}
+.prospect-progress-node:last-child>div{
+  left:auto;
+  right:-4px;
+  transform:none;
+  text-align:right;
+}
