@@ -207,3 +207,14 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
 .pi-score-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:12px 0}.pi-score-strip span{border:1px solid var(--line);border-radius:10px;padding:8px}.pi-score-strip b,.pi-score-strip small{display:block}.pi-score-strip b{font-size:1rem}.pi-score-strip small{font-size:.62rem;color:var(--muted)}
 .pi-story{display:grid;gap:7px}.pi-story p{margin:0;padding:9px;border-radius:10px;background:color-mix(in srgb,var(--panel) 92%,var(--blue) 8%);font-size:.75rem;line-height:1.4}.pi-story b,.pi-story small{display:block}.pi-story b{font-size:.65rem;letter-spacing:.06em}.pi-story small{color:var(--muted);margin-top:3px}
 @media(max-width:900px){.prospect-bucket-grid{grid-template-columns:1fr 1fr}.pi-modern-grid{grid-template-columns:1fr}}@media(max-width:600px){.prospect-command-head{flex-direction:column}.prospect-bucket-grid{grid-template-columns:1fr}.pi-score-strip{grid-template-columns:1fr 1fr}}
+
+
+/* V2.40.2 · Seller dashboard UX pass 1 */
+.seller-story-kpi{appearance:none;text-align:left;cursor:pointer;width:100%;font:inherit;color:inherit}
+.seller-story-kpi em{display:block;margin-top:8px;font-style:normal;font-size:.72rem;font-weight:800;color:var(--blue,#1467d8)}
+.seller-story-kpi:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(14,45,78,.08)}
+.seller-story-kpi:focus-visible{outline:3px solid #ff8a1f;outline-offset:2px}
+.seller-priority-story{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
+.seller-priority-story p{margin:0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.55)}
+.seller-priority-story small,.seller-priority-story strong{display:block}.seller-priority-story small{font-size:.64rem;letter-spacing:.08em;color:var(--muted);margin-bottom:5px}.seller-priority-story strong{font-size:.82rem;line-height:1.35}
+@media(max-width:760px){.seller-priority-story{grid-template-columns:1fr}}
