@@ -1741,3 +1741,60 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
 .prospect-action-footer{
   margin-bottom:0!important;
 }
+
+
+/* V2.40.50 · Clean application boot splash */
+.app-splash{
+  position:fixed;
+  inset:0;
+  z-index:99999;
+  display:grid;
+  place-content:center;
+  justify-items:center;
+  gap:8px;
+  background:#f4f7fb;
+  color:#0b2340;
+  opacity:1;
+  visibility:visible;
+  transition:opacity .22s ease,visibility .22s ease;
+}
+.app-splash.is-hidden{
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+}
+.app-splash-mark{
+  font-size:2rem;
+  line-height:1;
+  font-weight:900;
+  letter-spacing:.12em;
+}
+.app-splash-sub{
+  font-size:.68rem;
+  font-weight:800;
+  letter-spacing:.18em;
+  color:#4b6785;
+}
+.app-splash-loader{
+  width:120px;
+  height:3px;
+  margin-top:12px;
+  overflow:hidden;
+  border-radius:999px;
+  background:#dce7f3;
+}
+.app-splash-loader span{
+  display:block;
+  width:38%;
+  height:100%;
+  border-radius:999px;
+  background:#2f7de1;
+  animation:xicronixSplashLoad 1s ease-in-out infinite;
+}
+@keyframes xicronixSplashLoad{
+  0%{transform:translateX(-110%)}
+  100%{transform:translateX(300%)}
+}
+@media(prefers-reduced-motion:reduce){
+  .app-splash-loader span{animation-duration:2s}
+}
