@@ -595,7 +595,7 @@ function renderPotentialProspects(){
  $('recordContext').hidden=true;$('sellerSummary').hidden=true;$('importBtn').hidden=true;$('importHelp').hidden=true;
  const search=normalize($('search').value),filter=$('filter').value;
  const all=(data.prospects||[]);
- const rows=all.filter(row=>(!filter||row.prospect_state===filter)&&(!search||normalize([row.name,row.ruc,row.city,row.procurement_model,row.xwin_band].filter(Boolean).join(' ')).includes(search)))
+ const rows=all.filter(row=>(!filter||row.operating_bucket===filter)&&(!search||normalize([row.name,row.ruc,row.city,row.procurement_model,row.xwin_band].filter(Boolean).join(' ')).includes(search)))
   .sort((a,b)=>{
    const aa=prospectActionClass(a),bb=prospectActionClass(b);
    const rank=x=>x.label==='Acción ahora'?5:x.label==='Investigar primero'?4:x.label==='Vigilancia estratégica'?3:x.label==='Revalidar'?2:1;
@@ -610,7 +610,23 @@ function renderPotentialProspects(){
  $('exportBtn').disabled=true;$('pageNumber').textContent='Página '+(pageIndex+1)+' de '+max;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
  if(failures.prospects){$('recordList').innerHTML='<div class="panel empty">No pudimos cargar las cuentas estratégicas. Pulsa Actualizar.</div>';return;}
  if(!rows.length){$('recordList').innerHTML='<div class="panel empty">No hay cuentas con este filtro.</div>';return;}
- $('recordList').innerHTML='<div class="table-wrap"><table><thead><tr><th>Cuenta</th><th>Prioridad</th><th>XPPS / XWIN</th><th>Acceso</th><th>Escala</th><th>Compras</th><th>Acción</th></tr></thead><tbody>'+
+ const focusRows=all.filter(row=>['ACTION_NOW','RESEARCH_FIRST'].includes(row.operating_bucket))
+  .sort((a,b)=>(a.operating_bucket===b.operating_bucket?0:a.operating_bucket==='ACTION_NOW'?-1:1)||Number(b.xwin_score||0)-Number(a.xwin_score||0)||Number(b.xpps_score||0)-Number(a.xpps_score||0))
+  .slice(0,6);
+ const focusBoard=focusRows.length?'<section class="opportunity-board"><div class="opportunity-board-head"><div><small>TOP OPPORTUNITIES</small><h3>Prioridades comerciales verificadas</h3></div><span>'+focusRows.length+' cuentas en foco</span></div><div class="opportunity-board-grid">'+focusRows.map(row=>{
+   const action=prospectActionClass(row);
+   const confidence=row.xwin_confidence==null?'—':Number(row.xwin_confidence)+'%';
+   const precontact=row.precontact_completion_pct==null?'—':Number(row.precontact_completion_pct)+'%';
+   const next=row.next_action||row.operating_recommendation||'Esperar nueva evidencia antes de actuar.';
+   return '<article class="opportunity-card '+(row.operating_bucket==='ACTION_NOW'?'ready':'research')+'">'+
+    '<div class="opportunity-card-top"><span class="badge '+action.cls+'">'+esc(action.label)+'</span><small>Conf. XWIN '+esc(confidence)+'</small></div>'+
+    '<h4>'+esc(row.name||'Institución')+'</h4>'+
+    '<div class="opportunity-score-row"><span><b>'+(row.xpps_score==null?'—':Number(row.xpps_score))+'</b><small>XPPS</small></span><span><b>'+(row.xwin_score==null?'—':Number(row.xwin_score))+'</b><small>XWIN</small></span><span><b>'+esc(precontact)+'</b><small>Pre-contacto</small></span></div>'+
+    '<p>'+esc(next)+'</p>'+
+    '<button type="button" data-prospect-explain="'+row.id+'">Ver evidencia y decisión</button>'+
+   '</article>';
+  }).join('')+'</div></section>':'';
+ $('recordList').innerHTML=focusBoard+'<div class="table-wrap"><table><thead><tr><th>Cuenta</th><th>Prioridad</th><th>XPPS / XWIN</th><th>Acceso</th><th>Escala</th><th>Compras</th><th>Acción</th></tr></thead><tbody>'+
  rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>{
    const action=prospectActionClass(row);
    const scale=Number(row.network_campus_count||1)>1?(Number(row.network_campus_count)+' sedes · '+Number(row.network_province_count||1)+' prov.'):'1 sede';
