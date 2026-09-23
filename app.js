@@ -10,6 +10,12 @@ import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,mileston
 import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260923-v2.40.47';
 
 const $ = id => document.getElementById(id);
+function hideAppSplash(){
+ const splash=$('appSplash');
+ if(!splash||splash.classList.contains('is-hidden'))return;
+ requestAnimationFrame(()=>requestAnimationFrame(()=>splash.classList.add('is-hidden')));
+}
+
 const enums = {
  type:{UNIVERSITY:'Universidad',SCHOOL:'Colegio',INSTITUTE:'Instituto',CLINIC:'Clínica',HOSPITAL:'Hospital',COMPANY:'Empresa',GOVERNMENT:'Gobierno',RESEARCH_CENTER:'Centro de investigación',OTHER:'Otro'},
  status:{NEW:'Nuevo',RESEARCHING:'En investigación',CONTACT_PENDING:'Por contactar',CONTACTED:'Contactado',QUALIFIED:'Calificado',DISQUALIFIED:'Descartado',CONVERTED:'Convertido'},
@@ -71,7 +77,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-23-v2.40.49';
+const CRM_RELEASE='2026-09-23-v2.40.50';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -305,7 +311,7 @@ async function reload(){
  }else mailWebhookConfig=null;
  render();const bad=Object.keys(failures);notice(bad.length?'No se pudo cargar: '+bad.map(k=>modules[k]?.label||k).join(', ')+'. Pulsa Actualizar para reintentar.':'',!!bad.length);
  }catch(error){if(version===loadVersion){profile=null;data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice(errorText(error),true);}}
- finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;$('refreshBtn').classList.remove('is-refreshing');render();applyEntryRoute();}}
+ finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;$('refreshBtn').classList.remove('is-refreshing');render();applyEntryRoute();hideAppSplash();}}
 }
 function applyTheme(theme,persist=false){
  const night=theme==='night';document.documentElement.dataset.theme=night?'night':'day';
@@ -1399,8 +1405,8 @@ function startResetCooldown(seconds){
  update();resetCooldownTimer=setInterval(update,1000);
 }
 function handleAuth(event,current){
- if(event==='PASSWORD_RECOVERY'){clearSession();session=current;setRecovery(true);setMode('update');return;}
- if(!current){setRecovery(false);clearSession();return;}
+ if(event==='PASSWORD_RECOVERY'){clearSession();session=current;setRecovery(true);setMode('update');hideAppSplash();return;}
+ if(!current){setRecovery(false);clearSession();hideAppSplash();return;}
  if(recovery){clearSession();session=current;setMode('update');return;}
  if(session?.user.id===current.user.id){session=current;return;}
  clearSession();session=current;$('authView').hidden=true;$('appView').hidden=false;
@@ -1485,6 +1491,8 @@ function openLeadDetails(id){
 }
 
 function init(){
+ window.setTimeout(hideAppSplash,5000);
+
  restoreRememberedEmail();
  try{recovery=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery'||sessionStorage.getItem(RECOVERY_KEY)==='1';}catch(_error){}
  $('rememberEmail').onchange=()=>{if(!$('rememberEmail').checked){try{localStorage.removeItem(REMEMBER_EMAIL_KEY);}catch(_error){}}};
