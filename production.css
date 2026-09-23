@@ -1532,3 +1532,46 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
     height:1px;
   }
 }
+
+
+/* V2.40.45 · Inline prospect ID with separator */
+.prospect-title-line{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+}
+.prospect-title-line h2{
+  margin:0!important;
+  font-size:1.12rem!important;
+  line-height:1.2!important;
+  font-weight:800!important;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.prospect-title-separator{
+  width:1px;
+  height:20px;
+  flex:none;
+  background:var(--line);
+}
+.prospect-title-line .prospect-id{
+  display:inline-block!important;
+  margin:0!important;
+  font-size:1.12rem!important;
+  line-height:1.2!important;
+  font-weight:800!important;
+  letter-spacing:0!important;
+  color:var(--muted);
+  white-space:nowrap;
+}
+@media(max-width:760px){
+  .prospect-title-line{
+    gap:7px;
+  }
+  .prospect-title-line h2,
+  .prospect-title-line .prospect-id{
+    font-size:.96rem!important;
+  }
+}
