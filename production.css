@@ -1015,3 +1015,24 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
     justify-content:space-between;
   }
 }
+
+
+/* V2.40.23 · Stack urgency above current milestone */
+.seller-priority-status{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:6px;
+  text-align:right;
+}
+.seller-current-stage{
+  display:block;
+  white-space:nowrap;
+}
+@media(max-width:760px){
+  .seller-priority-status{
+    width:auto;
+    margin-left:auto;
+    align-items:flex-end;
+  }
+}
