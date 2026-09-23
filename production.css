@@ -1182,3 +1182,15 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
     font-size:.66rem!important;
   }
 }
+
+
+/* V2.40.32 · Remove workspace hint and use icon-only theme toggle */
+#workspaceHint{display:none!important}
+#themeToggle{
+  min-width:38px!important;
+  width:38px!important;
+  padding:0!important;
+  display:inline-grid!important;
+  place-items:center!important;
+  font-size:1rem!important;
+}
