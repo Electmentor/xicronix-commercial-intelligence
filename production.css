@@ -1036,3 +1036,7 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
     align-items:flex-end;
   }
 }
+
+
+/* V2.40.24 · Remove redundant current-stage text from prospect header */
+.seller-current-stage{display:none!important}
