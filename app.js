@@ -394,7 +394,8 @@ function renderSellerWorkspaceSummary(){
  const active=rows.filter(row=>!['DISQUALIFIED','CONVERTED'].includes(row.status)).length;
  const due=rows.filter(row=>row.next_action_date&&Date.parse(row.next_action_date)<=now+7*86400000).length;
  const high=rows.filter(row=>Number(scores.find(score=>score.lead_id===row.id)?.total_score||0)>=75).length;
- return '<article class="seller-focus panel"><div><h2>Mi operación comercial</h2><p>Prioriza tus prospectos, registra cada interacción y trabaja la próxima acción sugerida.</p></div><div class="seller-focus-metrics"><span><b>'+active+'</b><small>Leads activos</small></span><span><b>'+high+'</b><small>Potencial alto</small></span><span><b>'+due+'</b><small>Seguimientos próximos</small></span></div></article>';
+ const urgent=rows.filter(row=>row.next_action_date&&Date.parse(row.next_action_date)<now).length;
+ return '<section class="portfolio-strip"><span><b>'+active+'</b><small>Prospectos activos</small></span><span><b>'+high+'</b><small>Potencial alto</small></span><span><b>'+due+'</b><small>Seguimientos ≤7 días</small></span><span class="'+(urgent?'warn':'')+'"><b>'+urgent+'</b><small>Vencidos</small></span></section>';
 }
 function filtered(){const config=modules[page];const rows=filterRecords(filterExecutiveRows(scopedRows(page),page,executiveFilter,executiveOwner),$('search').value,config.filter,$('filter').value,row=>[relatedName(row),relationName('lead_id',row),row.supplier_sku,row.supplier_name,enums.documentCategory[row.category]].filter(Boolean).join(' '));if(page==='tasks')return sortTasksByUrgency(rows,Date.now());if(page==='meetings')return rows.slice().sort((a,b)=>String(a.start_at||'').localeCompare(String(b.start_at||'')));return page==='expenses'?rows.slice().sort((a,b)=>String(b.expense_date||'').localeCompare(String(a.expense_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||''))):rows;}
 function urgencyCell(row){
@@ -852,6 +853,29 @@ function renderMailRecords(){
  $('recordList').innerHTML=setup+cards;
 }
 
+function renderLeadCards(rows){
+ return '<section class="lead-mobile-list">'+rows.map(row=>{
+  const institution=(data.institutions||[]).find(item=>item.id===row.institution_id);
+  const contact=(data.contacts||[]).find(item=>item.id===row.contact_id);
+  const activities=(data.activities||[]).filter(item=>item.lead_id===row.id).sort((a,b)=>String(b.occurred_at||'').localeCompare(String(a.occurred_at||'')));
+  const latest=activities[0]||null;
+  const need=activities.find(item=>item.need_summary)?.need_summary||'Necesidad aún no precisada.';
+  const evidence=activities.find(item=>item.evidence_note)?.evidence_note||'Sin evidencia comercial explícita.';
+  const score=(data.scores||[]).find(item=>item.lead_id===row.id);
+  const potential=score?Math.max(0,Math.min(100,Number(score.total_score)||0)):null;
+  const maturity=Math.max(0,Math.min(100,Number(row.maturity_percent)||0));
+  const next=row.next_action||'Definir siguiente acción';
+  const overdue=row.next_action_date&&Date.parse(row.next_action_date)<Date.now();
+  return '<article class="lead-mobile-card '+(overdue?'overdue':'')+'">'+
+   '<header><div><span class="lead-mobile-kicker">PROSPECTO</span><h3>'+esc(institution?.name||row.title||'Prospecto')+'</h3><small>'+esc(contact?nameOf(contact):'Contacto decisor pendiente')+'</small></div><span class="badge '+(overdue?'warn':'')+'">'+esc(enums.status[row.status]||row.status)+'</span></header>'+
+   '<div class="lead-mobile-story"><p><b>Problema</b><span>'+esc(need)+'</span></p><p><b>Evidencia</b><span>'+esc(evidence)+'</span></p></div>'+
+   '<div class="lead-mobile-scores"><span><b>'+maturity+'%</b><small>Madurez</small></span><span><b>'+(potential===null?'—':potential+'%')+'</b><small>Potencial</small></span><span><b>'+esc(row.estimated_value?money(row.estimated_value):'—')+'</b><small>Valor</small></span></div>'+
+   '<p class="lead-mobile-next"><b>Siguiente:</b> '+esc(next)+(row.next_action_date?' · '+esc(date(row.next_action_date)):'')+'</p>'+
+   '<div class="lead-mobile-actions"><button type="button" class="primary" data-lead-detail="'+row.id+'">Abrir expediente</button>'+(writable()?'<button type="button" data-activity-lead="'+row.id+'">Registrar movimiento</button>':'')+'<button type="button" data-edit="'+row.id+'" data-table="leads">Editar</button></div>'+
+  '</article>';
+ }).join('')+'</section>';
+}
+
 function renderRecords(){
  if(page==='now'){renderNow();return;}
  if(page==='radar'){renderRadarRecords();return;}
@@ -869,7 +893,8 @@ function renderRecords(){
  const config=modules[page],canEdit=writableFor(page);
  const secondHeader=isUsers?'Rol':isGoals?'Responsable':isExpenses?'Fecha del gasto':['tasks','meetings','deliverables','documents'].includes(page)?'Prospecto':page==='institutions'?'Ciudad':['catalog_products','cost_profiles'].includes(page)?'Origen / destino':'Institución';
  const detailHeader=isGoals?'Metas y presupuesto':isExpenses?'Importe':page==='tasks'?'Urgencia dinámica':page==='meetings'?'Fecha y modalidad':page==='documents'?'Carpeta / versión':(['leads','opportunities'].includes(page)?'Valor estimado':page==='catalog_products'?'Precio proveedor':page==='cost_profiles'?'Tipo de cambio':'Detalle');
- const rowsMarkup=rows.slice(pageIndex*size,(pageIndex+1)*size).map(row=>{
+ const pageRows=rows.slice(pageIndex*size,(pageIndex+1)*size);
+ const rowsMarkup=pageRows.map(row=>{
   const secondCell=isUsers?badge(row.role,page):isGoals?esc(relationName('owner_user_id',row)||'Organización'):isExpenses?esc(row.expense_date||'Sin fecha'):['tasks','meetings','deliverables','documents'].includes(page)?esc(relationName('lead_id',row)||'Sin prospecto vinculado'):page==='catalog_products'?esc(row.origin_country||'—')+' → Perú':page==='cost_profiles'?esc(row.origin_country||'—')+' → '+esc(row.destination_country||'—'):esc(page==='institutions'?row.city||'—':relatedName(row)||'Sin vincular');
   const stateCell=isGoals?'<span class="badge success">Meta definida</span>':page==='catalog_products'?(row.active===false?'<span class="badge warn">Inactivo</span>':'<span class="badge success">Activo</span>'):badge(row[config.filter],page);
   const detail=isGoals?'Ventas '+money(row.target_won_value)+'<small>Margen bruto '+money(row.target_margin)+'</small><small>Gastos '+(row.target_expenses===null||row.target_expenses===undefined?'Sin presupuesto':money(row.target_expenses))+'</small>':isExpenses?money(row.amount):page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='catalog_products'?catalogMoney(row.supplier_unit_price):page==='cost_profiles'?Number(row.exchange_rate||0).toFixed(2):page==='tasks'?urgencyCell(row):page==='meetings'?('<strong>'+esc(date(row.start_at))+'</strong><small>'+esc(enums.meetingMode[row.mode]||row.mode)+' · '+esc(date(row.end_at))+'</small>'):page==='documents'?('<strong>'+esc(enums.documentCategory[row.category]||row.category)+'</strong><small>Versión actual: v'+Number(row.current_version||0)+'</small>'):page==='activities'?esc(date(row.occurred_at)):esc(row.phone||'—');
@@ -878,7 +903,8 @@ function renderRecords(){
   const subline=isGoals?(row.period_start+' → '+row.period_end):isExpenses?(row.currency||'PEN'):(row.email||row.next_action||row.job_title||row.category||row.notes||'');
   return '<tr><td><strong>'+esc(rowName)+'</strong><small>'+esc(subline)+'</small></td><td>'+secondCell+'</td><td>'+stateCell+'</td><td>'+detail+'</td>'+(page==='leads'?'<td>'+maturityCell(row)+'</td>':'')+'<td><div class="row-actions">'+(page==='leads'?'<button class="primary" data-lead-detail="'+row.id+'">Abrir expediente comercial</button>':'')+(page==='documents'&&Number(row.current_version)>0?'<button data-open-document="'+row.id+'">Abrir archivo</button>':'')+'<button data-edit="'+row.id+'" data-table="'+page+'">'+actionLabel+'</button>'+(page==='leads'&&writable()?'<button data-activity-lead="'+row.id+'">Registrar movimiento</button>':'')+(!isUsers&&canDelete()?'<button class="danger-text" data-delete="'+row.id+'" data-table="'+page+'">Eliminar</button>':'')+'</div></td></tr>';
  }).join('');
- $('recordList').innerHTML=failures[page]?'<div class="panel empty">No pudimos cargar estos registros. Pulsa Actualizar.</div>':!rows.length?`<div class="panel empty">${$('search').value||$('filter').value?'No hay coincidencias. Cambia la búsqueda o el filtro.':'Aún no hay registros. Crea el primero con el botón superior.'}</div>`:`<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>${secondHeader}</th><th>Estado / tipo</th><th>${detailHeader}</th>${page==='leads'?'<th>Madurez / potencial</th>':''}<th>Acción</th></tr></thead><tbody>${rowsMarkup}</tbody></table></div>`;
+ const leadCards=page==='leads'?renderLeadCards(pageRows):'';
+ $('recordList').innerHTML=failures[page]?'<div class="panel empty">No pudimos cargar estos registros. Pulsa Actualizar.</div>':!rows.length?`<div class="panel empty">${$('search').value||$('filter').value?'No hay coincidencias. Cambia la búsqueda o el filtro.':'Aún no hay registros. Crea el primero con el botón superior.'}</div>`:`${leadCards}<div class="table-wrap ${page==='leads'?'lead-desktop-table':''}"><table><thead><tr><th>Nombre</th><th>${secondHeader}</th><th>Estado / tipo</th><th>${detailHeader}</th>${page==='leads'?'<th>Madurez / potencial</th>':''}<th>Acción</th></tr></thead><tbody>${rowsMarkup}</tbody></table></div>`;
 }
 function localDateTime(value){if(!value)return '';const d=new Date(value);if(!Number.isFinite(d.getTime()))return '';return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);}
 function importValue(source,field){
@@ -1236,13 +1262,16 @@ function openLeadDetails(id){
  const cReceived=deliverables.filter(row=>row.direction==='CLIENT_TO_XICRONIX'&&row.status==='RECEIVED');
  const cPending=deliverables.filter(row=>row.direction==='CLIENT_TO_XICRONIX'&&row.status==='PENDING');
  const maturity=Math.max(0,Math.min(100,Number(lead.maturity_percent)||0));
- const need=activities.find(row=>row.need_summary)?.need_summary||'Pendiente de precisar';
+ const need=activities.find(row=>row.need_summary)?.need_summary||'Necesidad aún no precisada.';
+ const evidence=activities.find(row=>row.evidence_note)?.evidence_note||'Sin evidencia comercial explícita registrada.';
+ const decisionSignal=activities.find(row=>row.decision_timeline||row.budget_signal);
+ const decisionContext=[decisionSignal?.decision_timeline,decisionSignal?.budget_signal].filter(Boolean).join(' · ')||'Timing y presupuesto aún no confirmados.';
  const budget=Number(lead.estimated_value)>0?money(lead.estimated_value):'Sin definir';
  const field=(label,value)=>'<div class="lead-detail-row"><dt>'+esc(label)+'</dt><dd>'+esc(value||'Sin registrar')+'</dd></div>';
  const buttons=writableFor('leads')?'<div class="lead-master-actions"><button type="button" data-edit-lead="'+lead.id+'">Editar prospecto</button><button type="button" class="primary" data-activity-lead="'+lead.id+'">Registrar movimiento</button><button type="button" data-create-task-lead="'+lead.id+'">Crear tarea</button><button type="button" data-create-meeting-lead="'+lead.id+'">Agendar reunión</button><button type="button" data-create-deliverable-lead="'+lead.id+'">Registrar entregable</button><button type="button" data-create-document-lead="'+lead.id+'">Subir documento</button></div>':'';
  $('leadDetailTitle').textContent='Expediente Comercial · '+(institution?.name||lead.title||'Prospecto');
  $('leadDetailContent').innerHTML='<section class="lead-master commercial-dossier"><p class="muted">'+(dataSource==='demo'?'Demostración, sin datos reales.':'Radiografía comercial basada únicamente en los registros del expediente.')+'</p>'+buttons+
- '<section class="situation-action"><div><small>SITUACIÓN</small><h3>'+(latest?esc(latest.subject||MOVEMENT_ACTIONS[latest.action_code]||'Último movimiento registrado'):'Sin movimiento reciente')+'</h3><p>'+(latest?esc(latest.notes||latest.need_summary||'Movimiento registrado sin detalle adicional.'):'La oportunidad todavía no tiene actividad suficiente para resumir una situación previa.')+'</p></div><div><small>ACCIÓN</small><h3>'+esc(action)+'</h3><p>'+(nextDate?'Próximo compromiso: '+esc(date(nextDate)):'Aún no existe una fecha comprometida.')+'</p></div></section>'+
+ '<section class="candidate-story"><article><small>1 · PROBLEMA</small><h3>'+esc(need)+'</h3><p>'+(latest?esc(latest.subject||'Último movimiento registrado'):'Sin movimiento reciente')+'</p></article><article><small>2 · EVIDENCIA</small><h3>'+esc(evidence)+'</h3><p>'+esc(latest?'Última interacción: '+date(latest.occurred_at):'Sin interacción verificada')+'</p></article><article><small>3 · ACCIÓN</small><h3>'+esc(action)+'</h3><p>'+(nextDate?'Próximo compromiso: '+esc(date(nextDate)):'Aún no existe una fecha comprometida.')+'</p></article><article><small>4 · VALOR / DECISIÓN</small><h3>'+esc(budget)+'</h3><p>'+esc(decisionContext)+'</p></article></section>'+
  '<div class="dossier-status-row"><span class="dossier-state '+health.className+'"><small>Estado actual</small><strong>'+health.label+'</strong></span><span class="dossier-state '+urgency.className+'"><small>Urgencia</small><strong>'+urgency.label+'</strong></span><span class="dossier-state '+potentialState.className+'"><small>Potencial</small><strong>'+potentialState.label+(potentialState.value!==undefined?' · '+potentialState.value+'%':'')+'</strong></span></div>'+
  '<section class="dossier-first-look"><article><small>Último movimiento</small><strong>'+esc(latest?date(latest.occurred_at):'Sin registro')+'</strong></article><article><small>Próxima fecha clave</small><strong>'+esc(nextDate?date(nextDate):'Sin fecha')+'</strong></article><article><small>Próxima reunión</small><strong>'+esc(nextMeeting?date(nextMeeting.start_at):'Sin reunión')+'</strong></article><article><small>Hito actual</small><strong>'+maturity+'% · '+esc(milestoneLabel(lead.commercial_milestone))+'</strong><div class="dossier-progress"><i style="width:'+maturity+'%"></i></div></article></section>'+
  '<section class="deliverable-radiography"><h3>Entregables</h3><div class="deliverable-grid"><article><small>Entregado por Xicronix</small><strong>'+xDelivered.length+'</strong><p>'+esc(xDelivered[0]?.title||'Sin entregas registradas')+'</p></article><article><small>Pendiente de Xicronix</small><strong>'+xPending.length+'</strong><p>'+esc(xPending[0]?.title||'Sin pendientes registrados')+'</p></article><article><small>Recibido del cliente</small><strong>'+cReceived.length+'</strong><p>'+esc(cReceived[0]?.title||'Sin recepciones registradas')+'</p></article><article><small>Pendiente del cliente</small><strong>'+cPending.length+'</strong><p>'+esc(cPending[0]?.title||'Sin pendientes registrados')+'</p></article></div></section>'+
