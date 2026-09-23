@@ -125,7 +125,7 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
   const focus=priorityRows.length?'<section class="seller-priority-section"><div class="seller-priority-stack">'+priorityRows.map((row,index)=>{
     const lead=row.lead,name=row.institution?.name||lead.title;
     return '<article class="seller-priority-prospect '+(index===0?'primary-focus':'secondary-focus')+'">'+
-      '<header><div><span class="seller-priority-rank">0'+(index+1)+'</span><div><h2>'+esc(name)+'</h2><small class="seller-priority-label">PROSPECTO PRIORITARIO</small></div></div><div class="seller-priority-status"><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></div></header>'+
+      '<header><div><span class="seller-priority-rank">0'+(index+1)+'</span><div><h2>'+esc(name)+'</h2></div></div><div class="seller-priority-status"><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></div></header>'+
       renderProspectProgress(lead,row.maturity)+
 
       '<footer><div><small>Problema detectado</small><strong>'+esc(row.problem)+'</strong></div><button class="primary" data-lead-detail="'+esc(lead.id)+'">Abrir expediente</button></footer>'+
