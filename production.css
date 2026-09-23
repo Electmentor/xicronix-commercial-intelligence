@@ -556,3 +556,52 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
   transform:none;
   text-align:right;
 }
+
+
+/* V2.40.13 · Prevent milestone label overlap */
+.prospect-progress-node>div{
+  width:104px;
+  max-width:104px;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  word-break:normal;
+  line-height:1.1;
+}
+.prospect-progress-node>div b{
+  margin-bottom:3px;
+}
+.prospect-progress-node>div small{
+  font-size:.56rem;
+  line-height:1.12;
+}
+.prospect-progress-node:nth-child(2)>div,
+.prospect-progress-node:nth-child(3)>div,
+.prospect-progress-node:nth-child(4)>div,
+.prospect-progress-node:nth-child(5)>div{
+  width:96px;
+  max-width:96px;
+}
+.prospect-progress-node:first-of-type>div{
+  left:0;
+  transform:none;
+  text-align:left;
+  width:112px;
+  max-width:112px;
+}
+.prospect-progress-node:last-child>div{
+  right:0;
+  left:auto;
+  transform:none;
+  text-align:right;
+  width:104px;
+  max-width:104px;
+}
+@media(max-width:1100px){
+  .prospect-progress-node>div{
+    width:88px;
+    max-width:88px;
+  }
+  .prospect-progress-node>div small{
+    font-size:.53rem;
+  }
+}
