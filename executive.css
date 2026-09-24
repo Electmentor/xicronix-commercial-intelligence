@@ -148,3 +148,40 @@ html[data-theme="night"] .ceo-dashboard{--surface:#111f31}html[data-theme="night
     color:#6d8196!important;
   }
 }
+
+
+/* V2.40.59 · Improve mobile KPI label legibility */
+@media(max-width:700px){
+  .mobile-clone-kpis button{
+    min-height:126px!important;
+    padding:12px 7px 11px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+  }
+  .mobile-clone-kpis span{
+    font-size:.74rem!important;
+    margin-top:2px!important;
+  }
+  .mobile-clone-kpis strong{
+    font-size:.92rem!important;
+    margin:8px 0 7px!important;
+    line-height:1!important;
+  }
+  .mobile-clone-kpis small{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    min-height:32px!important;
+    width:100%!important;
+    padding:0 2px!important;
+    font-size:.64rem!important;
+    line-height:1.18!important;
+    font-weight:700!important;
+    text-align:center!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+  }
+}
