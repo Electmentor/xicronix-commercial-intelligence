@@ -2275,3 +2275,27 @@ html,body{background:#081b32}
 .app-splash-sub{color:#9fb4ca!important}
 .app-splash-loader{background:#173653!important}
 .app-splash-loader span{background:#4da3ff!important}
+
+
+/* V2.40.69 · Minimal splash: wordmark + platform name only */
+.app-splash{
+  gap:6px!important;
+}
+.app-splash-logo,
+.app-splash-loader{
+  display:none!important;
+}
+.app-splash-wordmark{
+  font-size:2rem!important;
+  line-height:1!important;
+  font-weight:800!important;
+  letter-spacing:-.04em!important;
+  color:#f2f7ff!important;
+  text-transform:none!important;
+}
+.app-splash-sub{
+  font-size:.68rem!important;
+  font-weight:800!important;
+  letter-spacing:.18em!important;
+  color:#9fb4ca!important;
+}
