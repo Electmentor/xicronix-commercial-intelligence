@@ -1273,6 +1273,35 @@ function openLeadDetails(id){
  rememberPage(id);$('leadDetailDialog').showModal();
 }
 
+function enterDevVisualPreview(){
+ if(!IS_DEV_PREVIEW)return false;
+ const previewUserId='00000000-0000-4000-8000-000000000009';
+ const previewOrgId='823522c3-930f-44d4-9c22-26efee6da960';
+ session={user:{id:previewUserId,email:'preview@xicronix.dev'}};
+ profile={id:previewUserId,organization_id:previewOrgId,full_name:'Toshi',role:'ADMIN'};
+ recovery=false;
+ page='dashboard';
+ workspace=ADMIN;
+ workspaceIdentity=workspaceKey(previewUserId,previewOrgId);
+ dataSource='demo';
+ sourceIdentity=workspaceIdentity;
+ demoSeller=DEMO_SELLERS[0].id;
+ demoData=createDemoData(previewOrgId);
+ upgradeDemoData(demoData,previewOrgId);
+ data=scopeWorkspaceData(demoData,profile,currentActor(),workspace);
+ failures={};
+ $('authView').hidden=true;
+ $('appView').hidden=false;
+ $('userRole').textContent='Vista DEV temporal';
+ $('welcome').textContent='Toshi';
+ $('logoutBtn').hidden=true;
+ $('sourceToggle').hidden=true;
+ $('resetDemoBtn').hidden=true;
+ $('demoSellerField').hidden=true;
+ render();
+ return true;
+}
+
 function init(){
  restoreRememberedEmail();
  try{recovery=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery'||sessionStorage.getItem(RECOVERY_KEY)==='1';}catch(_error){}
@@ -1300,6 +1329,7 @@ function init(){
  const close=()=>{if(!busy)$('editor').close();};$('closeEditor').onclick=$('cancelEditor').onclick=close;$('editor').addEventListener('cancel',e=>{if(busy)e.preventDefault();});
  $('logoutBtn').onclick=async()=>{const {error}=await sb.auth.signOut();if(error){notice(errorText(error),true);return;}clearSession();setMode('login');};
  $('exportBtn').onclick=()=>{if(!accessible(page)||loading||busy||failures[page])return;const columns=fieldsFor(page).filter(field=>!field.transient).map(field=>({key:field.key,label:field.label}));const rows=filtered().map(row=>Object.fromEntries(columns.map(c=>{const field=modules[page].fields.find(f=>f.key===c.key);return [c.key,field.type==='relation'?relationName(c.key,row):costRateKeys.has(c.key)?Number(row[c.key])*100:field.options?.[row[c.key]]||row[c.key]];})));const url=URL.createObjectURL(new Blob([csv(rows,columns)],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`xicronix-${dataSource==='demo'?'SIMULADO-':''}${page}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+ if(enterDevVisualPreview())return;
  if(!window.supabase){$('authMsg').textContent='No se pudo cargar el servicio de acceso. Comprueba tu conexión y recarga la página.';$('authBtn').disabled=true;return;}
  sb=window.supabase.createClient(CRM_SUPABASE_URL,CRM_SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
  sb.auth.onAuthStateChange(handleAuth);
