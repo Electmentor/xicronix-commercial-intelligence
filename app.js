@@ -28,10 +28,10 @@ function startLarsonScanner(){
    const r=Math.round(24+(255-24)*hot);
    const g=Math.round(0+18*hot);
    const b=Math.round(4+20*hot);
-   led.style.background=`rgb(${r},${g},${b})`;
-   led.style.opacity=String(.28+.72*strength);
-   led.style.boxShadow=strength>.08?`0 0 ${2+8*strength}px rgba(255,0,24,${.18+.72*strength}),0 0 ${4+18*strength}px rgba(255,0,24,${.08+.38*strength})`:'none';
-   led.style.transform=`scaleY(${.72+.30*strength})`;
+   led.style.setProperty('background',`rgb(${r},${g},${b})`,'important');
+   led.style.setProperty('opacity',String(.28+.72*strength),'important');
+   led.style.setProperty('box-shadow',strength>.08?`0 0 ${2+8*strength}px rgba(255,0,24,${.18+.72*strength}),0 0 ${4+18*strength}px rgba(255,0,24,${.08+.38*strength})`:'none','important');
+   led.style.setProperty('transform',`scaleY(${.72+.30*strength})`,'important');
   });
   if(!$('appSplash')?.classList.contains('is-hidden'))requestAnimationFrame(paint);
  };
