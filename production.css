@@ -2435,3 +2435,122 @@ html[data-theme="night"] body{
     margin:14px 10px 5px!important;
   }
 }
+
+/* V2.40.90 · Solid, role-safe sidebar controls on desktop and mobile */
+.sidebar-data-mode{
+  background:#0f2740!important;
+  border-color:#28445f!important;
+}
+.sidebar-data-mode>small{color:#9fb3c8!important}
+.sidebar-data-mode button{
+  background:#17324f!important;
+  border-color:#35516d!important;
+  color:#d7e5f3!important;
+  opacity:1!important;
+}
+.sidebar-data-mode button:hover,
+.sidebar-data-mode button:focus-visible{
+  background:#204263!important;
+  color:#fff!important;
+}
+.sidebar-data-mode button.active{
+  background:#245fa6!important;
+  border-color:#6faeff!important;
+  color:#fff!important;
+}
+.sidebar-data-mode button#sidebarDemoBtn.active{
+  background:#9b531d!important;
+  border-color:#f29a56!important;
+  color:#fff!important;
+}
+.sidebar-reset-demo{
+  width:100%!important;
+  margin-top:7px!important;
+  background:#3a2b1e!important;
+  border-color:#7d5636!important;
+  color:#ffd2ad!important;
+  opacity:1!important;
+}
+#navigation button{
+  background:#102942!important;
+  border:1px solid #28445f!important;
+  color:#d3dfec!important;
+  opacity:1!important;
+}
+#navigation button:hover,
+#navigation button:focus-visible{
+  background:#173a5c!important;
+  color:#fff!important;
+}
+#navigation button.active{
+  background:#1c4770!important;
+  border-color:#3d6d9e!important;
+  color:#fff!important;
+}
+.sidebar-bottom button{
+  background:#17324f!important;
+  border-color:#35516d!important;
+  color:#fff!important;
+  opacity:1!important;
+}
+.sidebar #workspaceControls{
+  background:#0f2740!important;
+  border-color:#28445f!important;
+}
+.sidebar #workspaceControls .workspace-switch{
+  background:#0b2034!important;
+}
+.sidebar #workspaceControls .workspace-switch button,
+.sidebar #workspaceControls .workspace-actions button{
+  background:#17324f!important;
+  border:1px solid #35516d!important;
+  color:#d7e5f3!important;
+  opacity:1!important;
+}
+.sidebar #workspaceControls .workspace-switch button[aria-pressed="true"]{
+  background:#245fa6!important;
+  border-color:#6faeff!important;
+  color:#fff!important;
+}
+.sidebar #workspaceControls .workspace-actions button.primary{
+  background:#1368e8!important;
+  border-color:#1368e8!important;
+  color:#fff!important;
+}
+@media(max-width:700px){
+  html:not([data-theme="night"]) .sidebar{
+    background:#ffffff!important;
+  }
+  html:not([data-theme="night"]) .sidebar-data-mode,
+  html:not([data-theme="night"]) .sidebar #workspaceControls{
+    background:#f4f7fb!important;
+    border-color:#d5e0eb!important;
+  }
+  html:not([data-theme="night"]) .sidebar-data-mode>small{color:#64788e!important}
+  html:not([data-theme="night"]) .sidebar-data-mode button,
+  html:not([data-theme="night"]) #navigation button,
+  html:not([data-theme="night"]) .sidebar #workspaceControls .workspace-switch button,
+  html:not([data-theme="night"]) .sidebar #workspaceControls .workspace-actions button,
+  html:not([data-theme="night"]) .sidebar-bottom button{
+    background:#eef3f8!important;
+    border-color:#ced9e5!important;
+    color:#17324f!important;
+  }
+  html:not([data-theme="night"]) .sidebar-data-mode button.active,
+  html:not([data-theme="night"]) #navigation button.active,
+  html:not([data-theme="night"]) .sidebar #workspaceControls .workspace-switch button[aria-pressed="true"]{
+    background:#dceafb!important;
+    border-color:#7fa9d8!important;
+    color:#0b4f9f!important;
+  }
+  html:not([data-theme="night"]) .sidebar-data-mode button#sidebarDemoBtn.active{
+    background:#fde8d7!important;
+    border-color:#e8a66e!important;
+    color:#8a4313!important;
+  }
+  html:not([data-theme="night"]) .sidebar-reset-demo{
+    background:#fff1e5!important;
+    border-color:#e3b487!important;
+    color:#7e431c!important;
+  }
+}
