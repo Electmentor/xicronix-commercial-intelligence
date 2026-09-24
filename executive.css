@@ -309,3 +309,31 @@ html[data-theme="night"] .ceo-dashboard{--surface:#111f31}html[data-theme="night
     pointer-events:none!important;
   }
 }
+
+
+/* V2.40.65 · Semantic colored icons for mobile KPI cards */
+@media(max-width:700px){
+  .mobile-clone-kpis button>span{
+    width:18px!important;
+    height:18px!important;
+    display:grid!important;
+    place-items:center!important;
+  }
+  .mobile-clone-kpis button>span svg{
+    width:18px!important;
+    height:18px!important;
+    fill:none!important;
+    stroke:currentColor!important;
+    stroke-width:1.8!important;
+    stroke-linecap:round!important;
+    stroke-linejoin:round!important;
+  }
+  .mobile-clone-kpis .blue{color:#5da6ff!important}
+  .mobile-clone-kpis .orange{color:#ff9d4d!important}
+  .mobile-clone-kpis .red{color:#ff6f7f!important}
+  .mobile-clone-kpis .violet{color:#a68cff!important}
+  html:not([data-theme="night"]) .mobile-clone-kpis .blue{color:#2f7de1!important}
+  html:not([data-theme="night"]) .mobile-clone-kpis .orange{color:#e66f16!important}
+  html:not([data-theme="night"]) .mobile-clone-kpis .red{color:#d94d63!important}
+  html:not([data-theme="night"]) .mobile-clone-kpis .violet{color:#7657d6!important}
+}
