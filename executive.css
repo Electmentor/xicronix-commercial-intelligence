@@ -1269,3 +1269,30 @@ html:not([data-theme="night"]) .pipeline-dashboard-note{color:#657b92}
     font-size:.42rem!important;
   }
 }
+
+/* V2.40.97 · Temporary deployment verification: force director cards green */
+@media(max-width:700px){
+  .director-mobile-kpi,
+  .director-pipeline-stage--clone,
+  .director-mobile-exceptions--clone>button,
+  .director-mobile-team--clone>button{
+    background:#123f32!important;
+    border-color:#2f8f6d!important;
+  }
+  .director-mobile-kpi .director-kpi-icon,
+  .director-mobile-exceptions--clone .attention-icon,
+  .director-mobile-team--clone .team-icon{
+    background:#1b5a46!important;
+    color:#7ff0bd!important;
+  }
+  .director-pipeline-stage--clone{
+    --pipe:#36c28d!important;
+  }
+  .director-pipeline-stage--clone .stage-accent{
+    background:#36c28d!important;
+    box-shadow:0 0 12px rgba(54,194,141,.55)!important;
+  }
+  .director-pipeline-stage--clone .stage-icon{
+    color:#7ff0bd!important;
+  }
+}
