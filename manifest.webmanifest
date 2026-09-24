@@ -2,28 +2,22 @@
   "name": "Xicronix Commercial Intelligence",
   "short_name": "Xicronix",
   "description": "Radar y operación comercial de Xicronix.",
-  "start_url": "/#page=now",
+  "start_url": "/#page=dashboard",
   "scope": "/",
   "display": "standalone",
   "background_color": "#081b32",
   "theme_color": "#081b32",
   "icons": [
     {
-      "src": "/xicronix-icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
+      "src": "/xicronix-wordmark-splash.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "/xicronix-icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/xicronix-icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
+      "src": "/xicronix-wordmark-splash.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
       "purpose": "maskable"
     }
   ]
