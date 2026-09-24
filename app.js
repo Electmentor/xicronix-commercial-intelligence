@@ -180,6 +180,15 @@ function renderWorkspaceControls(){
  $('adminModeBtn').hidden=!isAdminAccount();
  $('adminModeBtn').setAttribute('aria-pressed',String(admin));
  $('sellerModeBtn').setAttribute('aria-pressed',String(!admin));
+ const sidebarDirection=$('sidebarDirectionBtn'),sidebarSeller=$('sidebarSellerBtn');
+ if(sidebarDirection&&sidebarSeller){
+  sidebarDirection.hidden=!isAdminAccount();
+  sidebarDirection.setAttribute('aria-pressed',String(admin));
+  sidebarSeller.setAttribute('aria-pressed',String(!admin));
+  sidebarDirection.classList.toggle('active',admin);
+  sidebarSeller.classList.toggle('active',!admin);
+  sidebarDirection.disabled=sidebarSeller.disabled=loading||busy;
+ }
  $('adminModeBtn').disabled=$('sellerModeBtn').disabled=loading||busy;
  $('workspaceHint').textContent='';$('workspaceHint').hidden=true;
  $('workspaceLabel').textContent=admin?'DIRECCIÓN':'EJECUTIVO COMERCIAL';
@@ -372,19 +381,11 @@ function applyTheme(theme,persist=false){
 function initTheme(){let stored='';try{stored=localStorage.getItem(THEME_STORAGE_KEY)||'';}catch(_error){}applyTheme(stored==='night'?'night':'day');}
 function mobileNavMode(){return window.matchMedia('(max-width:700px)').matches;}
 function syncMobileHeaderMenu(){
- const sidebar=$('mainSidebar'),controls=$('workspaceControls'),top=$('pageTitle')?.closest('.top');
- if(!sidebar||!controls||!top)return;
- let marker=$('workspaceControlsMarker');
- if(!marker){
-  marker=document.createElement('span');
-  marker.id='workspaceControlsMarker';
-  marker.hidden=true;
-  top.insertBefore(marker,controls);
- }
- if(mobileNavMode()){
-  if(controls.parentElement!==sidebar)sidebar.insertBefore(controls,sidebar.querySelector('.sidebar-bottom'));
- }else if(controls.parentElement===sidebar){
-  marker.parentElement?.insertBefore(controls,marker.nextSibling);
+ const controls=$('workspaceControls'),top=$('pageTitle')?.closest('.top'),marker=$('workspaceControlsMarker');
+ if(!controls||!top)return;
+ if(controls.parentElement!==top){
+  if(marker?.parentElement===top)top.insertBefore(controls,marker.nextSibling);
+  else top.appendChild(controls);
  }
 }
 function applySidebar(collapsed,persist=false){
@@ -1618,7 +1619,7 @@ function init(){
  $('fields').addEventListener('input',()=>{updateQuotePreview();updateMeetingPreview();});
  $('fields').addEventListener('change',event=>{syncEditorRelations(event.target?.name);updateQuotePreview();updateMovementPreview();updateMeetingPreview();});
  $('adminModeBtn').onclick=()=>setWorkspace(ADMIN);$('sellerModeBtn').onclick=()=>setWorkspace(SELLER);$('entryDirectionBtn').onclick=()=>chooseWorkspaceEntry(ADMIN);$('entrySellerBtn').onclick=()=>chooseWorkspaceEntry(SELLER);renderWorkspaceControls();
- $('sidebarLiveBtn').onclick=()=>setDataSource('live');$('sidebarDemoBtn').onclick=()=>setDataSource('demo');$('resetDemoBtn').onclick=resetDemo;$('demoSeller').onchange=selectDemoSeller;
+ $('sidebarLiveBtn').onclick=()=>setDataSource('live');$('sidebarDemoBtn').onclick=()=>setDataSource('demo');$('resetDemoBtn').onclick=resetDemo;$('sidebarDirectionBtn').onclick=()=>setWorkspace(ADMIN);$('sidebarSellerBtn').onclick=()=>setWorkspace(SELLER);$('demoSeller').onchange=selectDemoSeller;
  $('clearRecordContext').onclick=()=>{executiveFilter='';executiveOwner='';sellerQuickFilter='';renderRecords();};
  $('closeMethod').onclick=()=>$('methodDialog').close();
  $('methodText').textContent=EXECUTIVE_METHOD;
