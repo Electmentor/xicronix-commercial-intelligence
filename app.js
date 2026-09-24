@@ -319,12 +319,44 @@ function applyTheme(theme,persist=false){
  if(persist){try{localStorage.setItem(THEME_STORAGE_KEY,night?'night':'day');}catch(_error){}}
 }
 function initTheme(){let stored='';try{stored=localStorage.getItem(THEME_STORAGE_KEY)||'';}catch(_error){}applyTheme(stored==='night'?'night':'day');}
+function mobileNavMode(){return window.matchMedia('(max-width:700px)').matches;}
+function syncMobileHeaderMenu(){
+ const sidebar=$('mainSidebar'),controls=$('workspaceControls'),top=$('pageTitle')?.closest('.top');
+ if(!sidebar||!controls||!top)return;
+ let marker=$('workspaceControlsMarker');
+ if(!marker){
+  marker=document.createElement('span');
+  marker.id='workspaceControlsMarker';
+  marker.hidden=true;
+  top.insertBefore(marker,controls);
+ }
+ if(mobileNavMode()){
+  if(controls.parentElement!==sidebar)sidebar.insertBefore(controls,sidebar.querySelector('.sidebar-bottom'));
+ }else if(controls.parentElement===sidebar){
+  marker.parentElement?.insertBefore(controls,marker.nextSibling);
+ }
+}
 function applySidebar(collapsed,persist=false){
  const app=$('appView'),button=$('sidebarToggle');if(!app||!button)return;
- app.classList.toggle('sidebar-collapsed',collapsed);button.textContent=collapsed?'›':'‹';button.setAttribute('aria-expanded',String(!collapsed));button.setAttribute('aria-label',collapsed?'Mostrar navegación':'Ocultar navegación');button.title=collapsed?'Mostrar navegación':'Ocultar navegación';
+ app.classList.toggle('sidebar-collapsed',collapsed);
+ if(mobileNavMode()){
+  button.textContent=collapsed?'☰':'✕';
+  button.setAttribute('aria-label',collapsed?'Abrir menú':'Cerrar menú');
+  button.title=collapsed?'Abrir menú':'Cerrar menú';
+ }else{
+  button.textContent=collapsed?'›':'‹';
+  button.setAttribute('aria-label',collapsed?'Mostrar navegación':'Ocultar navegación');
+  button.title=collapsed?'Mostrar navegación':'Ocultar navegación';
+ }
+ button.setAttribute('aria-expanded',String(!collapsed));
  if(persist){try{localStorage.setItem(SIDEBAR_STORAGE_KEY,collapsed?'1':'0');}catch(_error){}}
 }
-function initSidebar(){let stored='';try{stored=localStorage.getItem(SIDEBAR_STORAGE_KEY)||'';}catch(_error){}applySidebar(stored==='1');}
+function initSidebar(){
+ let stored='';try{stored=localStorage.getItem(SIDEBAR_STORAGE_KEY)||'';}catch(_error){}
+ syncMobileHeaderMenu();
+ applySidebar(mobileNavMode()?true:stored==='1');
+ window.addEventListener('resize',()=>{syncMobileHeaderMenu();if(mobileNavMode())applySidebar(true);});
+}
 function navigate(next){
  if(busy||$('editor').open)return;
  if(!accessible(next))next=canViewDashboard()?'dashboard':'leads';
@@ -332,6 +364,7 @@ function navigate(next){
  rememberPage();
  const config=modules[page];$('filter').dataset.page=page;
  $('filter').innerHTML='<option value="">Todos los estados / tipos</option>'+Object.entries(config?.options||{}).map(([key,value])=>'<option value="'+key+'">'+value+'</option>').join('');
+ if(mobileNavMode())applySidebar(true);
  render();
 }
 function badge(value,table){return `<span class="badge ${['WON','COMPLETED'].includes(value)?'success':['OVERDUE','CRITICAL'].includes(value)?'warn':''}">${esc(modules[table]?.options?.[value]||enums.priority[value]||value||'—')}</span>`;}
@@ -1509,7 +1542,8 @@ function init(){
  $('methodText').textContent=EXECUTIVE_METHOD;
  $('dateLabel').textContent=new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long'});
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
- $('sidebarToggle').onclick=()=>applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);
+ $('sidebarToggle').onclick=event=>{event.stopPropagation();applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);};
+ document.addEventListener('click',event=>{if(!mobileNavMode())return;const sidebar=$('mainSidebar');if(!sidebar||$('appView').classList.contains('sidebar-collapsed'))return;if(sidebar.contains(event.target)||event.target===$('sidebarToggle'))return;applySidebar(true);});
  document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.sellerFilter){navigate('leads');sellerQuickFilter=b.dataset.sellerFilter;renderRecords();return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.radarLead){openLeadFromRadar(b.dataset.radarLead);return;}if(b.dataset.radarActivity){openActivityForLead(b.dataset.radarActivity);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
