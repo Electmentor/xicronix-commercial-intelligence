@@ -337,3 +337,24 @@ html[data-theme="night"] .ceo-dashboard{--surface:#111f31}html[data-theme="night
   html:not([data-theme="night"]) .mobile-clone-kpis .red{color:#d94d63!important}
   html:not([data-theme="night"]) .mobile-clone-kpis .violet{color:#7657d6!important}
 }
+
+
+/* V2.40.66 · Restore visible KPI quantities above periodic-table initials */
+@media(max-width:700px){
+  .mobile-clone-kpis button>span{
+    z-index:3!important;
+  }
+  .mobile-clone-kpis button>strong{
+    z-index:4!important;
+    display:block!important;
+    opacity:1!important;
+    visibility:visible!important;
+    color:#f3f7fb!important;
+  }
+  .mobile-clone-kpis button>small{
+    z-index:1!important;
+  }
+  html:not([data-theme="night"]) .mobile-clone-kpis button>strong{
+    color:#0b2340!important;
+  }
+}
