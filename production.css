@@ -2400,3 +2400,11 @@ html[data-theme="night"] body{
   .workspace-entry-text strong{font-size:1.2rem}
   .workspace-entry-text b{margin-top:18px;font-size:.66rem}
 }
+
+/* V2.40.88 · Data mode selector at top of sidebar */
+.sidebar-data-mode{margin:10px 10px 12px;padding:10px;border:1px solid var(--line);border-radius:12px;background:rgba(120,150,180,.05)}
+.sidebar-data-mode>small{display:block;margin:0 0 7px 2px;font-size:.5rem;letter-spacing:.12em;color:var(--muted)}
+.sidebar-data-mode>div{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.sidebar-data-mode button{min-height:38px!important;padding:8px 6px!important;border:1px solid var(--line)!important;border-radius:9px!important;background:transparent!important;color:var(--muted)!important;font-size:.6rem!important;font-weight:700!important}
+.sidebar-data-mode button.active{background:rgba(47,125,225,.14)!important;border-color:rgba(47,125,225,.55)!important;color:var(--text)!important}
+.sidebar-data-mode button#sidebarDemoBtn.active{background:rgba(244,123,32,.13)!important;border-color:rgba(244,123,32,.55)!important}
