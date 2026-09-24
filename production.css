@@ -2299,3 +2299,11 @@ html,body{background:#081b32}
   letter-spacing:.18em!important;
   color:#9fb4ca!important;
 }
+
+
+/* V2.40.72 · Black native/web launch bridge to hide Android icon */
+html,body{background:#000000!important}
+.app-splash{
+  background:#000000!important;
+  color:#f2f7ff!important;
+}
