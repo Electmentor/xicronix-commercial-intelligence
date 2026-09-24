@@ -2307,3 +2307,11 @@ html,body{background:#000000!important}
   background:#000000!important;
   color:#f2f7ff!important;
 }
+
+
+/* V2.40.73 · Restore Xicronix blue launch background */
+html,body{background:#081b32!important}
+.app-splash{
+  background:#081b32!important;
+  color:#f2f7ff!important;
+}
