@@ -125,12 +125,20 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  const team=incomplete?'<p class="ceo-empty">Ranking pendiente de completar la carga.</p>':m.team.length?'<table class="ceo-team-table"><thead><tr><th>Vendedor</th><th>Ganadas</th><th>Margen</th><th>Meta</th></tr></thead><tbody>'+m.team.slice(0,5).map((row,index)=>'<tr><td><button data-ceo-seller="'+esc(row.user.id)+'"><i class="ceo-rank">'+(index+1)+'</i>'+esc(row.user.full_name)+'</button></td><td>'+compactMoney(row.sales)+'</td><td title="'+(row.unknownCost?'Subtotal: faltan costos':'Margen estimado')+'">'+compactMoney(row.margin)+(row.unknownCost?'*':'')+'</td><td><span class="ceo-mini-progress"><i style="width:'+Math.min(100,row.attainment||0)+'%"></i></span><b>'+(row.attainment===null?'Sin meta':Math.round(row.attainment)+'%')+'</b></td></tr>').join('')+'</tbody></table>':'<div class="ceo-empty">No hay vendedores vinculados. La demostración incluye cinco perfiles ficticios.</div>';
  const maxStage=Math.max(1,...m.stages.map(row=>row.value));
  const pipeline=m.stages.map((row,index)=>'<div class="ceo-stage"><span>'+row.label+'</span><b>'+row.count+'</b><strong>'+compactMoney(row.value)+'</strong><div><i style="width:'+row.value/maxStage*100+'%;--stage-color:'+['#4b8cff','#62b3e4','#a790ed','#efad55','#40bda0'][index]+'"></i></div></div>').join('');
+ const openOpportunityLeadIds=new Set(openOpportunities.map(row=>row.lead_id).filter(Boolean));
+ const pipelineLeadCount=(data.leads||[]).filter(row=>!openOpportunityLeadIds.has(row.id)&&['NEW','RESEARCHING','CONTACT_PENDING'].includes(row.status)).length;
+ const pipelineContactedCount=(data.leads||[]).filter(row=>!openOpportunityLeadIds.has(row.id)&&['CONTACTED','QUALIFIED'].includes(row.status)).length;
+ const pipelineDiagnosisCount=openOpportunities.filter(row=>['DETECTED','CONTACT_PENDING','CONTACTED','QUALIFIED','OPPORTUNITY'].includes(row.stage)).length;
+ const pipelineProposalCount=openOpportunities.filter(row=>row.stage==='PROPOSAL').length;
+ const pipelineNegotiationCount=openOpportunities.filter(row=>row.stage==='NEGOTIATION').length;
+ const pipelineWonCount=(data.opportunities||[]).filter(row=>row.stage==='WON'&&inPeriod(row,{...m.period,end:businessDay(now)})).length;
  const mobilePipeline=[
-  ['Lead',(data.leads||[]).filter(row=>!['CONVERTED','DISQUALIFIED'].includes(row.status)).length,'#2f7de1'],
-  ['Contacto',(data.leads||[]).filter(row=>['CONTACTED','QUALIFIED'].includes(row.status)).length,'#5aa7ec'],
-  ['Diagnóstico',openOpportunities.filter(row=>['DETECTED','CONTACT_PENDING','CONTACTED','QUALIFIED','OPPORTUNITY'].includes(row.stage)).length,'#f47b20'],
-  ['Propuesta',openOpportunities.filter(row=>row.stage==='PROPOSAL').length,'#f3b33d'],
-  ['Negociación',openOpportunities.filter(row=>row.stage==='NEGOTIATION').length,'#36a77a']
+  ['Lead',pipelineLeadCount,'#2f7de1'],
+  ['Contactado',pipelineContactedCount,'#5aa7ec'],
+  ['Diagnóstico',pipelineDiagnosisCount,'#8b6fd6'],
+  ['Propuesta',pipelineProposalCount,'#f3b33d'],
+  ['Negociación',pipelineNegotiationCount,'#ed7d31'],
+  ['Ganado',pipelineWonCount,'#36a77a']
  ];
  const mobileProspects=(actionNow.length?actionNow:prospects).slice(0,3);
  const mobileProspectRows=mobileProspects.length?mobileProspects.map(row=>{
@@ -154,7 +162,7 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
    '<button data-page="prospects" data-prospect-kpi="ACTION_NOW" aria-label="Alta prioridad"><span class="red"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17h12l-1.5-2.2V10a4.5 4.5 0 0 0-9 0v4.8L6 17Z"/><path d="M10 20h4"/></svg></span><strong>'+topHighPriority+'</strong><small>AP</small></button>'+
    '<button data-page="prospects" data-prospect-kpi="REVIEW" aria-label="En revisión"><span class="violet"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="10" height="14" rx="2"/><path d="M8 8h4M8 11h4"/><circle cx="16.5" cy="16.5" r="3.5"/><path d="m19 19 2 2"/></svg></span><strong>'+reviewFirst.length+'</strong><small>ER</small></button>'+
   '</section>'+
-  '<section class="mobile-clone-section"><header><h3>Pipeline</h3><button data-page="opportunities">Ver todo →</button></header><div class="mobile-clone-pipeline">'+mobilePipeline.map(([label,count,color],index)=>{const target=index<2?'leads':'opportunities';const filter=['ACTIVE_LEADS','CONTACTED_LEADS','DIAGNOSIS','PROPOSAL','NEGOTIATION'][index];return '<button data-pipeline-target="'+target+'" data-pipeline-filter="'+filter+'" style="--pipe:'+color+'" aria-label="Abrir '+count+' '+label+'"><span></span><strong>'+count+'</strong><small>'+label+'</small></button>';}).join('')+'</div></section>'+
+  '<section class="mobile-clone-section"><header><h3>Pipeline comercial</h3><small class="pipeline-live-label">Estado actual</small></header><div class="mobile-clone-pipeline">'+mobilePipeline.map(([label,count,color])=>'<div class="mobile-pipeline-stage" style="--pipe:'+color+'" aria-label="'+count+' casos en '+label+'"><span></span><strong>'+count+'</strong><small>'+label+'</small></div>').join('')+'</div><p class="pipeline-dashboard-note">Vista en tiempo real del proceso comercial. Para trabajar casos, abre Gestión Comercial.</p></section>'+
   '<section class="mobile-clone-section"><header><h3>Mis prospectos</h3><button data-page="prospects">Ver todos →</button></header><div class="mobile-clone-list">'+mobileProspectRows+'</div></section>'+
   '<section class="mobile-clone-section"><header><h3>Alertas</h3><button data-page="tasks">Ver todas →</button></header><div class="mobile-clone-list">'+mobileAlertRows+'</div></section>'+
  '</section>';
