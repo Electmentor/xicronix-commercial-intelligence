@@ -1,5 +1,5 @@
-const CACHE='xicronix-dev-v2-42-0';
-const ASSETS=['/','/index.html','/styles.css','/executive.css','/analytics.css','/production.css?v=20260924-v2.42.0-dev','/app.js?v=20260924-v2.42.0-dev','/workspace.mjs','/manifest.webmanifest','/xicronix-dev-icon.svg'];
+const CACHE='xicronix-dev-v2-42-1';
+const ASSETS=['/','/index.html','/styles.css','/executive.css','/analytics.css','/production.css?v=20260924-v2.42.1-dev','/app.js?v=20260924-v2.42.1-dev','/workspace.mjs','/manifest.webmanifest','/xicronix-dev-icon.svg'];
 self.addEventListener('install',event=>{self.skipWaiting();event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).catch(()=>{}));});
 self.addEventListener('activate',event=>{event.waitUntil(Promise.all([clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key))))]));});
 self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;event.respondWith(fetch(event.request).then(response=>{const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy)).catch(()=>{});return response;}).catch(()=>caches.match(event.request)));});
