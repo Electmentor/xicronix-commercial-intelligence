@@ -2263,3 +2263,15 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
     font-weight:700!important;
   }
 }
+
+/* V2.40.68 · Dark PWA splash to avoid white flash */
+html,body{background:#081b32}
+.app-splash{
+  background:#081b32!important;
+  color:#f2f7ff!important;
+}
+.app-splash-wordmark,
+.app-splash-mark{color:#f2f7ff!important}
+.app-splash-sub{color:#9fb4ca!important}
+.app-splash-loader{background:#173653!important}
+.app-splash-loader span{background:#4da3ff!important}
