@@ -15,13 +15,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: fix/crm-fields-webform-cleanup-20260918
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Apply reviewed editor fix
@@ -52,7 +52,7 @@ jobs:
         run: |
           mkdir -p review-artifacts
           git rev-parse HEAD > review-artifacts/commit.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: crm-editor-review
