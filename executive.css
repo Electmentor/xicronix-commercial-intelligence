@@ -23,3 +23,9 @@ html[data-theme="night"] .ceo-dashboard{--surface:#111f31}html[data-theme="night
 .ceo-story-step{font-size:.65rem;color:var(--muted);font-weight:800}.ceo-story-card>small{font-size:.64rem;letter-spacing:.08em;font-weight:800;color:var(--muted);margin:5px 0}.ceo-story-card>strong{font-size:.78rem;line-height:1.4;font-weight:650}.ceo-story-card>em{margin-top:auto;padding-top:8px;font-size:.68rem;color:var(--blue);font-style:normal;font-weight:800}
 @media(max-width:1100px){.ceo-story--decision>div{grid-template-columns:1fr 1fr}}
 @media(max-width:700px){.ceo-story--decision{padding:14px}.ceo-story--decision>div{grid-template-columns:1fr}.ceo-story-card{min-height:0}}
+
+
+/* V2.40.53 · Authorized production welcome */
+.prod-welcome{padding:2px 2px 6px}
+.prod-welcome h2{margin:0;font-size:clamp(1.35rem,2vw,1.7rem);letter-spacing:-.03em;color:#eaf3ff}
+.prod-welcome p{margin:5px 0 0;color:var(--muted);font-size:.88rem;line-height:1.4}
