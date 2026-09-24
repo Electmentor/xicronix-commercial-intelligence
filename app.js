@@ -88,7 +88,8 @@ const DEV_SUPABASE_KEY='sb_publishable_pqqyMTcBovUi4sbp2Cn6yw_sL0_Xs__';
 const CRM_SUPABASE_URL=IS_DEV_PREVIEW?DEV_SUPABASE_URL:PROD_SUPABASE_URL;
 const CRM_SUPABASE_KEY=IS_DEV_PREVIEW?DEV_SUPABASE_KEY:PROD_SUPABASE_KEY;
 const PUBLIC_APP_URL=IS_DEV_PREVIEW?'https://xicronix-commercial-intelligence-git-dev-xicronix.vercel.app/':'https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE=IS_DEV_PREVIEW?'2026-09-24-v2.42.0-dev':'2026-09-19-v2.9';
+const CRM_RELEASE=IS_DEV_PREVIEW?'2026-09-24-v2.42.2-dev':'2026-09-19-v2.9';
+const CRM_VERSION_LABEL=IS_DEV_PREVIEW?'v2.42.2 · DEV':'v2.9 · PROD';
 const DEV_SUPPORTED_MODULES=new Set(['dashboard','prospects','institutions','contacts','leads','opportunities','tasks','activities','meetings','deliverables','documents']);
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -297,7 +298,7 @@ async function reload(){
  profile=result.data;
  if(!profile?.organization_id){profile=null;data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice('Tu cuenta está autenticada, pero aún no está vinculada a Xicronix. Un administrador debe asignarte una organización y un rol.',true);return;}
  restoreWorkspace();restoreSource();
- $('userRole').textContent=enums.role[profile.role]||'Sin rol';$('welcome').textContent=profile.full_name||session.user.email;
+ $('userRole').textContent=enums.role[profile.role]||'Sin rol';$('welcome').textContent=profile.full_name||session.user.email;if($('menuVersion'))$('menuVersion').textContent=CRM_VERSION_LABEL;
  if(dataSource==='demo'){loadDemo();notice('');render();return;}
  const tables=[...Object.keys(modules).filter(k=>accessible(k)||(k==='users'&&canViewDashboard())),'scores',...(accessible('documents')?['document_versions']:[])];
  const results=await Promise.allSettled(tables.map(k=>allRows(k,profile.organization_id)));
