@@ -204,3 +204,51 @@ html[data-theme="night"] .ceo-dashboard{--surface:#111f31}html[data-theme="night
     font-weight:800!important;
   }
 }
+
+
+/* V2.40.61 · Colored mobile KPI card backgrounds */
+@media(max-width:700px){
+  .mobile-clone-kpis button:nth-child(1){
+    background:#102d4f!important;
+    border-color:#2f7de1!important;
+  }
+  .mobile-clone-kpis button:nth-child(2){
+    background:#3a2617!important;
+    border-color:#f47b20!important;
+  }
+  .mobile-clone-kpis button:nth-child(3){
+    background:#3a2028!important;
+    border-color:#e85f72!important;
+  }
+  .mobile-clone-kpis button:nth-child(4){
+    background:#2d2447!important;
+    border-color:#8d6bea!important;
+  }
+  .mobile-clone-kpis button strong,
+  .mobile-clone-kpis button small{
+    color:#f3f7fb!important;
+  }
+
+  html:not([data-theme="night"]) .mobile-clone-kpis button:nth-child(1){
+    background:#eaf3ff!important;
+    border-color:#7fb5ff!important;
+  }
+  html:not([data-theme="night"]) .mobile-clone-kpis button:nth-child(2){
+    background:#fff1e5!important;
+    border-color:#ffad6e!important;
+  }
+  html:not([data-theme="night"]) .mobile-clone-kpis button:nth-child(3){
+    background:#ffe9ed!important;
+    border-color:#f49aaa!important;
+  }
+  html:not([data-theme="night"]) .mobile-clone-kpis button:nth-child(4){
+    background:#f1ecff!important;
+    border-color:#b5a0f5!important;
+  }
+  html:not([data-theme="night"]) .mobile-clone-kpis button strong{
+    color:#0b2340!important;
+  }
+  html:not([data-theme="night"]) .mobile-clone-kpis button small{
+    color:#40546a!important;
+  }
+}
