@@ -2978,3 +2978,8 @@ html[data-theme="night"] body{
   height:3px!important;
   transform-origin:center center!important;
 }
+
+/* V2.41.11 · Stronger thickness hierarchy across the scanner */
+.app-splash-larson i{
+  height:3.4px!important;
+}
