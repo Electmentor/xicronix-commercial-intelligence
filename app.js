@@ -10,10 +10,14 @@ import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,mileston
 import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260923-v2.40.47';
 
 const $ = id => document.getElementById(id);
+const SPLASH_STARTED_AT=performance.now();
+const SPLASH_MIN_MS=1550;
 function hideAppSplash(){
  const splash=$('appSplash');
  if(!splash||splash.classList.contains('is-hidden'))return;
- requestAnimationFrame(()=>requestAnimationFrame(()=>splash.classList.add('is-hidden')));
+ const finish=()=>requestAnimationFrame(()=>requestAnimationFrame(()=>splash.classList.add('is-hidden')));
+ const remaining=Math.max(0,SPLASH_MIN_MS-(performance.now()-SPLASH_STARTED_AT));
+ if(remaining>0)setTimeout(finish,remaining);else finish();
 }
 
 const enums = {
