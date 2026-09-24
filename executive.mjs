@@ -58,9 +58,8 @@ export function filterExecutiveRows(rows,table,filter,owner,now=new Date()){
  }
  return rows;
 }
-export function renderExecutive(data,{now=new Date(),demo=false,failures={},analyticsPeriod='year'}={}){
+export function renderExecutive(data,{now=new Date(),demo=false,failures={},analyticsPeriod='year',greetingName='Toshi'}={}){
  const m=executiveMetrics(data,now),incomplete=Object.keys(failures).length>0;
- const institutions=data.institutions||[];
  const prospects=data.prospects||[];
  const leads=data.leads||[];
  const opportunities=data.opportunities||[];
@@ -85,7 +84,6 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  const priorityRows=(actionNow.length?actionNow:prospects.slice(0,6)).slice(0,6);
  const priorityList=priorityRows.length?priorityRows.map(row=>{
   const xwin=row.xwin_score??row.xwin??null;
-  const xpps=row.xpps_score??row.potential_score??null;
   const state=row.operating_bucket==='ACTION_NOW'?'Acción ahora':row.operating_bucket==='RESEARCH_FIRST'?'Investigar':row.operating_bucket==='STRATEGIC_WATCH'?'Vigilancia':'Revisión';
   return '<button class="ci-prospect-row" data-page="prospects"><span><strong>'+esc(row.name||row.canonical_name||'Institución')+'</strong><small>'+esc(row.district||row.city||row.department||'Institución educativa')+'</small></span><em>'+esc(state)+'</em><b>'+(xwin===null?'—':Math.round(Number(xwin)))+'</b><i aria-hidden="true">›</i></button>';
  }).join(''):'<div class="ci-empty">No hay prospectos priorizados en esta vista.</div>';
@@ -100,24 +98,28 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
   ...(latestActivities.slice(0,2).map(row=>({tone:'info',title:'Movimiento reciente',detail:row.subject||row.type||'Actividad comercial',page:'activities'})))
  ].slice(0,4);
  const alertList=alerts.length?alerts.map(item=>'<button class="ci-alert" data-page="'+item.page+'"><span class="'+item.tone+'"></span><div><strong>'+esc(item.title)+'</strong><small>'+esc(item.detail)+'</small></div><i aria-hidden="true">›</i></button>').join(''):'<div class="ci-empty">Sin alertas críticas registradas.</div>';
- const statusText=incomplete?'Hay módulos incompletos; actualiza antes de decidir.':highPriority?'Hay '+highPriority+' elemento'+(highPriority===1?'':'s')+' que merece'+(highPriority===1?'':'n')+' atención.':'La operación comercial está bajo control.';
+ const decisions=incomplete?'<div class="ci-empty">Actualiza los módulos incompletos para generar decisiones.</div>':m.decisions.length?m.decisions.map(item=>'<article class="ci-decision '+item.tone+'"><small>'+esc(item.title)+'</small><strong>'+esc(item.detail)+'</strong><p>'+esc(item.reason)+'</p><button data-edit="'+esc(item.id)+'" data-table="'+item.table+'">'+esc(item.action)+' →</button></article>').join(''):'<div class="ci-empty">No hay decisiones críticas adicionales.</div>';
  return '<div class="ci-dashboard">'+
-  '<section class="ci-hero"><div><small>'+(demo?'DEMOSTRACIÓN':'XICRONIX COMMERCIAL INTELLIGENCE')+'</small><h2>Resumen comercial</h2><p>'+esc(statusText)+'</p></div><div class="ci-hero-meta"><span>'+esc(now.toLocaleDateString('es-PE',{weekday:'short',day:'2-digit',month:'short',year:'numeric'}))+'</span><button id="ceoMethodBtn" type="button">Cómo se calcula</button></div></section>'+
+  '<section class="ci-mobile-intro"><div class="ci-brand-lockup"><img src="xicronix-icon.svg" alt="" aria-hidden="true"><div><strong>Xicronix</strong><small>COMMERCIAL INTELLIGENCE</small></div></div><div class="ci-greeting"><h2>Hola, '+esc(greetingName||'Toshi')+'</h2><p>Hoy es un gran día para crear nuevas oportunidades.</p></div></section>'+
   '<section class="ci-kpis" aria-label="Indicadores principales">'+
    '<button class="ci-kpi blue" data-page="prospects"><span class="ci-kpi-icon">◉</span><small>Prospectos</small><strong>'+prospects.length+'</strong><em>'+activeLeads.length+' leads activos</em></button>'+
    '<button class="ci-kpi orange" data-page="opportunities"><span class="ci-kpi-icon">▽</span><small>Oportunidades</small><strong>'+openOpps.length+'</strong><em>'+compactMoney(m.pipeline)+' en cartera</em></button>'+
    '<button class="ci-kpi red" data-page="prospects"><span class="ci-kpi-icon">!</span><small>Alta prioridad</small><strong>'+highPriority+'</strong><em>'+actionNow.length+' listas para acción</em></button>'+
    '<button class="ci-kpi violet" data-page="prospects"><span class="ci-kpi-icon">▣</span><small>En revisión</small><strong>'+reviewFirst.length+'</strong><em>evidencia por completar</em></button>'+
   '</section>'+
-  '<section class="ci-pipeline-panel"><header><div><small>PIPELINE</small><h3>Pipeline de oportunidades</h3></div><button data-page="opportunities">Ver pipeline completo →</button></header><div class="ci-pipeline">'+pipeline+'</div></section>'+
-  '<section class="ci-main-grid">'+
-   '<article class="ci-prospect-panel"><header><div><small>INSTITUCIONES / PROSPECTOS</small><h3>Prioridades comerciales</h3></div><button data-page="prospects">Ver todos →</button></header><div class="ci-prospect-head"><span>Institución</span><span>Estado</span><span>XWIN</span><span></span></div><div class="ci-prospect-list">'+priorityList+'</div></article>'+
-   '<article class="ci-focus-panel"><header><div><small>FOCO INTELIGENTE</small><h3>'+esc(focusName)+'</h3><p>'+esc(focusState)+'</p></div><button data-page="prospects">Ver ficha →</button></header>'+
-    '<div class="ci-score-grid"><section><small>XWIN</small><strong>'+(focusXwin===null?'—':Math.round(Number(focusXwin)))+'</strong><span>Probabilidad comercial</span></section><section><small>XPPS</small><strong>'+(focusXpps===null?'—':Math.round(Number(focusXpps)))+'</strong><span>Potencial estructural</span></section></div>'+
-    '<div class="ci-focus-action"><small>Próxima acción</small><p>'+esc(focusAction)+'</p></div>'+
-    '<div class="ci-focus-meta"><span><small>Estado</small><b>'+esc(focusState)+'</b></span><span><small>Fuente</small><b>'+(demo?'Demo':'Datos reales')+'</b></span></div>'+
-   '</article>'+
-   '<article class="ci-alert-panel"><header><div><small>ALERTAS Y SEGUIMIENTO</small><h3>Qué requiere atención</h3></div><button data-page="tasks">Ver todas →</button></header><div class="ci-alert-list">'+alertList+'</div></article>'+
+  '<section class="ci-pipeline-panel"><header><div><small>PIPELINE</small><h3>Pipeline</h3></div><button data-page="opportunities">Ver todo →</button></header><div class="ci-pipeline">'+pipeline+'</div></section>'+
+  '<article class="ci-prospect-panel ci-mobile-prospects"><header><div><small>MI CARTERA</small><h3>Mis prospectos</h3></div><button data-page="prospects">Ver todos →</button></header><div class="ci-prospect-head"><span>Institución</span><span>Estado</span><span>XWIN</span><span></span></div><div class="ci-prospect-list">'+priorityList+'</div></article>'+
+  '<article class="ci-alert-panel ci-mobile-alerts"><header><div><small>SEGUIMIENTO</small><h3>Alertas</h3></div><button data-page="tasks">Ver todas →</button></header><div class="ci-alert-list">'+alertList+'</div></article>'+
+  '<section class="ci-below-fold"><header class="ci-section-title"><small>MÁS INTELIGENCIA</small><h3>Información adicional para decidir mejor</h3></header>'+
+   '<div class="ci-secondary-grid">'+
+    '<article class="ci-focus-panel"><header><div><small>FOCO INTELIGENTE</small><h3>'+esc(focusName)+'</h3><p>'+esc(focusState)+'</p></div><button data-page="prospects">Ver ficha →</button></header>'+
+     '<div class="ci-score-grid"><section><small>XWIN</small><strong>'+(focusXwin===null?'—':Math.round(Number(focusXwin)))+'</strong><span>Probabilidad comercial</span></section><section><small>XPPS</small><strong>'+(focusXpps===null?'—':Math.round(Number(focusXpps)))+'</strong><span>Potencial estructural</span></section></div>'+
+     '<div class="ci-focus-action"><small>Próxima acción</small><p>'+esc(focusAction)+'</p></div>'+
+     '<div class="ci-focus-meta"><span><small>Estado</small><b>'+esc(focusState)+'</b></span><span><small>Fuente</small><b>'+(demo?'Demo':'Datos reales')+'</b></span></div>'+
+    '</article>'+
+    '<article class="ci-decision-panel"><header><div><small>DECISIONES</small><h3>Qué conviene revisar</h3></div></header><div class="ci-decision-list">'+decisions+'</div></article>'+
+   '</div>'+
+   renderAnalytics(data,{now,period:analyticsPeriod,demo,failures})+
   '</section>'+
   '<section class="ci-benefits"><span><b>Priorización</b><small>Enfoca esfuerzo donde importa.</small></span><span><b>Trazabilidad</b><small>Historial para decidir mejor.</small></span><span><b>Inteligencia</b><small>XPPS + XWIN explicables.</small></span><span><b>Acción comercial</b><small>Del análisis al siguiente paso.</small></span></section>'+
  '</div>';
