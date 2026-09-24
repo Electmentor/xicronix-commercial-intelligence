@@ -77,7 +77,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-23-v2.40.69';
+const CRM_RELEASE='2026-09-23-v2.40.70';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -1461,8 +1461,8 @@ function setRecovery(value){
 }
 function readEntryRoute(){
  const query=new URLSearchParams(location.search||''),hash=new URLSearchParams((location.hash||'').slice(1));
- const lead=query.get('lead');
- return {page:hash.get('page'),lead:/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lead||'')?lead:null};
+ const lead=query.get('lead'),requested=hash.get('page');
+ return {page:requested||'dashboard',lead:/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lead||'')?lead:null};
 }
 function rememberPage(lead=null){
  if(!profile||recovery)return;
