@@ -149,10 +149,10 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
   '<header class="mobile-clone-header"><div class="mobile-clone-logo"><button id="brandThemeToggle" type="button" aria-label="Cambiar entre modo diurno y nocturno"><strong>Xicroni<span>x</span></strong></button><small>COMMERCIAL INTELLIGENCE</small></div></header>'+
   '<section class="mobile-clone-greeting"><h2>Hola, Toshi</h2><p>Hoy es un gran día para crear nuevas oportunidades.</p></section>'+
   '<section class="mobile-clone-kpis">'+
-   '<button data-page="prospects"><span class="blue">●</span><strong>'+prospects.length+'</strong><small>Prospectos</small></button>'+
-   '<button data-page="opportunities"><span class="orange">▼</span><strong>'+openOpportunities.length+'</strong><small>Oportunidades</small></button>'+
-   '<button data-page="prospects"><span class="red">▲</span><strong>'+topHighPriority+'</strong><small>Alta prioridad</small></button>'+
-   '<button data-page="prospects"><span class="violet">▣</span><strong>'+reviewFirst.length+'</strong><small>En revisión</small></button>'+
+   '<button data-page="prospects" aria-label="Prospectos"><span class="blue">●</span><strong>'+prospects.length+'</strong><small>P</small></button>'+
+   '<button data-page="opportunities" aria-label="Oportunidades"><span class="orange">▼</span><strong>'+openOpportunities.length+'</strong><small>O</small></button>'+
+   '<button data-page="prospects" aria-label="Alta prioridad"><span class="red">▲</span><strong>'+topHighPriority+'</strong><small>AP</small></button>'+
+   '<button data-page="prospects" aria-label="En revisión"><span class="violet">▣</span><strong>'+reviewFirst.length+'</strong><small>ER</small></button>'+
   '</section>'+
   '<section class="mobile-clone-section"><header><h3>Pipeline</h3><button data-page="opportunities">Ver todo →</button></header><div class="mobile-clone-pipeline">'+mobilePipeline.map(([label,count,color])=>'<button data-page="opportunities" style="--pipe:'+color+'"><span></span><strong>'+count+'</strong><small>'+label+'</small></button>').join('')+'</div></section>'+
   '<section class="mobile-clone-section"><header><h3>Mis prospectos</h3><button data-page="prospects">Ver todos →</button></header><div class="mobile-clone-list">'+mobileProspectRows+'</div></section>'+
