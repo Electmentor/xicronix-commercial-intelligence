@@ -2554,3 +2554,83 @@ html[data-theme="night"] body{
     color:#7e431c!important;
   }
 }
+
+/* V2.40.91 · Stable mobile sidebar layout */
+.sidebar-workspace-mode{
+  margin:0 10px 12px;
+  padding:10px;
+  border:1px solid #28445f;
+  border-radius:12px;
+  background:#0f2740;
+}
+.sidebar-workspace-mode>small{
+  display:block;
+  margin:0 0 7px 2px;
+  font-size:.5rem;
+  font-weight:800;
+  letter-spacing:.12em;
+  color:#9fb3c8;
+}
+.sidebar-workspace-mode>div{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+}
+.sidebar-workspace-mode button{
+  min-height:38px!important;
+  padding:8px 6px!important;
+  border:1px solid #35516d!important;
+  border-radius:9px!important;
+  background:#17324f!important;
+  color:#d7e5f3!important;
+  font-size:.6rem!important;
+  font-weight:700!important;
+  opacity:1!important;
+}
+.sidebar-workspace-mode button.active{
+  background:#245fa6!important;
+  border-color:#6faeff!important;
+  color:#fff!important;
+}
+@media(max-width:700px){
+  .sidebar{
+    display:flex!important;
+    flex-direction:column!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+  }
+  .sidebar #workspaceControls{
+    display:none!important;
+  }
+  .sidebar nav{
+    display:grid!important;
+    overflow:visible!important;
+    flex:none!important;
+  }
+  .sidebar-bottom{
+    margin-top:14px!important;
+    flex:none!important;
+    position:static!important;
+  }
+  .sidebar-data-mode,
+  .sidebar-workspace-mode{
+    flex:none!important;
+  }
+  html:not([data-theme="night"]) .sidebar-workspace-mode{
+    background:#f4f7fb!important;
+    border-color:#d5e0eb!important;
+  }
+  html:not([data-theme="night"]) .sidebar-workspace-mode>small{
+    color:#64788e!important;
+  }
+  html:not([data-theme="night"]) .sidebar-workspace-mode button{
+    background:#eef3f8!important;
+    border-color:#ced9e5!important;
+    color:#17324f!important;
+  }
+  html:not([data-theme="night"]) .sidebar-workspace-mode button.active{
+    background:#dceafb!important;
+    border-color:#7fa9d8!important;
+    color:#0b4f9f!important;
+  }
+}
