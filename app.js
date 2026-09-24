@@ -163,6 +163,14 @@ function restoreWorkspace(){
 function renderWorkspaceControls(){
  const admin=canViewDashboard();
  $('sourceToggle').textContent=dataSource==='demo'?'Ver datos reales':'Ver demostración';
+ const sidebarLive=$('sidebarLiveBtn'),sidebarDemo=$('sidebarDemoBtn');
+ if(sidebarLive&&sidebarDemo){
+  sidebarLive.setAttribute('aria-pressed',String(dataSource==='live'));
+  sidebarDemo.setAttribute('aria-pressed',String(dataSource==='demo'));
+  sidebarLive.classList.toggle('active',dataSource==='live');
+  sidebarDemo.classList.toggle('active',dataSource==='demo');
+  sidebarLive.disabled=sidebarDemo.disabled=loading||busy;
+ }
  $('sourceToggle').disabled=$('resetDemoBtn').disabled=loading||busy;
  $('sourceBadge').textContent=dataSource==='demo'?'DEMOSTRACIÓN · SIN PAGOS':'DATOS REALES';
  $('sourceBadge').className='source-badge '+(dataSource==='demo'?'demo':'live');
@@ -1595,7 +1603,7 @@ function init(){
  $('fields').addEventListener('input',()=>{updateQuotePreview();updateMeetingPreview();});
  $('fields').addEventListener('change',event=>{syncEditorRelations(event.target?.name);updateQuotePreview();updateMovementPreview();updateMeetingPreview();});
  $('adminModeBtn').onclick=()=>setWorkspace(ADMIN);$('sellerModeBtn').onclick=()=>setWorkspace(SELLER);$('entryDirectionBtn').onclick=()=>chooseWorkspaceEntry(ADMIN);$('entrySellerBtn').onclick=()=>chooseWorkspaceEntry(SELLER);renderWorkspaceControls();
- $('sourceToggle').onclick=()=>setDataSource(dataSource==='demo'?'live':'demo');$('resetDemoBtn').onclick=resetDemo;$('demoSeller').onchange=selectDemoSeller;
+ $('sourceToggle').onclick=()=>setDataSource(dataSource==='demo'?'live':'demo');$('sidebarLiveBtn').onclick=()=>setDataSource('live');$('sidebarDemoBtn').onclick=()=>setDataSource('demo');$('resetDemoBtn').onclick=resetDemo;$('demoSeller').onchange=selectDemoSeller;
  $('clearRecordContext').onclick=()=>{executiveFilter='';executiveOwner='';sellerQuickFilter='';renderRecords();};
  $('closeMethod').onclick=()=>$('methodDialog').close();
  $('methodText').textContent=EXECUTIVE_METHOD;
