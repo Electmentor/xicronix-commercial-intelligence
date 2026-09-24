@@ -185,3 +185,22 @@ html[data-theme="night"] .ceo-dashboard{--surface:#111f31}html[data-theme="night
     text-overflow:clip!important;
   }
 }
+
+
+/* V2.40.60 · Compact abbreviated mobile KPI cards */
+@media(max-width:700px){
+  .mobile-clone-kpis button{
+    min-height:102px!important;
+    padding:10px 7px 9px!important;
+  }
+  .mobile-clone-kpis strong{
+    font-size:1rem!important;
+    margin:6px 0 5px!important;
+  }
+  .mobile-clone-kpis small{
+    min-height:0!important;
+    font-size:.72rem!important;
+    line-height:1!important;
+    font-weight:800!important;
+  }
+}
