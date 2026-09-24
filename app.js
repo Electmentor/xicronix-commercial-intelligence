@@ -88,7 +88,7 @@ const DEV_SUPABASE_KEY='sb_publishable_pqqyMTcBovUi4sbp2Cn6yw_sL0_Xs__';
 const CRM_SUPABASE_URL=IS_DEV_PREVIEW?DEV_SUPABASE_URL:PROD_SUPABASE_URL;
 const CRM_SUPABASE_KEY=IS_DEV_PREVIEW?DEV_SUPABASE_KEY:PROD_SUPABASE_KEY;
 const PUBLIC_APP_URL=IS_DEV_PREVIEW?'https://xicronix-commercial-intelligence-git-dev-xicronix.vercel.app/':'https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE=IS_DEV_PREVIEW?'2026-09-23-v2.41.1-dev':'2026-09-19-v2.9';
+const CRM_RELEASE=IS_DEV_PREVIEW?'2026-09-23-v2.41.2-dev':'2026-09-19-v2.9';
 const DEV_SUPPORTED_MODULES=new Set(['dashboard','prospects','institutions','contacts','leads','opportunities','tasks','activities']);
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -98,7 +98,7 @@ const writable=()=>profile && ['ADMIN','MANAGER','SALES'].includes(profile.role)
 let workspace=SELLER, workspaceIdentity=null, loading=false;
 let dataSource='live', sourceIdentity=null, demoData=null, demoSeller=DEMO_SELLERS[0].id, demoSaved=true, executiveFilter='', executiveOwner='';
 let analyticsPeriod='year';
-const currentActor=()=>dataSource==='demo'?demoSeller:session?.user?.id;
+if(IS_DEV_PREVIEW&&'serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));\nconst currentActor=()=>dataSource==='demo'?demoSeller:session?.user?.id;
 const sourceKey=()=>workspaceIdentity+':source-v'+DEMO_VERSION;
 const demoKey=()=>workspaceIdentity+':demo-v'+DEMO_VERSION;
 function restoreSource(){
