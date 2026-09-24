@@ -11,7 +11,7 @@ import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260923-v2.40.47'
 
 const $ = id => document.getElementById(id);
 const SPLASH_STARTED_AT=performance.now();
-const SPLASH_MIN_MS=1550;
+const SPLASH_MIN_MS=3000;
 function hideAppSplash(){
  const splash=$('appSplash');
  if(!splash||splash.classList.contains('is-hidden'))return;
