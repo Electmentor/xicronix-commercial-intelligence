@@ -1433,3 +1433,24 @@ html:not([data-theme="night"]) .pipeline-dashboard-note{color:#657b92}
     grid-row:3!important;
   }
 }
+
+/* V2.41.01 · Fix legacy span rule masking pipeline SVG icons */
+@media(max-width:700px){
+  .director-pipeline-stage--clone > .stage-icon,
+  .director-pipeline-stage--clone > .stage-icon--glow{
+    background:transparent!important;
+    border-radius:0!important;
+    margin-bottom:0!important;
+    padding:0!important;
+    min-width:0!important;
+  }
+  .director-pipeline-stage--clone > .stage-icon--glow svg{
+    display:block!important;
+    visibility:visible!important;
+    opacity:1!important;
+  }
+  .director-pipeline-stage--clone > .stage-accent{
+    border-radius:0 0 6px 6px!important;
+    margin-bottom:0!important;
+  }
+}
