@@ -2236,3 +2236,9 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
     right:14px!important;
   }
 }
+
+
+/* V2.40.57 · Mobile theme controlled only by Xicronix wordmark */
+@media(max-width:700px){
+  .sidebar #themeToggle{display:none!important}
+}
