@@ -2301,17 +2301,17 @@ html,body{background:#081b32}
 }
 
 
-/* V2.40.72 · Black native/web launch bridge to hide Android icon */
-html,body{background:#000000!important}
-.app-splash{
-  background:#000000!important;
-  color:#f2f7ff!important;
-}
 
-
-/* V2.40.73 · Restore Xicronix blue launch background */
-html,body{background:#081b32!important}
+/* V2.40.74 · Keep launch color inside splash only; restore app theme backgrounds */
 .app-splash{
   background:#081b32!important;
   color:#f2f7ff!important;
+}
+html:not([data-theme="night"]) body{
+  background:#f4f7fb!important;
+  color:#0b2340!important;
+}
+html[data-theme="night"] body{
+  background:#0b1420!important;
+  color:#e8f0fa!important;
 }
