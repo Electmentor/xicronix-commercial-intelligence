@@ -56,7 +56,7 @@ const quantity=f('quantity','Cantidad','number');
 const discount=f('discount_pct','Descuento negociado (%)','number');
 const negotiatedPrice=f('negotiated_unit_price','Precio unitario negociado (USD)','number');
 const modules={
- prospects:{label:'Potenciales',singular:'potencial prospecto',filter:'operating_bucket',options:{ACTION_NOW:'Acción ahora',RESEARCH_FIRST:'Investigar primero',STRATEGIC_WATCH:'Vigilancia estratégica',MONITOR:'Monitorear',REVALIDATE:'Revalidar'},fields:[]},
+ prospects:{label:'Prospectos',singular:'prospecto',filter:'operating_bucket',options:{ACTION_NOW:'Acción ahora',RESEARCH_FIRST:'Investigar primero',STRATEGIC_WATCH:'Vigilancia estratégica',MONITOR:'Monitorear',REVALIDATE:'Revalidar'},fields:[]},
  radar:{label:'Radar Comercial',singular:'señal radar',filter:'classification',options:enums.radarClass,fields:[]},
  mail:{label:'Correo Zoho',singular:'correo',filter:'status',options:enums.mailStatus,fields:[]},
  institutions:{label:'Instituciones',singular:'institución',filter:'type',options:enums.type,fields:[f('name','Nombre','text',true),f('type','Tipo','select',true,enums.type),f('ruc','RUC'),f('city','Ciudad'),f('country','País','text',true),f('address','Dirección'),f('email','Correo','email'),f('phone','Teléfono','tel'),f('website','Sitio web','url'),f('notes','Notas','textarea')]},
@@ -77,7 +77,7 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-23-v2.40.66';
+const CRM_RELEASE='2026-09-23-v2.40.67';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
