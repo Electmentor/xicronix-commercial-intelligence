@@ -29,3 +29,25 @@ html[data-theme="night"] .ceo-dashboard{--surface:#111f31}html[data-theme="night
 .prod-welcome{padding:2px 2px 6px}
 .prod-welcome h2{margin:0;font-size:clamp(1.35rem,2vw,1.7rem);letter-spacing:-.03em;color:#eaf3ff}
 .prod-welcome p{margin:5px 0 0;color:var(--muted);font-size:.88rem;line-height:1.4}
+
+
+/* V2.40.54 · Authorized production top section */
+.prod-dashboard-intro{display:grid;gap:16px;padding:2px 2px 8px}
+.prod-brand strong{display:block;font-size:1.35rem;line-height:1;letter-spacing:.08em;text-transform:uppercase;color:#eaf3ff}
+.prod-brand small{display:block;margin-top:5px;font-size:.56rem;letter-spacing:.14em;font-weight:800;color:var(--muted)}
+.prod-welcome{padding:0}
+.prod-welcome h2{margin:0;font-size:clamp(1.45rem,2.4vw,1.85rem);letter-spacing:-.035em;color:#eaf3ff}
+.prod-welcome p{margin:6px 0 0;color:var(--muted);font-size:.9rem;line-height:1.4}
+.prod-top-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.prod-top-kpis button{display:block;text-align:left;padding:14px 13px;border:1px solid var(--line);border-radius:15px;background:var(--surface);min-width:0}
+.prod-top-kpis small{display:block;color:var(--muted);font-size:.66rem;font-weight:700}
+.prod-top-kpis strong{display:block;margin-top:5px;font-size:1.45rem;line-height:1;color:#9dc9ff}
+@media(max-width:700px){
+ .prod-dashboard-intro{gap:15px}
+ .prod-brand strong{font-size:1.3rem}
+ .prod-welcome h2{font-size:1.6rem}
+ .prod-welcome p{font-size:.9rem}
+ .prod-top-kpis{grid-template-columns:1fr 1fr}
+ .prod-top-kpis button{padding:13px 12px}
+ .prod-top-kpis strong{font-size:1.4rem}
+}
