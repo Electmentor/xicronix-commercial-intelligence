@@ -11,14 +11,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Syntax validation
@@ -48,7 +48,7 @@ jobs:
           git rev-parse HEAD > review-artifacts/commit.txt
       - name: Retain review evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: crm-reviewed-sources
           path: review-artifacts/
@@ -59,10 +59,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Install browser runtime
@@ -75,7 +75,7 @@ jobs:
         run: python tests/browser-smoke.py --base-url https://xicronix-commercial-intelligence.vercel.app/ --output review-artifacts/production-fixture-browser
       - name: Verify deployed edit forms with isolated fixtures
         run: python tests/editor-fields.py --base-url https://xicronix-commercial-intelligence.vercel.app/ --output review-artifacts/production-editor-fields
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: crm-production-evidence
