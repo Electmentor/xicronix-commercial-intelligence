@@ -226,6 +226,23 @@ function renderWorkspaceControls(){
  $('workspaceLabel').textContent=admin?'DIRECCIÓN':'EJECUTIVO COMERCIAL';
  const identity=$('userIdentity');if(identity){const userLabel=profile?.full_name||session?.user?.email||'Usuario';identity.title=userLabel;identity.setAttribute('aria-label','Usuario: '+userLabel);}
  $('appView').dataset.workspace=admin?ADMIN:SELLER;
+ const mobileBottom=$('mobileAppBottomNav');
+ if(mobileBottom){
+  mobileBottom.hidden=!profile||!workspaceEntryChosen;
+  const primary=$('mobileNavPrimary'),reports=$('mobileNavReports'),nowBtn=$('mobileNavNow');
+  if(primary){
+   primary.dataset.page=admin?'opportunities':'leads';
+   const label=primary.querySelector('small');if(label)label.textContent=admin?'Oportunidades':'Mis casos';
+  }
+  if(reports){
+   reports.dataset.page=admin?'goals':'meetings';
+   const label=reports.querySelector('small');if(label)label.textContent=admin?'Reportes':'Mi agenda';
+  }
+  if(nowBtn){
+   nowBtn.dataset.page='now';
+   const label=nowBtn.querySelector('small');if(label)label.textContent=admin?'Notificaciones':'Ahora';
+  }
+ }
  const labels=admin
   ?{dashboard:'Dashboard de Dirección',now:'Prioridades',radar:'Radar Comercial',leads:'Gestión Comercial',meetings:'Agenda del equipo',mail:'Correo Zoho',users:'Equipo comercial',goals:'Metas',opportunities:'Oportunidades',institutions:'Instituciones',contacts:'Contactos',documents:'Documentos',catalog_products:'Catálogo',cost_profiles:'Costos',expenses:'Gastos'}
   :{dashboard:'Mi Dashboard',now:'Ahora',leads:'Mis casos',tasks:'Mis tareas',meetings:'Mi agenda',mail:'Correo Zoho',opportunities:'Mis oportunidades',contacts:'Mis contactos',documents:'Mis documentos',catalog_products:'Catálogo'};
