@@ -247,7 +247,7 @@ function errorText(error){
  if(code==='23505')return 'Ya existe un registro con esos datos.';
  if(code==='42501')return 'Tu cuenta no tiene permiso para esta operación.';
  if(code==='PGRST116')return 'El registro cambió o ya no está disponible. Actualiza e intenta nuevamente.';
- return 'No se pudo completar la operación. Comprueba tu conexión e inténtalo nuevamente.';
+ return 'No se pudo completar la operación. Puede ser una interrupción temporal del servicio; actualiza e inténtalo nuevamente.';
 }
 function setMode(next){
  const previousEmail=$('email').value,previousRemember=$('rememberEmail').checked;
@@ -1612,7 +1612,7 @@ function init(){
  const close=()=>{if(!busy)$('editor').close();};$('closeEditor').onclick=$('cancelEditor').onclick=close;$('editor').addEventListener('cancel',e=>{if(busy)e.preventDefault();});
  $('logoutBtn').onclick=async()=>{const {error}=await sb.auth.signOut();if(error){notice(errorText(error),true);return;}clearSession();setMode('login');};
  $('exportBtn').onclick=()=>{if(!accessible(page)||loading||busy||failures[page])return;const columns=fieldsFor(page).filter(field=>!field.transient).map(field=>({key:field.key,label:field.label}));const rows=filtered().map(row=>Object.fromEntries(columns.map(c=>{const field=modules[page].fields.find(f=>f.key===c.key);return [c.key,field.type==='relation'?relationName(c.key,row):costRateKeys.has(c.key)?Number(row[c.key])*100:field.options?.[row[c.key]]||row[c.key]];})));const url=URL.createObjectURL(new Blob([csv(rows,columns)],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`xicronix-${dataSource==='demo'?'SIMULADO-':''}${page}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
- if(!window.supabase){$('authMsg').textContent='No se pudo cargar el servicio de acceso. Comprueba tu conexión y recarga la página.';$('authBtn').disabled=true;return;}
+ if(!window.supabase){$('authMsg').textContent='Xicronix no pudo cargar temporalmente el servicio de acceso. Tu conexión puede estar funcionando con normalidad. Cierra y vuelve a abrir la aplicación; si persiste, usa Actualizar.';$('authBtn').disabled=true;return;}
  sb=window.supabase.createClient('https://qzfprdhmcaucqcdqgqiz.supabase.co','sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
  sb.auth.onAuthStateChange(handleAuth);
  const params=new URLSearchParams(location.hash.slice(1));if(params.has('error')){setRecovery(false);setMode('reset');$('authMsg').textContent='El enlace de acceso venció o no es válido. Solicita uno nuevo.';history.replaceState(null,'',location.pathname);}
