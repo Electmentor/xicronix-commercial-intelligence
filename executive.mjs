@@ -15,7 +15,7 @@ function goalFor(goals,userId,period){
  return goals.filter(row=>(row.owner_user_id||null)===userId&&row.period_start<=period.start&&row.period_end>=period.end).sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')))[0]||null;
 }
 export function executiveMetrics(data,now=new Date()){
- const period=monthRange(now),opps=data.opportunities||[],leads=data.leads||[],tasks=data.tasks||[];
+ const period=monthRange(now),opps=data.opportunities||[],leads=data.leads||[],tasks=data.tasks||[],meetings=data.meetings||[];
  const open=opps.filter(row=>!closed(row)),won=opps.filter(row=>row.stage==='WON'&&inPeriod(row,{...period,end:businessDay(now)}));
  const known=won.filter(row=>margin(row)!==null),revenue=won.reduce((sum,row)=>sum+amount(row),0);
  const knownRevenue=known.reduce((sum,row)=>sum+amount(row),0),grossMargin=known.length?known.reduce((sum,row)=>sum+margin(row),0):null;
@@ -27,7 +27,12 @@ export function executiveMetrics(data,now=new Date()){
  const team=(data.users||[]).filter(row=>['SALES','MANAGER'].includes(row.role)).map(user=>{
   const own=won.filter(row=>assignedUserId(row)===user.id),known=own.filter(row=>margin(row)!==null);
   const sales=own.reduce((sum,row)=>sum+amount(row),0),personalGoal=goalFor(data.goals||[],user.id,period),target=personalGoal?Number(personalGoal.target_won_value)||0:null;
-  return {user,sales,margin:known.length?known.reduce((sum,row)=>sum+margin(row),0):null,unknownCost:own.length-known.length,target,attainment:target>0?sales/target*100:null,leads:leads.filter(row=>assignedUserId(row)===user.id).length};
+  const openOwn=open.filter(row=>assignedUserId(row)===user.id);
+  const activeLeads=leads.filter(row=>assignedUserId(row)===user.id&&!['CONVERTED','DISQUALIFIED'].includes(row.status));
+  const overdueOwnTasks=tasks.filter(row=>assignedUserId(row)===user.id&&!['COMPLETED','CANCELLED'].includes(row.status)&&row.due_at&&Date.parse(row.due_at)<now.getTime());
+  const nextMeetings=meetings.filter(row=>assignedUserId(row)===user.id&&!['COMPLETED','CANCELLED'].includes(row.status)&&row.start_at&&Date.parse(row.start_at)>=now.getTime());
+  const riskOwn=openOwn.filter(row=>(row.next_action_date&&Date.parse(row.next_action_date)<now.getTime())||(margin(row)!==null&&amount(row)>0&&margin(row)/amount(row)<.15));
+  return {user,sales,margin:known.length?known.reduce((sum,row)=>sum+margin(row),0):null,unknownCost:own.length-known.length,target,attainment:target>0?sales/target*100:null,leads:activeLeads.length,openCount:openOwn.length,openValue:openOwn.reduce((sum,row)=>sum+amount(row),0),overdueTasks:overdueOwnTasks.length,nextMeetings:nextMeetings.length,riskCount:riskOwn.length};
  }).sort((a,b)=>(b.attainment??-1)-(a.attainment??-1)||b.sales-a.sales);
  const decisions=[];
  for(const row of open){
@@ -46,7 +51,7 @@ export function executiveMetrics(data,now=new Date()){
   const rows=keys[0]==='WON'?won:open.filter(row=>keys.includes(row.stage));
   return {label,count:rows.length,value:rows.reduce((sum,row)=>sum+amount(row),0)};
  });
- return {period,revenue,grossMargin,marginPercent:knownRevenue?grossMargin/knownRevenue*100:null,unknownCosts:won.length-known.length,goal,target,attainment:target>0?revenue/target*100:null,gap:target===null?null:Math.max(0,target-revenue),pipeline,forecast,overdue,atRisk,riskValue:atRisk.reduce((sum,row)=>sum+amount(row),0),team,decisions:decisions.slice(0,3),stages,openCount:open.length,wonCount:won.length,undated:opps.filter(row=>!row.expected_close_date).length,overdueTasks:tasks.filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&Date.parse(row.due_at)<now.getTime()).length};
+ return {period,revenue,grossMargin,marginPercent:knownRevenue?grossMargin/knownRevenue*100:null,unknownCosts:won.length-known.length,goal,target,attainment:target>0?revenue/target*100:null,gap:target===null?null:Math.max(0,target-revenue),pipeline,forecast,overdue,atRisk,riskValue:atRisk.reduce((sum,row)=>sum+amount(row),0),team,decisions:decisions.slice(0,5),stages,openCount:open.length,wonCount:won.length,undated:opps.filter(row=>!row.expected_close_date).length,overdueTasks:tasks.filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&Date.parse(row.due_at)<now.getTime()).length};
 }
 export function filterExecutiveRows(rows,table,filter,owner,now=new Date()){
  if(owner)rows=rows.filter(row=>assignedUserId(row)===owner);
@@ -122,61 +127,28 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  kpi('Cartera abierta',incomplete?'—':compactMoney(m.pipeline),m.openCount+' oportunidades · proyección mes '+compactMoney(m.forecast),'pipeline')+
  kpi('Cartera en riesgo',incomplete?'—':compactMoney(m.riskValue),m.overdue.length+' seguimientos atrasados · '+m.overdueTasks+' tareas vencidas','risk','risk');
  const decisions=incomplete?'<p class="ceo-empty">No se generan recomendaciones con módulos incompletos.</p>':m.decisions.length?m.decisions.map((item,index)=>'<article class="ceo-decision '+item.tone+'"><div class="ceo-decision-top"><span>0'+(index+1)+' / '+item.title+'</span><strong>'+compactMoney(item.exposure)+'</strong></div><h3 title="'+esc(item.detail)+'">'+esc(item.detail)+'</h3><p>'+esc(item.reason)+'</p><button data-edit="'+esc(item.id)+'" data-table="'+item.table+'">'+item.action+' <span aria-hidden="true">↗</span></button></article>').join(''):'<div class="ceo-empty"><strong>Sin alertas según las reglas actuales.</strong><span> Revisa la cartera o registra nuevas oportunidades.</span><button data-page="leads">Ver prospectos</button></div>';
- const team=incomplete?'<p class="ceo-empty">Ranking pendiente de completar la carga.</p>':m.team.length?'<table class="ceo-team-table"><thead><tr><th>Vendedor</th><th>Ganadas</th><th>Margen</th><th>Meta</th></tr></thead><tbody>'+m.team.slice(0,5).map((row,index)=>'<tr><td><button data-ceo-seller="'+esc(row.user.id)+'"><i class="ceo-rank">'+(index+1)+'</i>'+esc(row.user.full_name)+'</button></td><td>'+compactMoney(row.sales)+'</td><td title="'+(row.unknownCost?'Subtotal: faltan costos':'Margen estimado')+'">'+compactMoney(row.margin)+(row.unknownCost?'*':'')+'</td><td><span class="ceo-mini-progress"><i style="width:'+Math.min(100,row.attainment||0)+'%"></i></span><b>'+(row.attainment===null?'Sin meta':Math.round(row.attainment)+'%')+'</b></td></tr>').join('')+'</tbody></table>':'<div class="ceo-empty">No hay vendedores vinculados. La demostración incluye cinco perfiles ficticios.</div>';
  const maxStage=Math.max(1,...m.stages.map(row=>row.value));
  const pipeline=m.stages.map((row,index)=>'<div class="ceo-stage"><span>'+row.label+'</span><b>'+row.count+'</b><strong>'+compactMoney(row.value)+'</strong><div><i style="width:'+row.value/maxStage*100+'%;--stage-color:'+['#4b8cff','#62b3e4','#a790ed','#efad55','#40bda0'][index]+'"></i></div></div>').join('');
- const openOpportunityLeadIds=new Set(openOpportunities.map(row=>row.lead_id).filter(Boolean));
- const pipelineLeadCount=(data.leads||[]).filter(row=>!openOpportunityLeadIds.has(row.id)&&['NEW','RESEARCHING','CONTACT_PENDING'].includes(row.status)).length;
- const pipelineContactedCount=(data.leads||[]).filter(row=>!openOpportunityLeadIds.has(row.id)&&['CONTACTED','QUALIFIED'].includes(row.status)).length;
- const pipelineDiagnosisCount=openOpportunities.filter(row=>['DETECTED','CONTACT_PENDING','CONTACTED','QUALIFIED','OPPORTUNITY'].includes(row.stage)).length;
- const pipelineProposalCount=openOpportunities.filter(row=>row.stage==='PROPOSAL').length;
- const pipelineNegotiationCount=openOpportunities.filter(row=>row.stage==='NEGOTIATION').length;
- const pipelineWonCount=(data.opportunities||[]).filter(row=>row.stage==='WON'&&inPeriod(row,{...m.period,end:businessDay(now)})).length;
- const mobilePipeline=[
-  ['Lead',pipelineLeadCount,'#2f7de1'],
-  ['Contactado',pipelineContactedCount,'#5aa7ec'],
-  ['Diagnóstico',pipelineDiagnosisCount,'#8b6fd6'],
-  ['Propuesta',pipelineProposalCount,'#f3b33d'],
-  ['Negociación',pipelineNegotiationCount,'#ed7d31'],
-  ['Ganado',pipelineWonCount,'#36a77a']
- ];
- const mobileProspects=(actionNow.length?actionNow:prospects).slice(0,3);
- const mobileProspectRows=mobileProspects.length?mobileProspects.map(row=>{
-   const state=row.operating_bucket==='ACTION_NOW'?'Alta prioridad':row.operating_bucket==='RESEARCH_FIRST'?'Investigar':row.operating_bucket==='STRATEGIC_WATCH'?'Vigilancia':'En revisión';
-   const xwin=row.xwin_score??row.xwin??row.score??null;
-   return '<button class="mobile-clone-prospect" data-page="prospects"><span class="mobile-clone-prospect-icon">◈</span><span class="mobile-clone-prospect-copy"><strong>'+esc(row.name||row.institution_name||row.canonical_name||'Institución')+'</strong><small>'+esc(state)+(xwin===null?'':' · XWIN '+Math.round(Number(xwin)))+'</small></span><span class="mobile-clone-chevron">›</span></button>';
- }).join(''):'<div class="mobile-clone-empty">No hay prospectos priorizados.</div>';
- const mobileAlerts=[
-   ...radarCritical.slice(0,1).map(row=>({tone:'danger',title:'Nueva señal crítica',detail:row.institution_name||'Radar Comercial',page:'radar'})),
-   ...m.atRisk.slice(0,1).map(row=>({tone:'danger',title:'Oportunidad requiere atención',detail:row.name||'Oportunidad',page:'opportunities'})),
-   ...((data.tasks||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&row.due_at&&Date.parse(row.due_at)<now.getTime()).slice(0,1).map(row=>({tone:'warning',title:'Recordatorio de seguimiento',detail:row.title||'Tarea pendiente',page:'tasks'}))),
-   ...(data.activities||[]).slice().sort((a,b)=>String(b.occurred_at||'').localeCompare(String(a.occurred_at||''))).slice(0,1).map(row=>({tone:'info',title:'Movimiento reciente',detail:row.subject||row.type||'Actividad comercial',page:'activities'}))
- ].slice(0,3);
- const mobileAlertRows=mobileAlerts.length?mobileAlerts.map(item=>'<button class="mobile-clone-alert" data-page="'+item.page+'"><span class="mobile-clone-alert-dot '+item.tone+'"></span><span><strong>'+esc(item.title)+'</strong><small>'+esc(item.detail)+'</small></span><span class="mobile-clone-chevron">›</span></button>').join(''):'<div class="mobile-clone-empty">Sin alertas pendientes.</div>';
- const mobileClone='<section class="mobile-clone-dashboard" aria-label="Dashboard comercial móvil">'+
-  '<header class="mobile-clone-header"><div class="mobile-clone-logo"><button id="brandThemeToggle" type="button" aria-label="Cambiar entre modo diurno y nocturno"><strong>Xicroni<span>x</span></strong></button><small>COMMERCIAL INTELLIGENCE</small></div></header>'+
-  '<section class="mobile-clone-greeting"><h2>Hola, Toshi</h2><p>Hoy es un gran día para crear nuevas oportunidades.</p></section>'+
-  '<section class="mobile-clone-kpis">'+
-   '<button data-page="prospects" data-prospect-kpi="ALL" aria-label="Prospectos"><span class="blue"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="9" r="2.5"/><path d="M3.5 19v-2.2A4.8 4.8 0 0 1 8.3 12h.4a4.8 4.8 0 0 1 4.8 4.8V19"/><path d="M13.5 13.2a4.3 4.3 0 0 1 6.8 3.5V19"/></svg></span><strong>'+prospects.length+'</strong><small>P</small></button>'+
-   '<button data-page="opportunities" aria-label="Oportunidades"><span class="orange"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M8 6H5a2 2 0 0 0 2 3h1M16 6h3a2 2 0 0 1-2 3h-1M12 12v4M9 20h6M10 16h4"/></svg></span><strong>'+openOpportunities.length+'</strong><small>O</small></button>'+
-   '<button data-page="prospects" data-prospect-kpi="ACTION_NOW" aria-label="Alta prioridad"><span class="red"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17h12l-1.5-2.2V10a4.5 4.5 0 0 0-9 0v4.8L6 17Z"/><path d="M10 20h4"/></svg></span><strong>'+topHighPriority+'</strong><small>AP</small></button>'+
-   '<button data-page="prospects" data-prospect-kpi="REVIEW" aria-label="En revisión"><span class="violet"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="10" height="14" rx="2"/><path d="M8 8h4M8 11h4"/><circle cx="16.5" cy="16.5" r="3.5"/><path d="m19 19 2 2"/></svg></span><strong>'+reviewFirst.length+'</strong><small>ER</small></button>'+
-  '</section>'+
-  '<section class="mobile-clone-section"><header><h3>Pipeline comercial</h3><small class="pipeline-live-label">Estado actual</small></header><div class="mobile-clone-pipeline">'+mobilePipeline.map(([label,count,color])=>'<div class="mobile-pipeline-stage" style="--pipe:'+color+'" aria-label="'+count+' casos en '+label+'"><span></span><strong>'+count+'</strong><small>'+label+'</small></div>').join('')+'</div><p class="pipeline-dashboard-note">Vista en tiempo real del proceso comercial. Para trabajar casos, abre Gestión Comercial.</p></section>'+
-  '<section class="mobile-clone-section"><header><h3>Mis prospectos</h3><button data-page="prospects">Ver todos →</button></header><div class="mobile-clone-list">'+mobileProspectRows+'</div></section>'+
-  '<section class="mobile-clone-section"><header><h3>Alertas</h3><button data-page="tasks">Ver todas →</button></header><div class="mobile-clone-list">'+mobileAlertRows+'</div></section>'+
- '</section>';
- const activities=(data.activities||[]).slice().sort((a,b)=>String(b.occurred_at).localeCompare(String(a.occurred_at))).slice(0,3);
- const activity=activities.map(row=>'<button class="ceo-event" data-edit="'+esc(row.id)+'" data-table="activities"><span class="ceo-event-dot"></span><span><strong>'+esc(row.subject||row.type)+'</strong><small>'+esc((data.users||[]).find(user=>user.id===row.created_by)?.full_name||'Equipo')+' · '+new Date(row.occurred_at).toLocaleDateString('es-PE',{day:'2-digit',month:'short'})+'</small></span><span aria-hidden="true">↗</span></button>').join('')||'<p class="ceo-empty">Aún no hay interacciones.</p>';
- return '<div class="ceo-dashboard ceo-dashboard--analytics">'+mobileClone+'<section class="prod-dashboard-intro"><div class="prod-brand"><strong>Xicronix</strong><small>COMMERCIAL INTELLIGENCE</small></div><div class="prod-welcome"><h2>Hola, Toshi</h2><p>Hoy es un gran día para crear nuevas oportunidades.</p></div><div class="prod-top-kpis"><button data-page="prospects"><small>Prospectos</small><strong>'+prospects.length+'</strong></button><button data-page="opportunities"><small>Oportunidades</small><strong>'+openOpportunities.length+'</strong></button><button data-page="prospects"><small>Alta prioridad</small><strong>'+topHighPriority+'</strong></button><button data-page="prospects"><small>En revisión</small><strong>'+reviewFirst.length+'</strong></button></div></section><section class="ceo-signal"><div><small>'+statusTitle+' · '+esc(now.toLocaleDateString('es-PE',{month:'long',year:'numeric'}))+'</small><h2>'+esc(headline)+'</h2></div><button id="ceoMethodBtn" class="ceo-method" title="Ver cómo se calculan los indicadores">Cómo se calcula</button></section>'+
- '<section class="ceo-kpis" aria-label="Indicadores ejecutivos">'+kpis+'</section>'+
- '<section class="ceo-story ceo-story--decision"><header><small>STORYTELLING EJECUTIVO</small><h2>Situación → riesgo → oportunidad → decisión</h2></header><div>'+storyItems.map((item,index)=>'<button type="button" class="ceo-story-card" data-page="'+esc(item.target)+'"><span class="ceo-story-step">0'+(index+1)+'</span><small>'+esc(item.label)+'</small><strong>'+esc(item.text)+'</strong><em>'+esc(item.action)+' →</em></button>').join('')+'</div></section>'+
- territorial+
- renderAnalytics(data,{now,period:analyticsPeriod,demo,failures})+
- '<section class="ceo-decisions" aria-label="Decisiones prioritarias">'+decisions+'</section>'+
- '<section class="ceo-bottom"><article class="ceo-panel"><header><h2>Equipo · avance contra meta</h2><button data-page="users">Ver equipo ↗</button></header>'+team+'<p class="ceo-caption">Orden: % de meta de ventas; desempate por ventas. No calcula bonos.</p></article>'+
- '<article class="ceo-panel"><header><h2>Embudo comercial</h2><button data-page="opportunities" aria-label="Ver todas las oportunidades">↗</button></header>'+pipeline+'</article>'+
- '<article class="ceo-panel"><header><h2>Pulso comercial</h2><button data-page="activities" aria-label="Ver todas las interacciones">↗</button></header>'+activity+'<div class="ceo-target"><span>Objetivo de ventas</span><strong>'+compactMoney(m.target)+'</strong></div><button class="ceo-goals-link" data-page="goals">Ajustar metas del periodo ↗</button></article></section></div>';
+ return '<div class="ceo-dashboard director-dashboard">'+mobileClone+
+ '<section class="director-hero"><div><small>DIRECCIÓN COMERCIAL · '+esc(now.toLocaleDateString('es-PE',{month:'long',year:'numeric'}))+'</small><h2>Hola, Toshi</h2><p>'+esc(headline)+'</p></div><div class="director-hero-actions"><button data-page="now">Ver prioridades</button><button id="ceoMethodBtn" class="secondary">Cómo se calcula</button></div></section>'+
+ '<section class="director-kpis">'+
+  '<button data-ceo-view="won"><small>Ventas ganadas · mes</small><strong>'+compactMoney(m.revenue)+'</strong><span>'+m.wonCount+' cierres · '+progress+'</span></button>'+
+  '<button data-ceo-view="pipeline"><small>Pipeline abierto</small><strong>'+compactMoney(m.pipeline)+'</strong><span>'+m.openCount+' oportunidades</span></button>'+
+  '<button data-ceo-view="pipeline"><small>Forecast del mes</small><strong>'+compactMoney(m.forecast)+'</strong><span>'+(m.target===null?'Sin meta definida':'Meta '+compactMoney(m.target))+'</span></button>'+
+  '<button data-ceo-view="risk" class="'+(m.atRisk.length?'risk':'')+'"><small>Exposición en riesgo</small><strong>'+compactMoney(m.riskValue)+'</strong><span>'+m.atRisk.length+' oportunidades · '+m.overdueTasks+' tareas vencidas</span></button>'+
+ '</section>'+
+ '<section class="director-grid director-grid-primary">'+
+  '<article class="director-panel director-team-panel"><header><div><small>EQUIPO COMERCIAL</small><h2>¿Quién necesita mi atención?</h2></div><button data-page="users">Gestionar equipo →</button></header><div class="director-team-grid">'+teamCards+'</div></article>'+
+  '<article class="director-panel director-attention-panel"><header><div><small>EXCEPCIONES</small><h2>Requiere mi intervención</h2></div><span>'+m.decisions.length+' priorizadas</span></header><div class="director-exception-list">'+exceptionCards+'</div></article>'+
+ '</section>'+
+ '<section class="director-panel director-pipeline-panel"><header><div><small>FLUJO COMERCIAL</small><h2>Pipeline del equipo</h2></div><span>Vista agregada · no es una lista</span></header><div class="director-pipeline">'+directorPipeline+'</div></section>'+
+ '<section class="director-grid director-grid-secondary">'+
+  '<article class="director-panel"><header><div><small>NEGOCIOS ESTRATÉGICOS</small><h2>Oportunidades de mayor impacto</h2></div><button data-page="opportunities">Ver cartera →</button></header><div class="director-opportunity-list">'+strategicCards+'</div></article>'+
+  '<article class="director-panel"><header><div><small>PRÓXIMOS HITOS</small><h2>Qué viene después</h2></div><button data-page="meetings">Abrir agenda →</button></header><div class="director-upcoming-list">'+upcomingRows+'</div></article>'+
+ '</section>'+
+ '<section class="director-radar-strip"><div><small>RADAR COMERCIAL</small><h2>'+radarCritical.length+' críticas · '+radarHigh.length+' alta prioridad</h2><p>'+(topSignal?'Señal destacada: '+esc(topSignal.institution_name||'Institución')+'.':'No hay una señal prioritaria destacada en este momento.')+'</p></div><button data-page="radar">Abrir Radar →</button></section>'+
+ '<details class="director-intelligence"><summary>Inteligencia y analítica avanzada</summary><div class="director-intelligence-body">'+territorial+renderAnalytics(data,{now,period:analyticsPeriod,demo,failures})+'</div></details>'+
+ '</div>';
 }
 export const EXECUTIVE_METHOD = 'Ventas ganadas: oportunidades WON cuya fecha de cierre prevista está en el mes actual; no son cobros. Margen: valor menos costo informado, admite pérdidas; sin costo no se estima. Meta: objetivo que cubre el mes completo. Proyección: ganadas del mes más cartera con cierre previsto en el mes ponderada por probabilidad manual, no es una garantía. Riesgo: oportunidades abiertas con seguimiento vencido o margen inferior al 15%; no se cuenta dos veces una oportunidad. Prioridades: primero margen bajo, luego atrasos, luego datos pendientes; dentro de cada grupo se ordena por importe. Son reglas explicables, no IA generativa. El ranking compara cumplimiento de metas de ventas, no liquida bonos. Los datos de demostración nunca se mezclan con datos reales.';
 
