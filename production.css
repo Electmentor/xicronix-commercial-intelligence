@@ -2315,3 +2315,29 @@ html[data-theme="night"] body{
   background:#0b1420!important;
   color:#e8f0fa!important;
 }
+
+/* Mobile menu version badge */
+.sidebar-brand-row{position:relative}
+.menu-version-badge{display:none}
+@media(max-width:700px){
+  .sidebar-brand-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-right:2px}
+  .sidebar-brand-row .brand{min-width:0;flex:1}
+  .menu-version-badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    flex:none;
+    margin-top:2px;
+    min-height:26px;
+    padding:4px 8px;
+    border:1px solid var(--line);
+    border-radius:999px;
+    background:var(--panel);
+    color:var(--muted);
+    font-size:.64rem;
+    font-weight:800;
+    letter-spacing:.04em;
+    line-height:1;
+    white-space:nowrap;
+  }
+}
