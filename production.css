@@ -2223,3 +2223,16 @@ html[data-theme="night"] .task-mobile-card{background:var(--panel);border-color:
   .top .workspace-controls{display:none!important}
   .app.sidebar-collapsed .main{padding-top:22px!important}
 }
+
+
+/* V2.40.56.1 · Clean mobile shell for cloned dashboard */
+@media(max-width:700px){
+  .app[data-page="dashboard"] .top{display:none!important}
+  .app[data-page="dashboard"] .main{padding:18px 16px 24px!important}
+  .app[data-page="dashboard"] #status{margin-top:0!important}
+  .app[data-page="dashboard"] .sidebar-toggle,
+  .app[data-page="dashboard"].sidebar-collapsed .sidebar-toggle{
+    top:14px!important;
+    right:14px!important;
+  }
+}
