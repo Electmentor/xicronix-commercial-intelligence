@@ -2951,3 +2951,22 @@ html[data-theme="night"] body{
     box-shadow:0 0 2px rgba(75,0,10,.32);
   }
 }
+
+/* V2.41.08 · Unblock and stabilize 20-LED Larson scanner */
+.app-splash-larson{
+  display:grid!important;
+}
+.app-splash-larson i{
+  animation:none!important;
+  transition:none!important;
+  background:#180004!important;
+  opacity:.30!important;
+}
+@media(prefers-reduced-motion:reduce){
+  .app-splash-larson{
+    display:grid!important;
+  }
+  .app-splash-larson i{
+    animation:none!important;
+  }
+}
