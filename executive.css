@@ -75,3 +75,30 @@ html[data-theme="night"] .ceo-dashboard{--surface:#111f31}html[data-theme="night
   .mobile-clone-pipeline{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}.mobile-clone-pipeline button{padding:0!important;border:0!important;background:transparent!important;min-width:0!important;text-align:center!important}.mobile-clone-pipeline button>span{display:block;height:8px;border-radius:999px;background:var(--pipe)}.mobile-clone-pipeline strong{display:block;margin-top:5px;font-size:.72rem;color:#dcecff}.mobile-clone-pipeline small{display:block;margin-top:2px;font-size:.42rem;color:#8fa9c5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .mobile-clone-list{display:grid;gap:5px}.mobile-clone-prospect,.mobile-clone-alert{display:grid!important;grid-template-columns:30px minmax(0,1fr) 12px;gap:8px;align-items:center;width:100%;padding:8px 2px!important;border:0!important;border-bottom:1px solid #223852!important;border-radius:0!important;background:transparent!important;text-align:left!important}.mobile-clone-prospect-icon{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:#193557;color:#78b5ff}.mobile-clone-prospect-copy,.mobile-clone-alert>span:nth-child(2){min-width:0}.mobile-clone-prospect strong,.mobile-clone-alert strong{display:block;font-size:.67rem;color:#eef5ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mobile-clone-prospect small,.mobile-clone-alert small{display:block;margin-top:2px;font-size:.51rem;color:#8fa9c5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mobile-clone-chevron{color:#7c94ad;font-size:.9rem}.mobile-clone-alert-dot{width:8px;height:8px;border-radius:50%;margin-left:9px}.mobile-clone-alert-dot.danger{background:#ff6f6f}.mobile-clone-alert-dot.warning{background:#ffae4a}.mobile-clone-alert-dot.info{background:#5da6ff}.mobile-clone-empty{padding:12px 4px;color:#8fa9c5;font-size:.62rem;text-align:center}
 }
+
+
+/* V2.40.57 · Wordmark is the mobile theme switch */
+@media(max-width:700px){
+  .mobile-clone-logo button{
+    appearance:none!important;
+    border:0!important;
+    background:transparent!important;
+    padding:0!important;
+    min-height:0!important;
+    width:auto!important;
+    display:block!important;
+    text-align:left!important;
+    box-shadow:none!important;
+  }
+  .mobile-clone-logo button:hover,
+  .mobile-clone-logo button:focus-visible{
+    background:transparent!important;
+    border:0!important;
+    outline:none!important;
+  }
+  .mobile-clone-logo strong{
+    font-size:1.42rem!important;
+    letter-spacing:-.05em!important;
+    cursor:pointer!important;
+  }
+}
