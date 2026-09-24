@@ -102,3 +102,49 @@ html[data-theme="night"] .ceo-dashboard{--surface:#111f31}html[data-theme="night
     cursor:pointer!important;
   }
 }
+
+
+/* V2.40.58 · Fix mobile daylight contrast */
+@media(max-width:700px){
+  html:not([data-theme="night"]) .mobile-clone-dashboard{
+    color:#0b2340!important;
+  }
+  html:not([data-theme="night"]) .mobile-clone-logo strong,
+  html:not([data-theme="night"]) .mobile-clone-greeting h2,
+  html:not([data-theme="night"]) .mobile-clone-section h3,
+  html:not([data-theme="night"]) .mobile-clone-prospect strong,
+  html:not([data-theme="night"]) .mobile-clone-alert strong{
+    color:#0b2340!important;
+  }
+  html:not([data-theme="night"]) .mobile-clone-logo small,
+  html:not([data-theme="night"]) .mobile-clone-greeting p,
+  html:not([data-theme="night"]) .mobile-clone-prospect small,
+  html:not([data-theme="night"]) .mobile-clone-alert small,
+  html:not([data-theme="night"]) .mobile-clone-pipeline small{
+    color:#6f8399!important;
+  }
+  html:not([data-theme="night"]) .mobile-clone-pipeline strong{
+    color:#173a61!important;
+  }
+  html:not([data-theme="night"]) .mobile-clone-kpis button{
+    background:#f7f9fc!important;
+    border-color:#d6e1ec!important;
+  }
+  html:not([data-theme="night"]) .mobile-clone-kpis strong{
+    color:#0b2340!important;
+  }
+  html:not([data-theme="night"]) .mobile-clone-kpis small{
+    color:#687e95!important;
+  }
+  html:not([data-theme="night"]) .mobile-clone-prospect,
+  html:not([data-theme="night"]) .mobile-clone-alert{
+    border-bottom-color:#ccd8e4!important;
+  }
+  html:not([data-theme="night"]) .mobile-clone-prospect-icon{
+    background:#e8f2ff!important;
+    color:#2f7de1!important;
+  }
+  html:not([data-theme="night"]) .mobile-clone-chevron{
+    color:#6d8196!important;
+  }
+}
