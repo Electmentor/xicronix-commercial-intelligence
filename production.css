@@ -2972,3 +2972,9 @@ html[data-theme="night"] body{
     animation:none!important;
   }
 }
+
+/* V2.41.10 · Tapered LED profile: thin edges, thicker active center */
+.app-splash-larson i{
+  height:3px!important;
+  transform-origin:center center!important;
+}
