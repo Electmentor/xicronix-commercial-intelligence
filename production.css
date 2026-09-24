@@ -2739,3 +2739,16 @@ html[data-theme="night"] body{
   .app-splash-scan i{animation:none!important}
   .app-splash-scan{display:none!important}
 }
+
+/* V2.41.04 · Intense red scanner with readable duration */
+.app-splash-scan::before{
+  background:radial-gradient(ellipse at center,rgba(255,18,40,.24),transparent 68%)!important;
+}
+.app-splash-scan i{
+  background:linear-gradient(90deg,transparent,#ff1028 28%,#ff3348 50%,#ff1028 72%,transparent)!important;
+  box-shadow:
+    0 0 8px rgba(255,16,40,1),
+    0 0 20px rgba(255,16,40,.88),
+    0 0 38px rgba(255,16,40,.55)!important;
+  animation-duration:1.45s!important;
+}
