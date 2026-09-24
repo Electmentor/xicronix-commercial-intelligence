@@ -289,7 +289,7 @@ async function loadTerritorialAggregates(){
 async function reload(){
  if(!session||recovery||busy)return;
  const version=++loadVersion;const userId=session.user.id;loading=true;renderWorkspaceControls();
- $('refreshBtn').disabled=true;$('newBtn').disabled=true;notice('Cargando información…');
+ $('refreshBtn').disabled=true;$('refreshBtn').textContent='Actualizando…';$('refreshBtn').setAttribute('aria-busy','true');$('newBtn').disabled=true;notice('Cargando información…');
  try{
  const result=await sb.from('profiles').select('id,organization_id,full_name,role').eq('id',userId).maybeSingle();
  if(version!==loadVersion)return;
@@ -311,7 +311,7 @@ async function reload(){
  }
  render();const bad=Object.keys(failures);notice(bad.length?'No se pudo cargar: '+bad.map(k=>modules[k]?.label||k).join(', ')+'. Pulsa Actualizar para reintentar.':'',!!bad.length);
  }catch(error){if(version===loadVersion){profile=null;data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice(errorText(error),true);}}
- finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;render();applyEntryRoute();}}
+ finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;$('refreshBtn').textContent='Actualizar';$('refreshBtn').removeAttribute('aria-busy');render();applyEntryRoute();}}
 }
 function applyTheme(theme,persist=false){
  const night=theme==='night';document.documentElement.dataset.theme=night?'night':'day';
@@ -492,13 +492,12 @@ function scoreCell(row){
  return '<div class="score-cell" aria-label="'+label+' '+(score?value+'%':'pendiente')+'"><div class="score-track"><i style="width:'+value+'%"></i></div><strong>'+(score?value+'%':'—')+'</strong><small>'+esc(recommendation)+'</small></div>';
 }
 function openActivityForLead(leadId){
- const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
- openEditor('activities',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',action_code:'',type:'',subject:'',outcome:'',occurred_at:new Date().toISOString()});
+ const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return false;
+ return openEditor('activities',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',action_code:'',type:'',subject:'',outcome:'',occurred_at:new Date().toISOString()});
 }
 function openTaskForLead(leadId){
  const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
- closeLeadDetails(false);
- openEditor('tasks',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',title:'',status:'PENDING',priority:'MEDIUM'});
+ if(openEditor('tasks',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',title:'',status:'PENDING',priority:'MEDIUM'}))closeLeadDetails(false);
 }
 function meetingConflictRows(row,startAt,endAt,ownerId){
  const start=Date.parse(startAt),end=Date.parse(endAt);if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start||!ownerId)return [];
@@ -519,18 +518,15 @@ function updateMeetingPreview(){
 function openMeetingForLead(leadId){
  const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
  const institution=(data.institutions||[]).find(row=>row.id===lead.institution_id);
- closeLeadDetails(false);
- openEditor('meetings',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',title:'Reunión · '+(institution?.name||lead.title),status:'SCHEDULED',attendee_status:'NOT_SENT',mode:'ONLINE',owner_user_id:lead.owner_user_id||currentActor()});
+ if(openEditor('meetings',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',title:'Reunión · '+(institution?.name||lead.title),status:'SCHEDULED',attendee_status:'NOT_SENT',mode:'ONLINE',owner_user_id:lead.owner_user_id||currentActor()}))closeLeadDetails(false);
 }
 function openDeliverableForLead(leadId){
  const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
- closeLeadDetails(false);
- openEditor('deliverables',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',title:'',direction:'XICRONIX_TO_CLIENT',status:'PENDING'});
+ if(openEditor('deliverables',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',title:'',direction:'XICRONIX_TO_CLIENT',status:'PENDING'}))closeLeadDetails(false);
 }
 function openDocumentForLead(leadId){
  const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
- closeLeadDetails(false);
- openEditor('documents',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',title:'',category:'REQUEST_DIAGNOSIS',status:'DRAFT'});
+ if(openEditor('documents',null,{lead_id:leadId,institution_id:lead.institution_id||'',contact_id:lead.contact_id||'',title:'',category:'REQUEST_DIAGNOSIS',status:'DRAFT'}))closeLeadDetails(false);
 }
 function currentDocumentVersion(documentId){
  return (data.document_versions||[]).find(row=>row.document_id===documentId&&row.is_current)
@@ -1001,10 +997,10 @@ function syncEditorRelations(changed){
 }
 
 function openEditor(table,id=null,initialValues={}){
- if(!accessible(table)||loading||busy||failures[table])return; if(table==='users'&&(!id||!canManageUsers()))return; if(table==='goals'&&!canManageGoals())return; if(!id&&!writableFor(table))return;
+ if(!accessible(table)||loading||busy||failures[table])return false; if(table==='users'&&(!id||!canManageUsers()))return false; if(table==='goals'&&!canManageGoals())return false; if(!id&&!writableFor(table))return false;
  const dependencies=fieldsFor(table).filter(f=>f.type==='relation').map(f=>relationTable(f.key));
- if(dependencies.some(k=>failures[k])){notice('Actualiza los módulos vinculados antes de abrir este formulario para conservar las relaciones del registro.',true);return;}
- const row=id?scopedRows(table).find(r=>r.id===id):{owner_user_id:table==='goals'?null:currentActor(),assigned_to:currentActor(),...(table==='expenses'?{expense_date:localDay(new Date()),currency:'PEN',category:'OPERATIONS'}:{}),...initialValues};if(!row)return;
+ if(dependencies.some(k=>failures[k])){notice('Actualiza los módulos vinculados antes de abrir este formulario para conservar las relaciones del registro.',true);return false;}
+ const row=id?scopedRows(table).find(r=>r.id===id):{owner_user_id:table==='goals'?null:currentActor(),assigned_to:currentActor(),...(table==='expenses'?{expense_date:localDay(new Date()),currency:'PEN',category:'OPERATIONS'}:{}),...initialValues};if(!row)return false;
  editTable=table;editId=id;editingVersion=row.updated_at||null;
  $('editorTitle').textContent=table==='activities'&&!id?'Registrar movimiento':`${id?(writableFor(table)?'Editar':'Ver'):'Crear'} ${modules[table].singular}`;$('formMsg').textContent='';
  $('fields').innerHTML=fieldsFor(table).map(field=>{
@@ -1046,7 +1042,7 @@ function openEditor(table,id=null,initialValues={}){
   updateMeetingPreview();
  }
  if(fieldsFor(table).some(f=>f.type==='datetime-local'))$('fields').insertAdjacentHTML('beforeend','<p class="full muted">Las fechas y horas se muestran en la zona horaria de este navegador y se guardan como instantes UTC.</p>');
- $('saveBtn').hidden=!writableFor(table);$('saveBtn').disabled=false;$('editor').showModal();
+ $('saveBtn').hidden=!writableFor(table);$('saveBtn').disabled=false;$('editor').showModal();return true;
 }
 function updateQuotePreview(){
  if(editTable!=='opportunities'||!canViewDashboard())return;
@@ -1320,7 +1316,7 @@ function init(){
  $('dateLabel').textContent=new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long'});
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  $('sidebarToggle').onclick=()=>applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.nowTarget){openNowTarget(b.dataset.nowTarget,b.dataset.nowFilter||'');return;}if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.prospectExplain){explainPotentialProspect(b.dataset.prospectExplain);return;}if(b.dataset.prospectContact){registerPotentialContact(b.dataset.prospectContact);return;}if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){closeLeadDetails(false);openEditor('leads',b.dataset.editLead);return;}if(b.dataset.editActivity){closeLeadDetails(false);openEditor('activities',b.dataset.editActivity);return;}if(b.dataset.activityLead){closeLeadDetails(false);openActivityForLead(b.dataset.activityLead);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.nowTarget){openNowTarget(b.dataset.nowTarget,b.dataset.nowFilter||'');return;}if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.prospectExplain){explainPotentialProspect(b.dataset.prospectExplain);return;}if(b.dataset.prospectContact){registerPotentialContact(b.dataset.prospectContact);return;}if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){if(openEditor('leads',b.dataset.editLead))closeLeadDetails(false);return;}if(b.dataset.editActivity){if(openEditor('activities',b.dataset.editActivity))closeLeadDetails(false);return;}if(b.dataset.activityLead){if(openActivityForLead(b.dataset.activityLead)!==false)closeLeadDetails(false);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
  $('authForm').onsubmit=authenticate;$('passwordlessBtn').onclick=signInWithEmailLink;$('passwordlessBtn').hidden=!IS_DEV_PREVIEW;$('passwordlessHint').hidden=!IS_DEV_PREVIEW;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
