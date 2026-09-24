@@ -1569,3 +1569,56 @@ html:not([data-theme="night"]) .pipeline-dashboard-note{color:#657b92}
     line-height:1.08!important;
   }
 }
+
+/* V2.41.04 · Fill mobile director viewport with useful management content */
+@media(max-width:700px){
+  .director-mobile-radar-card,
+  .director-mobile-upcoming-list>button{
+    width:100%!important;
+    min-height:54px!important;
+    display:grid!important;
+    grid-template-columns:32px minmax(0,1fr) auto!important;
+    gap:9px!important;
+    align-items:center!important;
+    padding:9px 10px!important;
+    border:1px solid #355a7c!important;
+    border-radius:12px!important;
+    background:linear-gradient(145deg,#0e253b,#0c1e31)!important;
+    color:#eef6ff!important;
+    text-align:left!important;
+  }
+  .director-mobile-radar-card{
+    grid-template-columns:32px minmax(0,1fr) auto!important;
+  }
+  .radar-glow-icon{
+    width:30px;height:30px;display:grid;place-items:center;
+    color:#58b8ff;
+    filter:drop-shadow(0 0 4px rgba(88,184,255,.8)) drop-shadow(0 0 10px rgba(88,184,255,.35));
+  }
+  .radar-glow-icon svg{
+    width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;
+  }
+  .director-mobile-radar-card strong,
+  .director-mobile-radar-card small,
+  .director-mobile-upcoming-list strong,
+  .director-mobile-upcoming-list small{display:block!important}
+  .director-mobile-radar-card strong{font-size:.64rem!important}
+  .director-mobile-radar-card small,
+  .director-mobile-upcoming-list small{margin-top:2px!important;font-size:.47rem!important;color:#91a8be!important}
+  .director-mobile-upcoming-list{display:grid!important;gap:6px!important}
+  .director-mobile-upcoming-list>button{
+    grid-template-columns:46px minmax(0,1fr) auto!important;
+  }
+  .director-mobile-upcoming-list .upcoming-date{
+    display:grid!important;place-items:center!important;
+    min-height:30px!important;
+    padding:5px 4px!important;
+    border-radius:8px!important;
+    background:#123454!important;
+    color:#75bdff!important;
+    font-size:.49rem!important;
+    font-weight:800!important;
+    text-transform:uppercase;
+  }
+  .director-mobile-upcoming-list strong{font-size:.6rem!important}
+}
