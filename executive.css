@@ -402,3 +402,43 @@ html[data-theme="night"] .ceo-dashboard{--surface:#111f31}html[data-theme="night
     text-overflow:clip!important;
   }
 }
+
+
+/* V2.40.76 · Restore territorial intelligence on mobile */
+@media(max-width:700px){
+  .ceo-dashboard>.territorial-intelligence{
+    display:block!important;
+    margin-top:20px!important;
+    padding:14px!important;
+    border-radius:16px!important;
+  }
+  .territorial-intelligence>header{
+    display:block!important;
+  }
+  .territorial-intelligence>header>span{
+    display:inline-block!important;
+    margin-top:8px!important;
+  }
+  .territorial-summary{
+    grid-template-columns:1fr 1fr!important;
+    gap:8px!important;
+  }
+  .territorial-story{
+    grid-template-columns:1fr!important;
+    gap:8px!important;
+  }
+  .territorial-maps{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:12px!important;
+  }
+  .territorial-map{
+    min-height:260px!important;
+    height:260px!important;
+    border-radius:12px!important;
+    overflow:hidden!important;
+  }
+  .territorial-segment>div{
+    grid-template-columns:1fr 1fr!important;
+  }
+}
