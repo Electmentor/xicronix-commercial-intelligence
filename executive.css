@@ -1558,3 +1558,14 @@ html:not([data-theme="night"]) .pipeline-dashboard-note{color:#657b92}
     text-align:center!important;
   }
 }
+
+/* V2.41.03 · Pipeline typography + shared role icon glow */
+@media(max-width:700px){
+  .director-pipeline-stage--clone .stage-main strong{
+    font-size:1.30rem!important;
+  }
+  .director-pipeline-stage--clone > small{
+    font-size:.61rem!important;
+    line-height:1.08!important;
+  }
+}
