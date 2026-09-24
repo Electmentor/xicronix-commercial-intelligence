@@ -2780,3 +2780,86 @@ html[data-theme="night"] body{
   94%{transform:translateX(0)}
   100%{transform:translateX(0);opacity:.22}
 }
+
+/* V2.41.06 · Segmented Larson scanner startup effect */
+.app-splash-larson{
+  position:absolute!important;
+  z-index:1!important;
+  left:50%!important;
+  top:50%!important;
+  width:min(72vw,360px)!important;
+  height:18px!important;
+  transform:translate(-50%,-50%)!important;
+  display:grid!important;
+  grid-template-columns:repeat(9,1fr)!important;
+  gap:5px!important;
+  align-items:center!important;
+  pointer-events:none!important;
+  overflow:visible!important;
+}
+.app-splash-larson::before{
+  content:""!important;
+  position:absolute!important;
+  inset:-26px -22px!important;
+  background:radial-gradient(ellipse at center,rgba(255,0,24,.18),transparent 70%)!important;
+  filter:blur(10px)!important;
+  opacity:.9!important;
+}
+.app-splash-larson i{
+  position:relative!important;
+  top:auto!important;
+  left:auto!important;
+  width:100%!important;
+  height:8px!important;
+  border-radius:999px!important;
+  background:#260006!important;
+  box-shadow:none!important;
+  opacity:.45!important;
+  animation:larsonSegment 1.35s linear infinite!important;
+  animation-delay:calc(var(--i) * .075s)!important;
+}
+@keyframes larsonSegment{
+  0%,100%{
+    background:#260006;
+    opacity:.35;
+    box-shadow:none;
+    transform:scaleY(.8);
+  }
+  16%{
+    background:#5a000b;
+    opacity:.65;
+    box-shadow:0 0 5px rgba(120,0,16,.45);
+  }
+  28%{
+    background:#b70018;
+    opacity:.9;
+    box-shadow:0 0 8px rgba(183,0,24,.75);
+  }
+  38%{
+    background:#ff0018;
+    opacity:1;
+    box-shadow:
+      0 0 7px rgba(255,0,24,1),
+      0 0 16px rgba(255,0,24,.9),
+      0 0 30px rgba(255,0,24,.58);
+    transform:scaleY(1.15);
+  }
+  48%{
+    background:#8f0013;
+    opacity:.8;
+    box-shadow:0 0 7px rgba(143,0,19,.6);
+  }
+  60%{
+    background:#3b0008;
+    opacity:.5;
+    box-shadow:none;
+  }
+}
+.app-splash-wordmark{
+  text-shadow:
+    0 0 8px rgba(70,157,255,.20),
+    0 0 18px rgba(70,157,255,.14)!important;
+}
+@media(prefers-reduced-motion:reduce){
+  .app-splash-larson i{animation:none!important}
+}
