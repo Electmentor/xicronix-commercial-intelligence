@@ -31,8 +31,8 @@ function startLarsonScanner(){
    led.style.setProperty('background',`rgb(${r},${g},${b})`,'important');
    led.style.setProperty('opacity',String(.28+.72*strength),'important');
    led.style.setProperty('box-shadow',strength>.08?`0 0 ${2+8*strength}px rgba(255,0,24,${.18+.72*strength}),0 0 ${4+18*strength}px rgba(255,0,24,${.08+.38*strength})`:'none','important');
-   const thickness=.52+.98*strength;
-   const widthScale=.90+.20*strength;
+   const thickness=.34+1.72*Math.pow(strength,1.15);
+   const widthScale=.86+.30*Math.pow(strength,1.10);
    led.style.setProperty('transform',`scaleY(${thickness}) scaleX(${widthScale})`,'important');
   });
   if(!$('appSplash')?.classList.contains('is-hidden'))requestAnimationFrame(paint);
