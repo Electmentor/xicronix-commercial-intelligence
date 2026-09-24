@@ -435,7 +435,9 @@ function renderNowDashboard(){
 }
 function renderDashboard(){
  const admin=canViewDashboard();
- $('dashboard').innerHTML=renderNowDashboard()+(admin?renderExecutive(data,{demo:dataSource==='demo',failures,analyticsPeriod,greetingName:profile?.full_name?.split(' ')[0]||'Toshi'}):renderSellerDashboard(data,{demo:dataSource==='demo',failures}));
+ $('dashboard').innerHTML=admin
+   ? renderExecutive(data,{demo:dataSource==='demo',failures,analyticsPeriod,greetingName:profile?.full_name?.split(' ')[0]||'Toshi'})+renderNowDashboard()
+   : renderSellerDashboard(data,{demo:dataSource==='demo',failures})+renderNowDashboard();
 }
 function setAnalyticsPeriod(period){
  if(!canViewDashboard()||loading||busy||!['month','quarter','year'].includes(period))return;
