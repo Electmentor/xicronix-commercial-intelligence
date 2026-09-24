@@ -12,6 +12,32 @@ import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260923-v2.40.47'
 const $ = id => document.getElementById(id);
 const SPLASH_STARTED_AT=performance.now();
 const SPLASH_MIN_MS=3000;
+function startLarsonScanner(){
+ const scanner=document.querySelector('.app-splash-larson');
+ const leds=scanner?[...scanner.querySelectorAll('i')]:[];
+ if(!leds.length)return;
+ const duration=1350;
+ const paint=()=>{
+  const elapsed=performance.now()-SPLASH_STARTED_AT;
+  const phase=(elapsed%duration)/duration;
+  const center=phase<.5?phase*2*(leds.length-1):(2-phase*2)*(leds.length-1);
+  leds.forEach((led,index)=>{
+   const d=Math.abs(index-center);
+   const strength=Math.max(0,1-d/4.6);
+   const hot=Math.pow(strength,1.45);
+   const r=Math.round(24+(255-24)*hot);
+   const g=Math.round(0+18*hot);
+   const b=Math.round(4+20*hot);
+   led.style.background=`rgb(${r},${g},${b})`;
+   led.style.opacity=String(.28+.72*strength);
+   led.style.boxShadow=strength>.08?`0 0 ${2+8*strength}px rgba(255,0,24,${.18+.72*strength}),0 0 ${4+18*strength}px rgba(255,0,24,${.08+.38*strength})`:'none';
+   led.style.transform=`scaleY(${.72+.30*strength})`;
+  });
+  if(!$('appSplash')?.classList.contains('is-hidden'))requestAnimationFrame(paint);
+ };
+ requestAnimationFrame(paint);
+}
+startLarsonScanner();
 function hideAppSplash(){
  const splash=$('appSplash');
  if(!splash||splash.classList.contains('is-hidden'))return;
