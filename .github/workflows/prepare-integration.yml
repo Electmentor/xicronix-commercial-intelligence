@@ -17,14 +17,14 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: integration/crm-v2-production-20260918
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Apply reviewed integration
@@ -61,7 +61,7 @@ jobs:
                   if path.is_file() and not any(part in ('.git','review-artifacts','__pycache__','node_modules') for part in path.parts):
                       archive.add(path,arcname=str(path),recursive=False)
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: crm-v2-browser-review
