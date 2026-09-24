@@ -252,3 +252,60 @@ html[data-theme="night"] .ceo-dashboard{--surface:#111f31}html[data-theme="night
     color:#40546a!important;
   }
 }
+
+
+/* V2.40.62 · Periodic-table mobile KPI cards */
+@media(max-width:700px){
+  .mobile-clone-kpis{
+    display:grid!important;
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    gap:7px!important;
+  }
+  .mobile-clone-kpis button{
+    position:relative!important;
+    min-height:92px!important;
+    height:92px!important;
+    padding:10px!important;
+    display:block!important;
+    border-radius:12px!important;
+    text-align:left!important;
+    overflow:hidden!important;
+  }
+  .mobile-clone-kpis button>span{
+    position:absolute!important;
+    top:9px!important;
+    left:9px!important;
+    margin:0!important;
+    font-size:.64rem!important;
+    line-height:1!important;
+  }
+  .mobile-clone-kpis button>strong{
+    position:absolute!important;
+    top:9px!important;
+    right:9px!important;
+    margin:0!important;
+    font-size:.78rem!important;
+    line-height:1!important;
+    font-weight:800!important;
+  }
+  .mobile-clone-kpis button>small{
+    position:absolute!important;
+    inset:0!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    min-height:0!important;
+    width:auto!important;
+    padding:10px 6px 4px!important;
+    margin:0!important;
+    font-size:1.72rem!important;
+    line-height:1!important;
+    font-weight:900!important;
+    letter-spacing:-.05em!important;
+    text-align:center!important;
+    white-space:nowrap!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    pointer-events:none!important;
+  }
+}
