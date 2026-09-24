@@ -1,6 +1,6 @@
 // Entirely fictional sandbox. No auth accounts, network requests or production writes.
 import {DEMO_CATALOG_PRODUCTS, DEMO_COST_PROFILES} from './catalog.mjs';
-export const DEMO_VERSION = 2;
+export const DEMO_VERSION = 3;
 export const DEMO_SELLERS = [
  {id:'demo-seller-1',full_name:'Valeria Torres',role:'SALES'},
  {id:'demo-seller-2',full_name:'Diego Salazar',role:'SALES'},
@@ -20,7 +20,7 @@ export function createDemoData(org,now=new Date()){
  const base=(id,owner='demo-seller-1')=>({id,organization_id:org,created_by:owner,created_at:day(-25),updated_at:stamp,is_simulated:true,notes:'[SIMULADO] Caso ficticio para explorar el sistema. No representa ventas, personas ni pagos reales.'});
  const sectors=['Universidad Aurora','Colegio Horizonte','Instituto Nova','Centro Andino de Investigación','Clínica Boreal','Universidad del Pacífico Sur','Colegio Arquímedes','Instituto TecnoSur','Laboratorio Prisma','Hospital Nueva Vida','Universidad Altamira','Colegio Robótica','Instituto Vector','Centro Científico Delta','Clínica Meridiano','Universidad Lumen','Colegio Galileo','Instituto Futura','Centro de Innovación Quasar','Hospital Horizonte'];
  const offerings=['Laboratorio de física','Aula STEM','Analítica e IA','Laboratorio de química','Equipamiento de investigación','Automatización de procesos'];
- const data={institutions:[],contacts:[],leads:[],opportunities:[],tasks:[],meetings:[],deliverables:[],documents:[],document_versions:[],activities:[],catalog_products:[],cost_profiles:[],scores:[],users:[],goals:[]};
+ const data={prospects:[],radar:[],mail:[],institutions:[],contacts:[],leads:[],opportunities:[],tasks:[],meetings:[],deliverables:[],documents:[],document_versions:[],activities:[],catalog_products:[],cost_profiles:[],expenses:[],scores:[],users:[],goals:[],demo_migrations:[]};
  data.users=DEMO_SELLERS.map(user=>({...base(user.id,user.id),...user}));
  data.institutions=sectors.map((name,index)=>({...base('demo-institution-'+index,DEMO_SELLERS[index%5].id),name:name+' [SIMULADO]',type:['UNIVERSITY','SCHOOL','INSTITUTE','RESEARCH_CENTER','CLINIC'][index%5],city:['Lima','Arequipa','Trujillo','Cusco'][index%4],country:'Perú',email:'institucion'+index+'@example.invalid',website:'https://example.invalid'}));
  data.contacts=Array.from({length:30},(_,index)=>({...base('demo-contact-'+index,DEMO_SELLERS[index%5].id),first_name:['Marina','Álvaro','Sofía','Nicolás','Elena'][index%5],last_name:'Contacto demo '+(index+1),institution_id:data.institutions[index%20].id,job_title:['Dirección académica','Jefatura de laboratorio','Gerencia de innovación'][index%3],decision_level:index%3?'DECISION_MAKER':'INFLUENCER',email:'contacto'+index+'@example.invalid'}));
@@ -42,6 +42,32 @@ export function createDemoData(org,now=new Date()){
  data.activities=Array.from({length:80},(_,index)=>{
   const lead=data.leads[index%40];
   return {...base('demo-activity-'+index,lead.owner_user_id),lead_id:lead.id,institution_id:lead.institution_id,contact_id:lead.contact_id,type:['CALL','MEETING','EMAIL','DEMO','FOLLOW_UP'][index%5],subject:['Necesidad validada','Reunión con decisor','Propuesta remitida','Demostración realizada','Seguimiento comercial'][index%5],outcome:['INTERESTED','QUALIFIED','FOLLOW_UP','NO_RESPONSE'][index%4],need_summary:'Modernizar capacidades de ciencia y tecnología; alcance inicial identificado.',budget_signal:index%3?'Presupuesto en evaluación':'Rango confirmado por el contacto',decision_timeline:'Este trimestre',occurred_at:day(-index%14,index%8+8),next_action:lead.next_action,next_action_date:lead.next_action_date};
+ });
+ data.meetings=Array.from({length:18},(_,index)=>{
+  const lead=data.leads[index%40],owner=lead.owner_user_id,start=day(index%12-2,9+(index%6));
+  return {...base('demo-meeting-'+index,owner),owner_user_id:owner,lead_id:lead.id,institution_id:lead.institution_id,contact_id:lead.contact_id,title:['Diagnóstico con dirección','Demostración técnica','Revisión de propuesta','Negociación con compras','Validación de alcance'][index%5]+' · '+(index+1),status:index%7===0?'COMPLETED':index%9===0?'CANCELLED':index%3===0?'CONFIRMED':'SCHEDULED',attendee_status:index%4===0?'ACCEPTED':index%4===1?'NEEDS_ACTION':'TENTATIVE',mode:index%3===0?'ONSITE':index%3===1?'ONLINE':'PHONE',start_at:start,end_at:new Date(Date.parse(start)+60*60*1000).toISOString(),location:index%3===0?'Sede del cliente':'Enlace de reunión demo',notes:'[SIMULADO] Hito comercial para evaluar agenda ejecutiva.'};
+ });
+ data.deliverables=Array.from({length:14},(_,index)=>{
+  const lead=data.leads[index%40];
+  return {...base('demo-deliverable-'+index,lead.owner_user_id),lead_id:lead.id,institution_id:lead.institution_id,contact_id:lead.contact_id,title:['Propuesta técnico-económica','Ficha técnica','Cotización revisada','Plan de implementación'][index%4]+' · '+(index+1),direction:index%5===0?'CLIENT_TO_XICRONIX':'XICRONIX_TO_CLIENT',status:index%6===0?'DELIVERED':index%7===0?'RECEIVED':'PENDING',due_at:day(index%10-2),completed_at:index%6===0?day(-1):null,notes:'[SIMULADO] Entregable ficticio.'};
+ });
+ data.documents=Array.from({length:12},(_,index)=>{
+  const lead=data.leads[index%40];
+  return {...base('demo-document-'+index,lead.owner_user_id),lead_id:lead.id,institution_id:lead.institution_id,contact_id:lead.contact_id,title:['Propuesta comercial','Cotización','Acta de reunión','Ficha de requerimientos'][index%4]+' · '+(index+1),category:['PROPOSALS_QUOTES','PROPOSALS_QUOTES','REQUEST_DIAGNOSIS','REQUEST_DIAGNOSIS'][index%4],status:index%5===0?'SENT':index%5===1?'CURRENT':'DRAFT',document_date:localDay(new Date(Date.now()-(index+1)*86400000)),current_version:1,notes:'[SIMULADO] Documento ficticio sin archivo real.'};
+ });
+ data.document_versions=data.documents.map((doc,index)=>({...base('demo-document-version-'+index,data.leads[index%40].owner_user_id),document_id:doc.id,lead_id:doc.lead_id,version_number:1,status:doc.status,file_name:'demo-documento-'+(index+1)+'.pdf',storage_path:null,file_size:125000+index*1000,mime_type:'application/pdf'}));
+ data.prospects=Array.from({length:24},(_,index)=>{
+  const institution=data.institutions[index%20];
+  return {...base('demo-prospect-intel-'+index,DEMO_SELLERS[index%5].id),institution_id:institution.id,institution_name:institution.name,canonical_name:institution.name,name:institution.name,operating_bucket:['ACTION_NOW','RESEARCH_FIRST','STRATEGIC_WATCH','MONITOR','REVALIDATE'][index%5],xwin_score:92-(index%8)*5,xpps_score:88-(index%7)*4,readiness_score:80-(index%6)*5,snapshot_at:day(-index%8),region:['Lima','Lima','La Libertad','Arequipa','Cusco'][index%5],city:['Miraflores','Surco','Trujillo','Arequipa','Cusco'][index%5],ticket_band:['ALTO','MEDIO_ALTO','MEDIO'][index%3],institution_size:['GRANDE','MEDIANA','PEQUEÑA'][index%3]};
+ });
+ data.radar=Array.from({length:16},(_,index)=>{
+  const institution=data.institutions[index%20];
+  const classification=index<2?'CRITICAL':index<6?'HIGH':index<11?'POTENTIAL':'OBSERVE';
+  return {...base('demo-radar-'+index,DEMO_SELLERS[index%5].id),institution_id:institution.id,institution_name:institution.name,classification,weighted_score:96-index*3,signal_summary:['Renovación de laboratorio identificada','Convocatoria de innovación educativa','Expansión de infraestructura STEM','Necesidad de equipamiento científico'][index%4],next_action:index<2?'Revisión ejecutiva y contacto prioritario':'Completar evidencia y validar decisor',region:['Lima','Lima','La Libertad','Arequipa','Cusco'][index%5],city:['Miraflores','San Isidro','Trujillo','Arequipa','Cusco'][index%5],ticket_band:['ALTO','ALTO','MEDIO_ALTO','MEDIO'][index%4],institution_size:['GRANDE','GRANDE','MEDIANA','PEQUEÑA'][index%4],created_at:day(-index%6),updated_at:stamp};
+ });
+ data.mail=Array.from({length:18},(_,index)=>{
+  const lead=data.leads[index%40];
+  return {...base('demo-mail-'+index,lead.owner_user_id),lead_id:lead.id,institution_id:lead.institution_id,contact_id:lead.contact_id,subject:['Solicitud de cotización','Confirmación de reunión','Consulta técnica','Respuesta a propuesta','Coordinación de visita'][index%5]+' · '+(index+1),sender:'contacto'+index+'@example.invalid',recipient:'ventas@xicronix.example.invalid',status:index%4===0?'NEW':index%4===1?'REVIEWED':index%4===2?'LINKED':'ARCHIVED',priority:index<2?'CRITICAL':index<6?'HIGH':'NORMAL',received_at:day(-index%7,8+index%9),created_at:day(-index%7,8+index%9)};
  });
  data.goals=[{...base('demo-goal-org'),owner_user_id:null,period_start:period.start,period_end:period.end,target_won_value:1000000,target_margin:380000},
  ...DEMO_SELLERS.map((user,index)=>({...base('demo-goal-'+index,user.id),owner_user_id:user.id,period_start:period.start,period_end:period.end,target_won_value:[260000,220000,160000,200000,160000][index],target_margin:[100000,80000,60000,80000,60000][index]}))];
