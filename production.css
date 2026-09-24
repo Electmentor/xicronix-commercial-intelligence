@@ -2634,3 +2634,32 @@ html[data-theme="night"] body{
     color:#0b4f9f!important;
   }
 }
+
+/* V2.41.03 · Unified glow for Direction and Sales role icons */
+.workspace-entry-icon,
+.workspace-switch svg,
+.sidebar-workspace-mode button::before{
+  filter:drop-shadow(0 0 4px currentColor) drop-shadow(0 0 10px color-mix(in srgb,currentColor 36%,transparent));
+}
+.workspace-entry-icon{
+  background:transparent!important;
+  border:0!important;
+}
+.workspace-entry-card.direction .workspace-entry-icon{
+  color:#63b4ff!important;
+}
+.workspace-entry-card.seller .workspace-entry-icon{
+  color:#ff9b52!important;
+}
+.workspace-entry-icon svg,
+.workspace-switch svg{
+  width:30px!important;
+  height:30px!important;
+  stroke-width:1.9!important;
+}
+@media(max-width:700px){
+  .workspace-entry-icon{
+    width:44px!important;
+    height:44px!important;
+  }
+}
