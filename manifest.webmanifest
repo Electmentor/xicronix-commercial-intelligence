@@ -5,8 +5,8 @@
   "start_url": "/#page=dashboard",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#081b32",
+  "theme_color": "#081b32",
   "icons": [
     {
       "src": "/xicronix-icon-192.png",
@@ -21,7 +21,7 @@
       "purpose": "any"
     },
     {
-      "src": "/xicronix-splash-maskable.svg?v=20260923-v2.40.72",
+      "src": "/xicronix-splash-maskable.svg?v=20260923-v2.40.73",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "maskable"
