@@ -2752,3 +2752,31 @@ html[data-theme="night"] body{
     0 0 38px rgba(255,16,40,.55)!important;
   animation-duration:1.45s!important;
 }
+
+/* V2.41.05 · Three-second intense red startup scanner */
+.app-splash-scan::before{
+  background:radial-gradient(ellipse at center,rgba(255,0,24,.30),transparent 68%)!important;
+}
+.app-splash-scan i{
+  background:linear-gradient(
+    90deg,
+    transparent,
+    #ff0018 22%,
+    #ff2336 50%,
+    #ff0018 78%,
+    transparent
+  )!important;
+  box-shadow:
+    0 0 10px rgba(255,0,24,1),
+    0 0 24px rgba(255,0,24,.92),
+    0 0 42px rgba(255,0,24,.62)!important;
+  animation-duration:2.7s!important;
+}
+@keyframes xicronixScanner{
+  0%{transform:translateX(0);opacity:0}
+  6%{opacity:1}
+  48%{transform:translateX(285%)}
+  58%{transform:translateX(285%)}
+  94%{transform:translateX(0)}
+  100%{transform:translateX(0);opacity:.22}
+}
