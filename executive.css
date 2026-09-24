@@ -1622,3 +1622,25 @@ html:not([data-theme="night"]) .pipeline-dashboard-note{color:#657b92}
   }
   .director-mobile-upcoming-list strong{font-size:.6rem!important}
 }
+
+/* V2.41.14 · Pipeline icons match top KPI icon scale */
+@media(max-width:700px){
+  .director-pipeline-stage--clone .stage-main{
+    min-height:42px!important;
+    gap:7px!important;
+  }
+  .director-pipeline-stage--clone .stage-icon--glow{
+    width:42px!important;
+    height:42px!important;
+    min-width:42px!important;
+    flex:0 0 42px!important;
+    filter:
+      drop-shadow(0 0 5px color-mix(in srgb,var(--pipe) 90%,transparent))
+      drop-shadow(0 0 12px color-mix(in srgb,var(--pipe) 44%,transparent))!important;
+  }
+  .director-pipeline-stage--clone .stage-icon--glow svg{
+    width:40px!important;
+    height:40px!important;
+    stroke-width:1.9!important;
+  }
+}
