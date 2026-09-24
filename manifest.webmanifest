@@ -9,13 +9,19 @@
   "theme_color": "#081b32",
   "icons": [
     {
-      "src": "/xicronix-wordmark-splash.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/xicronix-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/xicronix-wordmark-splash.svg",
+      "src": "/xicronix-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/xicronix-splash-maskable.svg?v=20260923-v2.40.71",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "maskable"
