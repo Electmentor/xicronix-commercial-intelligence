@@ -146,7 +146,7 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  ].slice(0,3);
  const mobileAlertRows=mobileAlerts.length?mobileAlerts.map(item=>'<button class="mobile-clone-alert" data-page="'+item.page+'"><span class="mobile-clone-alert-dot '+item.tone+'"></span><span><strong>'+esc(item.title)+'</strong><small>'+esc(item.detail)+'</small></span><span class="mobile-clone-chevron">›</span></button>').join(''):'<div class="mobile-clone-empty">Sin alertas pendientes.</div>';
  const mobileClone='<section class="mobile-clone-dashboard" aria-label="Dashboard comercial móvil">'+
-  '<header class="mobile-clone-header"><div class="mobile-clone-logo"><strong>Xicroni<span>x</span></strong><small>COMMERCIAL INTELLIGENCE</small></div></header>'+
+  '<header class="mobile-clone-header"><div class="mobile-clone-logo"><button id="brandThemeToggle" type="button" aria-label="Cambiar entre modo diurno y nocturno"><strong>Xicroni<span>x</span></strong></button><small>COMMERCIAL INTELLIGENCE</small></div></header>'+
   '<section class="mobile-clone-greeting"><h2>Hola, Toshi</h2><p>Hoy es un gran día para crear nuevas oportunidades.</p></section>'+
   '<section class="mobile-clone-kpis">'+
    '<button data-page="prospects"><span class="blue">●</span><strong>'+prospects.length+'</strong><small>Prospectos</small></button>'+
