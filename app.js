@@ -85,7 +85,7 @@ const RECOVERY_KEY='xicronix.crm.password-recovery';
 let entryRoute=readEntryRoute();
 const emptyData=()=>Object.fromEntries([...Object.keys(modules),'scores','document_versions'].map(k=>[k,[]]));
 const writable=()=>profile && ['ADMIN','MANAGER','SALES'].includes(profile.role);
-let workspace=SELLER, workspaceIdentity=null, loading=false;
+let workspace=SELLER, workspaceIdentity=null, workspaceEntryChosen=false, loading=false;
 let dataSource='live', sourceIdentity=null, demoData=null, demoSeller=DEMO_SELLERS[0].id, demoSaved=true, executiveFilter='', executiveOwner='', sellerQuickFilter='', prospectDashboardFilter='';
 let noticeTimer=null;
 let analyticsPeriod='year';
@@ -177,12 +177,39 @@ function renderWorkspaceControls(){
  $('sellerModeBtn').setAttribute('aria-pressed',String(!admin));
  $('adminModeBtn').disabled=$('sellerModeBtn').disabled=loading||busy;
  $('workspaceHint').textContent='';$('workspaceHint').hidden=true;
- $('workspaceLabel').textContent=admin?'DIRECCIÓN COMERCIAL':'MI ESPACIO DE VENTAS';
+ $('workspaceLabel').textContent=admin?'DIRECCIÓN':'EJECUTIVO COMERCIAL';
  const identity=$('userIdentity');if(identity){const userLabel=profile?.full_name||session?.user?.email||'Usuario';identity.title=userLabel;identity.setAttribute('aria-label','Usuario: '+userLabel);}
  $('appView').dataset.workspace=admin?ADMIN:SELLER;
- const labels=admin?{dashboard:'Dashboard Ejecutivo',now:'Ahora',mail:'Correo Zoho'}:{dashboard:'Mi Dashboard',now:'Ahora',prospects:'Prospectos',leads:'Gestión comercial',opportunities:'Mis oportunidades',tasks:'Mis tareas',meetings:'Mi agenda',deliverables:'Mis entregables',documents:'Mis documentos',activities:'Mis movimientos',institutions:'Mis instituciones',contacts:'Mis contactos',catalog_products:'Catálogo de productos'};
- const keys=admin?['dashboard','now',...Object.keys(modules)]:['dashboard','now','prospects','leads','tasks','meetings','deliverables','documents','activities','opportunities','catalog_products','institutions','contacts'];
- $('navigation').innerHTML=keys.filter(accessible).map((key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen ejecutivo')+'</button>').join('');
+ const labels=admin
+  ?{dashboard:'Dashboard Ejecutivo',now:'Ahora',radar:'Radar Comercial',leads:'Gestión Comercial',meetings:'Agenda',mail:'Correo Zoho',institutions:'Instituciones',contacts:'Contactos',documents:'Documentos',catalog_products:'Catálogo',cost_profiles:'Costos',expenses:'Gastos',goals:'Metas',users:'Usuarios'}
+  :{dashboard:'Mi Dashboard',now:'Ahora',leads:'Mis casos',tasks:'Mis tareas',meetings:'Mi agenda',mail:'Correo Zoho',opportunities:'Mis oportunidades',documents:'Mis documentos',contacts:'Mis contactos'};
+ const primaryKeys=admin?['dashboard','now','radar','leads','meetings','mail']:['dashboard','now','leads','tasks','meetings','mail'];
+ const supportKeys=admin?['institutions','contacts','documents','catalog_products','cost_profiles','expenses','goals','users']:['opportunities','documents','contacts'];
+ const navButton=(key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen ejecutivo')+'</button>';
+ const primary=primaryKeys.filter(accessible);
+ const support=supportKeys.filter(accessible);
+ $('navigation').innerHTML=primary.map((key,index)=>navButton(key,index)).join('')+(support.length?'<p class="nav-section-label">'+(admin?'DATOS Y ADMINISTRACIÓN':'APOYO COMERCIAL')+'</p>'+support.map((key,index)=>navButton(key,primary.length+index)).join(''):'');
+}
+function renderWorkspaceEntry(){
+ const gate=$('workspaceEntry');
+ if(!gate||!profile)return;
+ if(!isAdminAccount()){
+  workspaceEntryChosen=true;
+  gate.hidden=true;
+  return;
+ }
+ gate.hidden=workspaceEntryChosen;
+}
+async function chooseWorkspaceEntry(next){
+ if(![ADMIN,SELLER].includes(next)||!profile)return;
+ workspaceEntryChosen=true;
+ $('workspaceEntry').hidden=true;
+ if(next===workspace){
+  renderWorkspaceControls();
+  navigate('dashboard');
+  return;
+ }
+ await setWorkspace(next);
 }
 async function setWorkspace(next){
  if(![ADMIN,SELLER].includes(next)||!profile||busy||loading)return;
@@ -312,7 +339,7 @@ async function reload(){
  }else mailWebhookConfig=null;
  render();const bad=Object.keys(failures);notice(bad.length?'No se pudo cargar: '+bad.map(k=>modules[k]?.label||k).join(', ')+'. Pulsa Actualizar para reintentar.':'',!!bad.length);
  }catch(error){if(version===loadVersion){profile=null;data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice(errorText(error),true);}}
- finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;$('refreshBtn').classList.remove('is-refreshing');render();applyEntryRoute();hideAppSplash();}}
+ finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;$('refreshBtn').classList.remove('is-refreshing');render();applyEntryRoute();renderWorkspaceEntry();hideAppSplash();}}
 }
 function applyTheme(theme,persist=false){
  const night=theme==='night';document.documentElement.dataset.theme=night?'night':'day';
@@ -1567,7 +1594,7 @@ function init(){
  initSidebar();
  $('fields').addEventListener('input',()=>{updateQuotePreview();updateMeetingPreview();});
  $('fields').addEventListener('change',event=>{syncEditorRelations(event.target?.name);updateQuotePreview();updateMovementPreview();updateMeetingPreview();});
- $('adminModeBtn').onclick=()=>setWorkspace(ADMIN);$('sellerModeBtn').onclick=()=>setWorkspace(SELLER);renderWorkspaceControls();
+ $('adminModeBtn').onclick=()=>setWorkspace(ADMIN);$('sellerModeBtn').onclick=()=>setWorkspace(SELLER);$('entryDirectionBtn').onclick=()=>chooseWorkspaceEntry(ADMIN);$('entrySellerBtn').onclick=()=>chooseWorkspaceEntry(SELLER);renderWorkspaceControls();
  $('sourceToggle').onclick=()=>setDataSource(dataSource==='demo'?'live':'demo');$('resetDemoBtn').onclick=resetDemo;$('demoSeller').onchange=selectDemoSeller;
  $('clearRecordContext').onclick=()=>{executiveFilter='';executiveOwner='';sellerQuickFilter='';renderRecords();};
  $('closeMethod').onclick=()=>$('methodDialog').close();
