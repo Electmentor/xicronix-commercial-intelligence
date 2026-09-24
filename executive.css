@@ -1335,3 +1335,57 @@ html:not([data-theme="night"]) .pipeline-dashboard-note{color:#657b92}
     margin-top:12px!important;
   }
 }
+
+/* V2.40.99 · Icon cleanup: large bare KPI icons + dot-only pipeline */
+@media(max-width:700px){
+  .director-mobile-kpi{
+    grid-template-columns:46px 1fr!important;
+    gap:10px!important;
+  }
+  .director-mobile-kpi .director-kpi-icon{
+    width:46px!important;
+    height:46px!important;
+    border-radius:0!important;
+    background:transparent!important;
+    color:#58aaff!important;
+  }
+  .director-mobile-kpi.risk .director-kpi-icon{
+    background:transparent!important;
+    color:#ff6d67!important;
+  }
+  .director-mobile-kpi.forecast .director-kpi-icon{
+    background:transparent!important;
+    color:#65c7ff!important;
+  }
+  .director-mobile-kpi .director-kpi-icon svg{
+    width:40px!important;
+    height:40px!important;
+    stroke-width:1.9!important;
+  }
+
+  .director-pipeline-stage--clone{
+    grid-template-columns:1fr!important;
+    grid-template-rows:auto auto auto!important;
+    justify-items:center!important;
+  }
+  .director-pipeline-stage--clone .stage-icon{
+    display:none!important;
+  }
+  .director-pipeline-stage--clone .stage-dot{
+    grid-row:1!important;
+    display:block!important;
+    width:24px!important;
+    height:24px!important;
+    margin-top:3px!important;
+    border-radius:50%!important;
+    background:var(--pipe)!important;
+    box-shadow:0 0 10px color-mix(in srgb,var(--pipe) 42%,transparent)!important;
+  }
+  .director-pipeline-stage--clone strong{
+    grid-row:2!important;
+    margin:2px 0 0!important;
+  }
+  .director-pipeline-stage--clone small{
+    grid-row:3!important;
+  }
+}
