@@ -102,3 +102,16 @@ Documentación consultada: [recuperación](https://supabase.com/docs/reference/j
 - La puntuación representa potencial comercial calculado con señales disponibles; no es un porcentaje de avance del estado. El estado y la oportunidad vinculada son la fuente de verdad para saber si ya fue convertido.
 
 <!-- redeploy: 2026-09-19 after Vercel Pro upgrade -->
+
+
+## Canonical operating environment
+
+As of 2026-09-24, **production is the single canonical user-facing Xicronix Commercial Intelligence application**.
+
+- Canonical app: https://xicronix-commercial-intelligence.vercel.app/
+- The historical `dev` branch must not be treated as a second CRM for the user.
+- DEV database assets may remain temporarily as research/data-pipeline infrastructure until their useful datasets are consolidated or archived.
+- User-facing UX and operational CRM improvements are implemented on `main` with reversible commits and Vercel verification.
+- Do not direct the user to the legacy DEV login for ordinary testing or validation.
+- Do not copy test CRM records from DEV into production unless explicitly classified as real operational records.
+- Before deleting DEV data, verify that institutional master data, enrichment queues, model snapshots, and research evidence have a canonical destination or an approved archive.
