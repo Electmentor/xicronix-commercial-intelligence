@@ -189,14 +189,32 @@ function renderWorkspaceControls(){
  const identity=$('userIdentity');if(identity){const userLabel=profile?.full_name||session?.user?.email||'Usuario';identity.title=userLabel;identity.setAttribute('aria-label','Usuario: '+userLabel);}
  $('appView').dataset.workspace=admin?ADMIN:SELLER;
  const labels=admin
-  ?{dashboard:'Dashboard Ejecutivo',now:'Ahora',radar:'Radar Comercial',leads:'Gestión Comercial',meetings:'Agenda',mail:'Correo Zoho',institutions:'Instituciones',contacts:'Contactos',documents:'Documentos',catalog_products:'Catálogo',cost_profiles:'Costos',expenses:'Gastos',goals:'Metas',users:'Usuarios'}
-  :{dashboard:'Mi Dashboard',now:'Ahora',leads:'Mis casos',tasks:'Mis tareas',meetings:'Mi agenda',mail:'Correo Zoho',opportunities:'Mis oportunidades',documents:'Mis documentos',contacts:'Mis contactos'};
- const primaryKeys=admin?['dashboard','now','radar','leads','meetings','mail']:['dashboard','now','leads','tasks','meetings','mail'];
- const supportKeys=admin?['institutions','contacts','documents','catalog_products','cost_profiles','expenses','goals','users']:['opportunities','documents','contacts'];
- const navButton=(key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen ejecutivo')+'</button>';
- const primary=primaryKeys.filter(accessible);
- const support=supportKeys.filter(accessible);
- $('navigation').innerHTML=primary.map((key,index)=>navButton(key,index)).join('')+(support.length?'<p class="nav-section-label">'+(admin?'DATOS Y ADMINISTRACIÓN':'APOYO COMERCIAL')+'</p>'+support.map((key,index)=>navButton(key,primary.length+index)).join(''):'');
+  ?{dashboard:'Dashboard de Dirección',now:'Prioridades',radar:'Radar Comercial',leads:'Gestión Comercial',meetings:'Agenda del equipo',mail:'Correo Zoho',users:'Equipo comercial',goals:'Metas',opportunities:'Oportunidades',institutions:'Instituciones',contacts:'Contactos',documents:'Documentos',catalog_products:'Catálogo',cost_profiles:'Costos',expenses:'Gastos'}
+  :{dashboard:'Mi Dashboard',now:'Ahora',leads:'Mis casos',tasks:'Mis tareas',meetings:'Mi agenda',mail:'Correo Zoho',opportunities:'Mis oportunidades',contacts:'Mis contactos',documents:'Mis documentos',catalog_products:'Catálogo'};
+ const navButton=(key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen')+'</button>';
+ const navSection=(title,keys,start)=>{const visible=keys.filter(accessible);return visible.length?'<p class="nav-section-label">'+title+'</p>'+visible.map((key,index)=>navButton(key,start+index)).join(''):'';};
+ if(admin){
+  const command=['dashboard','now'];
+  const operation=['radar','leads','meetings','mail'];
+  const control=['users','goals','opportunities'];
+  const support=['institutions','contacts','documents','catalog_products','cost_profiles','expenses'];
+  const commandVisible=command.filter(accessible);
+  let offset=0;
+  let html=navSection('CENTRO DE DIRECCIÓN',command,offset);offset+=commandVisible.length;
+  html+=navSection('OPERACIÓN COMERCIAL',operation,offset);offset+=operation.filter(accessible).length;
+  html+=navSection('CONTROL Y EQUIPO',control,offset);offset+=control.filter(accessible).length;
+  html+=navSection('DATOS Y SOPORTE',support,offset);
+  $('navigation').innerHTML=html;
+ }else{
+  const day=['dashboard','now'];
+  const portfolio=['leads','tasks','meetings','mail','opportunities'];
+  const support=['contacts','documents','catalog_products'];
+  let offset=0;
+  let html=navSection('MI JORNADA',day,offset);offset+=day.filter(accessible).length;
+  html+=navSection('MI CARTERA',portfolio,offset);offset+=portfolio.filter(accessible).length;
+  html+=navSection('APOYO COMERCIAL',support,offset);
+  $('navigation').innerHTML=html;
+ }
 }
 function renderWorkspaceEntry(){
  const gate=$('workspaceEntry');
