@@ -127,6 +127,58 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  kpi('Cartera abierta',incomplete?'—':compactMoney(m.pipeline),m.openCount+' oportunidades · proyección mes '+compactMoney(m.forecast),'pipeline')+
  kpi('Cartera en riesgo',incomplete?'—':compactMoney(m.riskValue),m.overdue.length+' seguimientos atrasados · '+m.overdueTasks+' tareas vencidas','risk','risk');
  const decisions=incomplete?'<p class="ceo-empty">No se generan recomendaciones con módulos incompletos.</p>':m.decisions.length?m.decisions.map((item,index)=>'<article class="ceo-decision '+item.tone+'"><div class="ceo-decision-top"><span>0'+(index+1)+' / '+item.title+'</span><strong>'+compactMoney(item.exposure)+'</strong></div><h3 title="'+esc(item.detail)+'">'+esc(item.detail)+'</h3><p>'+esc(item.reason)+'</p><button data-edit="'+esc(item.id)+'" data-table="'+item.table+'">'+item.action+' <span aria-hidden="true">↗</span></button></article>').join(''):'<div class="ceo-empty"><strong>Sin alertas según las reglas actuales.</strong><span> Revisa la cartera o registra nuevas oportunidades.</span><button data-page="leads">Ver prospectos</button></div>';
+ const openOpportunityLeadIds=new Set(openOpportunities.map(row=>row.lead_id).filter(Boolean));
+ const pipelineLeadCount=(data.leads||[]).filter(row=>!openOpportunityLeadIds.has(row.id)&&['NEW','RESEARCHING','CONTACT_PENDING'].includes(row.status)).length;
+ const pipelineContactedCount=(data.leads||[]).filter(row=>!openOpportunityLeadIds.has(row.id)&&['CONTACTED','QUALIFIED'].includes(row.status)).length;
+ const pipelineDiagnosisCount=openOpportunities.filter(row=>['DETECTED','CONTACT_PENDING','CONTACTED','QUALIFIED','OPPORTUNITY'].includes(row.stage)).length;
+ const pipelineProposalCount=openOpportunities.filter(row=>row.stage==='PROPOSAL').length;
+ const pipelineNegotiationCount=openOpportunities.filter(row=>row.stage==='NEGOTIATION').length;
+ const pipelineWonCount=(data.opportunities||[]).filter(row=>row.stage==='WON'&&inPeriod(row,{...m.period,end:businessDay(now)})).length;
+ const mobilePipeline=[
+  ['Lead',pipelineLeadCount,'#2f7de1'],
+  ['Contactado',pipelineContactedCount,'#5aa7ec'],
+  ['Diagnóstico',pipelineDiagnosisCount,'#8b6fd6'],
+  ['Propuesta',pipelineProposalCount,'#f3b33d'],
+  ['Negociación',pipelineNegotiationCount,'#ed7d31'],
+  ['Ganado',pipelineWonCount,'#36a77a']
+ ];
+ const strategicOpportunities=openOpportunities.slice().sort((a,b)=>amount(b)-amount(a)).slice(0,4);
+ const executiveTasks=(data.tasks||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status));
+ const upcoming=[
+  ...(data.meetings||[]).filter(row=>row.start_at&&Date.parse(row.start_at)>=now.getTime()).map(row=>({date:row.start_at,type:'Reunión',title:row.title||'Reunión comercial',page:'meetings'})),
+  ...executiveTasks.filter(row=>row.due_at&&Date.parse(row.due_at)>=now.getTime()).map(row=>({date:row.due_at,type:'Tarea',title:row.title||'Tarea comercial',page:'tasks'})),
+  ...openOpportunities.filter(row=>row.expected_close_date&&Date.parse(row.expected_close_date)>=now.getTime()).map(row=>({date:row.expected_close_date,type:'Cierre esperado',title:row.name||'Oportunidad',page:'opportunities'}))
+ ].sort((a,b)=>Date.parse(a.date)-Date.parse(b.date)).slice(0,6);
+ const teamCards=incomplete?'<div class="director-empty">Equipo pendiente de cargar.</div>':m.team.length?m.team.slice(0,6).map(row=>{
+  const attention=row.riskCount||row.overdueTasks;
+  return '<button class="director-team-card '+(attention?'needs-attention':'')+'" data-ceo-seller="'+esc(row.user.id)+'">'+
+   '<div class="director-team-head"><span class="director-avatar">'+esc((row.user.full_name||'?').trim().charAt(0).toUpperCase())+'</span><span><strong>'+esc(row.user.full_name)+'</strong><small>'+(attention?'Requiere seguimiento':'Operación estable')+'</small></span></div>'+
+   '<div class="director-team-metrics"><span><b>'+row.openCount+'</b><small>casos</small></span><span><b>'+row.overdueTasks+'</b><small>vencidas</small></span><span><b>'+row.riskCount+'</b><small>riesgo</small></span><span><b>'+(row.attainment===null?'—':Math.round(row.attainment)+'%')+'</b><small>meta</small></span></div>'+
+   '<div class="director-team-value"><small>Cartera</small><strong>'+compactMoney(row.openValue)+'</strong></div>'+
+  '</button>';
+ }).join(''):'<div class="director-empty">Aún no hay ejecutivos comerciales vinculados.</div>';
+ const exceptionCards=incomplete?'<div class="director-empty">Actualiza los datos antes de interpretar excepciones.</div>':m.decisions.length?m.decisions.map((item,index)=>
+  '<article class="director-exception '+item.tone+'"><div><span class="director-exception-index">'+String(index+1).padStart(2,'0')+'</span><span class="director-exception-label">'+esc(item.title)+'</span><strong>'+compactMoney(item.exposure)+'</strong></div><h3>'+esc(item.detail)+'</h3><p>'+esc(item.reason)+'</p><button data-edit="'+esc(item.id)+'" data-table="'+item.table+'">'+esc(item.action)+' →</button></article>'
+ ).join(''):'<div class="director-empty">No hay excepciones críticas según las reglas actuales.</div>';
+ const strategicCards=strategicOpportunities.length?strategicOpportunities.map((row,index)=>{
+  const owner=(data.users||[]).find(user=>user.id===assignedUserId(row));
+  const next=row.next_action_date?new Date(row.next_action_date).toLocaleDateString('es-PE',{day:'2-digit',month:'short'}):'Sin fecha';
+  return '<button class="director-opportunity" data-edit="'+esc(row.id)+'" data-table="opportunities"><span class="director-opportunity-rank">0'+(index+1)+'</span><span><strong>'+esc(row.name||'Oportunidad')+'</strong><small>'+esc(owner?.full_name||'Sin responsable')+' · '+esc(row.stage||'Sin etapa')+'</small></span><span><b>'+compactMoney(amount(row))+'</b><small>Próxima: '+esc(next)+'</small></span></button>';
+ }).join(''):'<div class="director-empty">No hay oportunidades abiertas registradas.</div>';
+ const upcomingRows=upcoming.length?upcoming.map(item=>'<button class="director-upcoming-row" data-page="'+item.page+'"><span>'+new Date(item.date).toLocaleDateString('es-PE',{day:'2-digit',month:'short'})+'</span><span><small>'+esc(item.type)+'</small><strong>'+esc(item.title)+'</strong></span><span>→</span></button>').join(''):'<div class="director-empty">No hay hitos próximos registrados.</div>';
+ const directorPipeline=mobilePipeline.map(([label,count,color])=>'<div class="director-pipeline-stage" style="--pipe:'+color+'"><span></span><strong>'+count+'</strong><small>'+label+'</small></div>').join('');
+ const mobileClone='<section class="director-mobile-dashboard" aria-label="Dashboard de dirección móvil">'+
+  '<header class="director-mobile-head"><div><small>DIRECCIÓN</small><h2>Hola, Toshi</h2><p>'+esc(headline)+'</p></div><button data-page="now">Ahora →</button></header>'+
+  '<section class="director-mobile-kpis">'+
+   '<article><small>Ventas mes</small><strong>'+compactMoney(m.revenue)+'</strong><span>'+progress+'</span></article>'+
+   '<article><small>Pipeline</small><strong>'+compactMoney(m.pipeline)+'</strong><span>'+m.openCount+' oportunidades</span></article>'+
+   '<article class="'+(m.atRisk.length?'risk':'')+'"><small>En riesgo</small><strong>'+m.atRisk.length+'</strong><span>'+compactMoney(m.riskValue)+'</span></article>'+
+   '<article><small>Forecast</small><strong>'+compactMoney(m.forecast)+'</strong><span>mes actual</span></article>'+
+  '</section>'+
+  '<section class="director-mobile-section"><header><h3>Pipeline</h3><small>Estado actual</small></header><div class="director-mobile-pipeline">'+directorPipeline+'</div></section>'+
+  '<section class="director-mobile-section"><header><h3>Requiere mi atención</h3><button data-page="now">Ver todo →</button></header><div class="director-mobile-exceptions">'+(m.decisions.slice(0,3).map(item=>'<button data-edit="'+esc(item.id)+'" data-table="'+item.table+'"><span class="dot '+item.tone+'"></span><span><strong>'+esc(item.title)+'</strong><small>'+esc(item.detail)+'</small></span><span>→</span></button>').join('')||'<div class="director-empty">Sin excepciones críticas.</div>')+'</div></section>'+
+  '<section class="director-mobile-section"><header><h3>Equipo comercial</h3><button data-page="users">Ver equipo →</button></header><div class="director-mobile-team">'+(m.team.slice(0,4).map(row=>'<button data-ceo-seller="'+esc(row.user.id)+'"><span>'+esc((row.user.full_name||'?').charAt(0).toUpperCase())+'</span><span><strong>'+esc(row.user.full_name)+'</strong><small>'+row.openCount+' casos · '+row.overdueTasks+' vencidas</small></span><b>'+(row.attainment===null?'—':Math.round(row.attainment)+'%')+'</b></button>').join('')||'<div class="director-empty">Sin equipo registrado.</div>')+'</div></section>'+
+ '</section>';
  const maxStage=Math.max(1,...m.stages.map(row=>row.value));
  const pipeline=m.stages.map((row,index)=>'<div class="ceo-stage"><span>'+row.label+'</span><b>'+row.count+'</b><strong>'+compactMoney(row.value)+'</strong><div><i style="width:'+row.value/maxStage*100+'%;--stage-color:'+['#4b8cff','#62b3e4','#a790ed','#efad55','#40bda0'][index]+'"></i></div></div>').join('');
  return '<div class="ceo-dashboard director-dashboard">'+mobileClone+
