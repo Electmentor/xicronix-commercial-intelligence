@@ -23,14 +23,14 @@ function startLarsonScanner(){
   const center=phase<.5?phase*2*(leds.length-1):(2-phase*2)*(leds.length-1);
   leds.forEach((led,index)=>{
    const d=Math.abs(index-center);
-   const strength=Math.max(0,1-d/10.5);
-   const hot=Math.pow(strength,1.72);
-   const r=Math.round(24+(255-24)*hot);
-   const g=Math.round(0+18*hot);
-   const b=Math.round(4+20*hot);
+   const strength=Math.max(0,1-d/14.5);
+   const hot=Math.pow(strength,1.35);
+   const r=Math.round(34+(255-34)*hot);
+   const g=Math.round(0+10*hot);
+   const b=Math.round(4+12*hot);
    led.style.setProperty('background',`rgb(${r},${g},${b})`,'important');
    led.style.setProperty('opacity',String(.28+.72*strength),'important');
-   led.style.setProperty('box-shadow',strength>.08?`0 0 ${2+8*strength}px rgba(255,0,24,${.18+.72*strength}),0 0 ${4+18*strength}px rgba(255,0,24,${.08+.38*strength})`:'none','important');
+   led.style.setProperty('box-shadow',strength>.03?`0 0 ${3+10*strength}px rgba(255,0,24,${.30+.70*strength}),0 0 ${7+22*strength}px rgba(255,0,24,${.18+.52*strength}),0 0 ${12+34*strength}px rgba(255,0,24,${.08+.28*strength})`:'none','important');
    const thickness=.10+2.25*Math.pow(strength,1.42);
    const widthScale=.70+.42*Math.pow(strength,1.18);
    led.style.setProperty('transform',`scaleY(${thickness}) scaleX(${widthScale})`,'important');
