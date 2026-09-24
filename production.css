@@ -2663,3 +2663,79 @@ html[data-theme="night"] body{
     height:44px!important;
   }
 }
+
+/* V2.41.03 · Futuristic startup scanner inspired by classic dashboard scanners */
+.app-splash{
+  overflow:hidden!important;
+  isolation:isolate;
+}
+.app-splash-wordmark,
+.app-splash-sub{
+  position:relative;
+  z-index:2;
+}
+.app-splash-wordmark{
+  text-shadow:
+    0 0 8px rgba(70,157,255,.26),
+    0 0 22px rgba(70,157,255,.18);
+  animation:xicronixWordmarkReveal 1.25s ease-out both;
+}
+.app-splash-sub{
+  animation:xicronixSubReveal 1.45s ease-out both;
+}
+.app-splash-scan{
+  position:absolute;
+  z-index:1;
+  left:50%;
+  top:50%;
+  width:min(78vw,420px);
+  height:8px;
+  transform:translate(-50%,-50%);
+  overflow:visible;
+  pointer-events:none;
+}
+.app-splash-scan::before{
+  content:"";
+  position:absolute;
+  inset:-28px -18px;
+  background:radial-gradient(ellipse at center,rgba(255,89,45,.18),transparent 68%);
+  filter:blur(8px);
+  opacity:.85;
+}
+.app-splash-scan i{
+  position:absolute;
+  top:0;
+  left:0;
+  width:26%;
+  height:4px;
+  border-radius:999px;
+  background:linear-gradient(90deg,transparent,#ff5b35 34%,#ff9a5a 62%,transparent);
+  box-shadow:
+    0 0 8px rgba(255,91,53,.95),
+    0 0 18px rgba(255,91,53,.75),
+    0 0 34px rgba(255,91,53,.46);
+  animation:xicronixScanner 1.35s cubic-bezier(.45,0,.25,1) both;
+}
+@keyframes xicronixScanner{
+  0%{transform:translateX(0);opacity:0}
+  8%{opacity:1}
+  48%{transform:translateX(285%)}
+  56%{transform:translateX(285%)}
+  96%{transform:translateX(0)}
+  100%{transform:translateX(0);opacity:.18}
+}
+@keyframes xicronixWordmarkReveal{
+  0%{opacity:.18;filter:brightness(.7)}
+  45%{opacity:.62;filter:brightness(1.15)}
+  100%{opacity:1;filter:brightness(1)}
+}
+@keyframes xicronixSubReveal{
+  0%,25%{opacity:0;letter-spacing:.3em}
+  100%{opacity:1;letter-spacing:.18em}
+}
+@media(prefers-reduced-motion:reduce){
+  .app-splash-wordmark,
+  .app-splash-sub,
+  .app-splash-scan i{animation:none!important}
+  .app-splash-scan{display:none!important}
+}
