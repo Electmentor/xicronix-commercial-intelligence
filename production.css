@@ -2983,3 +2983,16 @@ html[data-theme="night"] body{
 .app-splash-larson i{
   height:3.4px!important;
 }
+
+/* V2.41.12 · 40-segment tapered scanner */
+.app-splash-larson{
+  width:min(82vw,420px)!important;
+  height:14px!important;
+  grid-template-columns:repeat(40,1fr)!important;
+  gap:1.5px!important;
+}
+.app-splash-larson i{
+  height:3.6px!important;
+  min-width:0!important;
+  transform-origin:center center!important;
+}
