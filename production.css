@@ -2408,3 +2408,30 @@ html[data-theme="night"] body{
 .sidebar-data-mode button{min-height:38px!important;padding:8px 6px!important;border:1px solid var(--line)!important;border-radius:9px!important;background:transparent!important;color:var(--muted)!important;font-size:.6rem!important;font-weight:700!important}
 .sidebar-data-mode button.active{background:rgba(47,125,225,.14)!important;border-color:rgba(47,125,225,.55)!important;color:var(--text)!important}
 .sidebar-data-mode button#sidebarDemoBtn.active{background:rgba(244,123,32,.13)!important;border-color:rgba(244,123,32,.55)!important}
+
+/* V2.40.89 · Role-specific menu hierarchy */
+#navigation .nav-section-label{
+  margin:16px 12px 6px!important;
+  padding-top:8px;
+  border-top:1px solid color-mix(in srgb,var(--line) 75%,transparent);
+  font-size:.5rem!important;
+  font-weight:800!important;
+  letter-spacing:.14em!important;
+  color:var(--muted)!important;
+}
+#navigation .nav-section-label:first-child{
+  margin-top:4px!important;
+  padding-top:0;
+  border-top:0;
+}
+#navigation button{
+  min-height:40px;
+}
+#navigation button.active{
+  font-weight:750;
+}
+@media(max-width:700px){
+  #navigation .nav-section-label{
+    margin:14px 10px 5px!important;
+  }
+}
