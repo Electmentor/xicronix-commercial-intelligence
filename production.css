@@ -2996,3 +2996,21 @@ html[data-theme="night"] body{
   min-width:0!important;
   transform-origin:center center!important;
 }
+
+/* V2.41.13 · 60-segment high-intensity Larson scanner */
+.app-splash-larson{
+  width:min(82vw,420px)!important;
+  height:14px!important;
+  grid-template-columns:repeat(60,1fr)!important;
+  gap:1px!important;
+}
+.app-splash-larson i{
+  height:3.6px!important;
+  min-width:0!important;
+  transform-origin:center center!important;
+}
+.app-splash-larson::before{
+  background:radial-gradient(ellipse at center,rgba(255,0,24,.24),transparent 72%)!important;
+  filter:blur(10px)!important;
+  opacity:1!important;
+}
