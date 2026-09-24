@@ -104,3 +104,27 @@ html[data-theme="night"] .ci-prospect-row em{background:#173552;color:#a8d0ff}
 }
 html[data-theme="night"] .ci-brand-lockup strong,html[data-theme="night"] .ci-greeting h2,html[data-theme="night"] .ci-section-title h3,html[data-theme="night"] .ci-decision-panel h3{color:#dcecff}
 html[data-theme="night"] .ci-decision-panel,html[data-theme="night"] .ci-decision{background:var(--surface)}
+
+
+/* V2.41.3 · First-iteration mobile header only */
+@media(max-width:700px){
+ .app[data-page="dashboard"] .now-dashboard,
+ .app[data-page="dashboard"] .ci-pipeline-panel,
+ .app[data-page="dashboard"] .ci-mobile-prospects,
+ .app[data-page="dashboard"] .ci-mobile-alerts,
+ .app[data-page="dashboard"] .ci-below-fold,
+ .app[data-page="dashboard"] .ci-benefits{display:none!important}
+ .app[data-page="dashboard"] .ci-dashboard{display:grid!important;gap:14px!important}
+ .app[data-page="dashboard"] .ci-mobile-intro{display:grid!important;gap:16px!important;padding:10px 2px 0!important}
+ .app[data-page="dashboard"] .ci-brand-lockup{display:block!important}
+ .app[data-page="dashboard"] .ci-brand-lockup strong{font-size:1.35rem!important;line-height:1!important}
+ .app[data-page="dashboard"] .ci-brand-lockup small{font-size:.56rem!important;letter-spacing:.14em!important;margin-top:5px!important}
+ .app[data-page="dashboard"] .ci-greeting h2{font-size:1.62rem!important;line-height:1.08!important}
+ .app[data-page="dashboard"] .ci-greeting p{font-size:.9rem!important;margin-top:6px!important}
+ .app[data-page="dashboard"] .ci-kpis{display:grid!important;grid-template-columns:1fr 1fr!important;overflow:visible!important;gap:10px!important;padding:0!important;margin:0!important}
+ .app[data-page="dashboard"] .ci-kpi{min-width:0!important;padding:13px!important;display:block!important;border-radius:15px!important}
+ .app[data-page="dashboard"] .ci-kpi-icon{width:30px!important;height:30px!important;margin-bottom:9px!important}
+ .app[data-page="dashboard"] .ci-kpi small{font-size:.67rem!important}
+ .app[data-page="dashboard"] .ci-kpi strong{font-size:1.45rem!important;margin:4px 0!important}
+ .app[data-page="dashboard"] .ci-kpi em{font-size:.58rem!important;line-height:1.3!important}
+}
