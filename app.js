@@ -1217,8 +1217,144 @@ function renderPotentialProspects(){
  $('recordList').innerHTML=cards;
  document.querySelectorAll('[data-prospect-bucket]').forEach(button=>button.addEventListener('click',()=>{prospectDashboardFilter='';$('filter').value=button.dataset.prospectBucket||'';pageIndex=0;renderPotentialProspects();}));
 }
+
+function opportunityOwnerName(row){
+ return (data.users||[]).find(user=>user.id===row.owner_user_id)?.full_name||'Sin responsable';
+}
+function opportunityInstitutionName(row){
+ return (data.institutions||[]).find(item=>item.id===row.institution_id)?.name||'Institución sin vincular';
+}
+function opportunityEconomics(row){
+ const value=Number(row.value)||0;
+ const probability=Math.max(0,Math.min(100,Number(row.probability)||0));
+ const cost=row.estimated_cost===null||row.estimated_cost===undefined||row.estimated_cost===''?null:Number(row.estimated_cost);
+ const margin=Number.isFinite(cost)?value-cost:null;
+ const marginPct=margin===null||value<=0?null:margin/value*100;
+ return {value,probability,weighted:value*probability/100,margin,marginPct};
+}
+function opportunityRisk(row){
+ if(['WON','LOST'].includes(row.stage))return {risk:false,reasons:[]};
+ const now=Date.now(),reasons=[];
+ if(row.next_action_date&&Date.parse(row.next_action_date)<now)reasons.push('seguimiento vencido');
+ if(row.expected_close_date){
+  const close=new Date(row.expected_close_date+'T23:59:59');
+  if(Number.isFinite(close.getTime())&&close.getTime()<now)reasons.push('cierre vencido');
+ }
+ const economics=opportunityEconomics(row);
+ if(economics.marginPct!==null&&economics.marginPct<15)reasons.push('margen bajo');
+ if(!row.owner_user_id)reasons.push('sin responsable');
+ if(!row.next_action)reasons.push('sin próxima acción');
+ return {risk:reasons.length>0,reasons};
+}
+function opportunityStageGroup(stage){
+ if(['DETECTED','CONTACT_PENDING'].includes(stage))return 'LEAD';
+ if(stage==='CONTACTED')return 'CONTACTED';
+ if(['QUALIFIED','OPPORTUNITY'].includes(stage))return 'DIAGNOSIS';
+ if(stage==='PROPOSAL')return 'PROPOSAL';
+ if(stage==='NEGOTIATION')return 'NEGOTIATION';
+ if(stage==='WON')return 'WON';
+ if(stage==='LOST')return 'LOST';
+ return 'LEAD';
+}
+function renderOpportunityBoard(){
+ $('sellerSummary').hidden=true;
+ $('importBtn').hidden=!writableFor('opportunities');
+ $('importHelp').hidden=!writableFor('opportunities');
+
+ const rows=filtered();
+ const allFiltered=filterRecords(
+  filterExecutiveRows(scopedRows('opportunities'),'opportunities',executiveFilter,executiveOwner),
+  $('search').value,
+  modules.opportunities.filter,
+  $('filter').value,
+  row=>[relatedName(row),opportunityOwnerName(row),row.next_action].filter(Boolean).join(' ')
+ );
+ const open=allFiltered.filter(row=>!['WON','LOST'].includes(row.stage));
+ const economics=open.map(row=>({row,...opportunityEconomics(row),risk:opportunityRisk(row)}));
+ const pipeline=economics.reduce((sum,row)=>sum+row.value,0);
+ const forecast=economics.reduce((sum,row)=>sum+row.weighted,0);
+ const knownMargins=economics.filter(row=>row.margin!==null);
+ const margin=knownMargins.reduce((sum,row)=>sum+row.margin,0);
+ const risky=economics.filter(row=>row.risk.risk);
+ const riskValue=risky.reduce((sum,row)=>sum+row.value,0);
+
+ $('recordCount').innerHTML=
+  '<section class="opp-command">'+
+   '<header><div><p class="eyebrow">DIRECCIÓN / OPORTUNIDADES</p><h2>Dinero, probabilidad y riesgo en una sola vista</h2><p>El tablero prioriza la cartera abierta. Ganadas y perdidas siguen disponibles mediante el filtro de etapa.</p></div><button type="button" class="primary" data-new-opportunity="1">+ Nueva oportunidad</button></header>'+
+   '<div class="opp-kpis">'+
+    '<button type="button" data-opp-filter="pipeline"><small>Pipeline abierto</small><strong>'+money(pipeline)+'</strong><span>'+open.length+' oportunidades</span></button>'+
+    '<button type="button" data-opp-filter="forecast"><small>Forecast ponderado</small><strong>'+money(forecast)+'</strong><span>valor × probabilidad</span></button>'+
+    '<button type="button" data-opp-filter="margin"><small>Margen potencial</small><strong>'+(knownMargins.length?money(margin):'—')+'</strong><span>'+(knownMargins.length+' con costo informado')+'</span></button>'+
+    '<button type="button" class="'+(risky.length?'risk':'')+'" data-opp-filter="risk"><small>En riesgo</small><strong>'+risky.length+'</strong><span>'+money(riskValue)+'</span></button>'+
+   '</div>'+
+  '</section>';
+
+ $('exportBtn').disabled=!!failures.opportunities||!rows.length;
+ $('pageNumber').textContent='';
+ $('previous').disabled=true;$('next').disabled=true;
+
+ if(failures.opportunities){
+  $('recordList').innerHTML='<div class="panel empty">No pudimos cargar las oportunidades. Pulsa Actualizar.</div>';
+  return;
+ }
+
+ const stages=[
+  ['LEAD','Lead','#2f7de1'],
+  ['CONTACTED','Contactado','#5aa7ec'],
+  ['DIAGNOSIS','Diagnóstico','#8b6fd6'],
+  ['PROPOSAL','Propuesta','#f3b33d'],
+  ['NEGOTIATION','Negociación','#ed7d31'],
+  ['WON','Ganado','#36a77a']
+ ];
+ const lost=rows.filter(row=>row.stage==='LOST');
+ const boardRows=$('filter').value==='LOST'?lost:rows.filter(row=>row.stage!=='LOST');
+
+ const columns=stages.map(([key,label,color])=>{
+  const stageRows=boardRows.filter(row=>opportunityStageGroup(row.stage)===key)
+    .sort((a,b)=>{
+      const ar=opportunityRisk(a).risk?1:0,br=opportunityRisk(b).risk?1:0;
+      return br-ar||(Number(b.value)||0)-(Number(a.value)||0);
+    });
+  const total=stageRows.reduce((sum,row)=>sum+(Number(row.value)||0),0);
+  const cards=stageRows.length?stageRows.map(row=>{
+    const e=opportunityEconomics(row),risk=opportunityRisk(row);
+    const close=row.expected_close_date?new Date(row.expected_close_date+'T12:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'short'}):'Sin fecha';
+    const marginLabel=e.marginPct===null?'Margen —':('Margen '+e.marginPct.toFixed(0)+'%');
+    return '<article class="opp-card '+(risk.risk?'is-risk':'')+'">'+
+      '<header><div><small>'+esc(opportunityInstitutionName(row))+'</small><h3>'+esc(row.name||'Oportunidad')+'</h3></div>'+(risk.risk?'<span class="opp-risk-badge">RIESGO</span>':'')+'</header>'+
+      '<div class="opp-card-value"><strong>'+money(e.value)+'</strong><span>'+e.probability+'% prob. · '+money(e.weighted)+' ponderado</span></div>'+
+      '<div class="opp-card-metrics"><span><small>'+marginLabel+'</small><b>'+(e.margin===null?'Costo pendiente':money(e.margin))+'</b></span><span><small>Cierre</small><b>'+esc(close)+'</b></span></div>'+
+      '<div class="opp-card-owner"><span>'+esc(opportunityOwnerName(row))+'</span></div>'+
+      '<p class="opp-card-next"><small>Siguiente acción</small><strong>'+esc(row.next_action||'Definir próxima acción')+'</strong></p>'+
+      (risk.risk?'<p class="opp-card-risk-reasons">'+esc(risk.reasons.join(' · '))+'</p>':'')+
+      '<footer><button type="button" data-edit="'+row.id+'" data-table="opportunities">Abrir</button></footer>'+
+    '</article>';
+  }).join(''):'<div class="opp-column-empty">Sin oportunidades</div>';
+  return '<section class="opp-column" style="--opp-stage:'+color+'">'+
+    '<header><div><i></i><strong>'+label+'</strong></div><span>'+stageRows.length+'</span></header>'+
+    '<div class="opp-column-total">'+money(total)+'</div>'+
+    '<div class="opp-column-cards">'+cards+'</div>'+
+  '</section>';
+ }).join('');
+
+ const lostSection=$('filter').value==='LOST'
+  ?'<section class="opp-lost-list"><h3>Oportunidades perdidas</h3>'+lost.map(row=>'<button data-edit="'+row.id+'" data-table="opportunities"><span>'+esc(row.name||'Oportunidad')+'</span><b>'+money(row.value)+'</b></button>').join('')+'</section>'
+  :'';
+
+ $('recordList').innerHTML='<section class="opp-board">'+columns+'</section>'+lostSection;
+ const add=document.querySelector('[data-new-opportunity]');if(add)add.onclick=()=>openEditor('opportunities');
+ document.querySelectorAll('[data-opp-filter]').forEach(button=>button.onclick=()=>{
+  const type=button.dataset.oppFilter;
+  if(type==='risk'){executiveFilter='risk';$('filter').value='';}
+  else if(type==='pipeline'){executiveFilter='pipeline';$('filter').value='';}
+  else {executiveFilter='';$('filter').value='';}
+  renderOpportunityBoard();
+ });
+}
+
 function renderRecords(){
  if(page==='prospects'){renderPotentialProspects();return;}
+ if(page==='opportunities'){renderOpportunityBoard();return;}
  if(page==='now'){renderNow();return;}
  if(page==='radar'){renderRadarRecords();return;}
  if(page==='mail'){renderMailRecords();return;}
