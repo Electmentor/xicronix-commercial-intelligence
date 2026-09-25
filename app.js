@@ -11,7 +11,7 @@ import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260923-v2.40.47'
 
 const $ = id => document.getElementById(id);
 const SPLASH_STARTED_AT=performance.now();
-const SPLASH_MIN_MS=3000;
+const SPLASH_MIN_MS=450;
 function startLarsonScanner(){
  const scanner=document.querySelector('.app-splash-larson');
  const leds=scanner?[...scanner.querySelectorAll('i')]:[];
@@ -109,15 +109,15 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-24-v2.41.16';
-const CRM_VERSION_LABEL='v2.41.16';
+const CRM_RELEASE='2026-09-25-v2.42.0';
+const CRM_VERSION_LABEL='v2.42.0';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
 let entryRoute=readEntryRoute();
 const emptyData=()=>Object.fromEntries([...Object.keys(modules),'scores','document_versions'].map(k=>[k,[]]));
 const writable=()=>profile && ['ADMIN','MANAGER','SALES'].includes(profile.role);
-let workspace=SELLER, workspaceIdentity=null, workspaceEntryChosen=false, loading=false;
+let workspace=SELLER, workspaceIdentity=null, workspaceEntryChosen=true, loading=false;
 let dataSource='live', sourceIdentity=null, demoData=null, demoSeller=DEMO_SELLERS[0].id, demoSaved=true, executiveFilter='', executiveOwner='', sellerQuickFilter='', prospectDashboardFilter='';
 let noticeTimer=null;
 let analyticsPeriod='year';
@@ -244,14 +244,14 @@ function renderWorkspaceControls(){
   }
  }
  const labels=admin
-  ?{dashboard:'Dashboard de Dirección',now:'Prioridades',radar:'Radar Comercial',leads:'Gestión Comercial',meetings:'Agenda del equipo',mail:'Correo Zoho',users:'Equipo comercial',goals:'Metas',opportunities:'Oportunidades',institutions:'Instituciones',contacts:'Contactos',documents:'Documentos',catalog_products:'Catálogo',cost_profiles:'Costos',expenses:'Gastos'}
+  ?{dashboard:'Centro de mando',now:'Prioridades',radar:'Radar Comercial',leads:'Gestión Comercial',meetings:'Agenda del equipo',mail:'Correo Zoho',users:'Equipo comercial',goals:'Metas',opportunities:'Oportunidades',institutions:'Instituciones',contacts:'Contactos',documents:'Documentos',catalog_products:'Catálogo',cost_profiles:'Costos',expenses:'Gastos'}
   :{dashboard:'Mi Dashboard',now:'Ahora',leads:'Mis casos',tasks:'Mis tareas',meetings:'Mi agenda',mail:'Correo Zoho',opportunities:'Mis oportunidades',contacts:'Mis contactos',documents:'Mis documentos',catalog_products:'Catálogo'};
  const navButton=(key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen')+'</button>';
  const navSection=(title,keys,start)=>{const visible=keys.filter(accessible);return visible.length?'<p class="nav-section-label">'+title+'</p>'+visible.map((key,index)=>navButton(key,start+index)).join(''):'';};
  if(admin){
   const command=['dashboard','now'];
-  const operation=['radar','leads','meetings','mail'];
-  const control=['users','goals','opportunities'];
+  const operation=['leads','opportunities','meetings','radar','mail'];
+  const control=['goals','users'];
   const support=['institutions','contacts','documents','catalog_products','cost_profiles','expenses'];
   const commandVisible=command.filter(accessible);
   let offset=0;
@@ -528,7 +528,7 @@ function render(){
  const sellerCommercialView=!admin&&page==='leads';
  $('dashboard').hidden=page!=='dashboard'&&!sellerCommercialView;
  $('records').hidden=page==='dashboard'||sellerCommercialView;
- $('pageTitle').textContent=page==='dashboard'?(admin?'Dashboard Ejecutivo':'Mi Dashboard Comercial'):page==='now'?'Xicronix Ahora':!admin&&page==='prospects'?'Prospectos':!admin&&page==='leads'?'Gestión comercial':modules[page].label;
+ $('pageTitle').textContent=page==='dashboard'?(admin?'Dirección Comercial':'Mi Dashboard Comercial'):page==='now'?'Xicronix Ahora':!admin&&page==='prospects'?'Prospectos':!admin&&page==='leads'?'Gestión comercial':modules[page].label;
  const target=page==='dashboard'?(admin?'institutions':'leads'):page==='now'?'leads':page;
  $('newBtn').hidden=page==='dashboard'||page==='now'||(!admin&&page==='leads')||target==='users'||!writableFor(target);
  $('newBtn').textContent='+ Crear '+modules[target].singular;
