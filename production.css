@@ -3042,3 +3042,41 @@ html[data-theme="night"] body{
  .app .main{padding-bottom:calc(84px + env(safe-area-inset-bottom))!important}
  .director-mobile-bottom-nav{display:none!important}
 }
+
+/* V2.41.16 · Opportunities executive command board */
+.opp-command{margin:0 0 16px}
+.opp-command>header{display:flex;justify-content:space-between;gap:18px;align-items:flex-end;padding:20px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(135deg,color-mix(in srgb,var(--blue) 9%,var(--panel)),var(--panel))}
+.opp-command h2{margin:4px 0 6px;font-size:1.35rem}.opp-command p{margin:0;color:var(--muted);line-height:1.45}
+.opp-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:10px}
+.opp-kpis button{min-width:0;text-align:left;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--ink)}
+.opp-kpis small,.opp-kpis strong,.opp-kpis span{display:block}.opp-kpis small{font-size:.68rem;color:var(--muted);font-weight:800}.opp-kpis strong{margin:6px 0 4px;font-size:1.35rem}.opp-kpis span{font-size:.68rem;color:var(--muted)}
+.opp-kpis button.risk{border-color:color-mix(in srgb,#d75d5d 55%,var(--line));background:color-mix(in srgb,#d75d5d 7%,var(--panel))}
+.opp-board{display:grid;grid-template-columns:repeat(6,minmax(210px,1fr));gap:10px;align-items:start;overflow-x:auto;padding:2px 2px 14px;scroll-snap-type:x proximity}
+.opp-column{min-width:210px;border:1px solid var(--line);border-radius:15px;background:color-mix(in srgb,var(--opp-stage) 5%,var(--panel));overflow:hidden;scroll-snap-align:start}
+.opp-column>header{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:11px 12px 6px}.opp-column>header>div{display:flex;align-items:center;gap:7px}.opp-column>header i{width:9px;height:9px;border-radius:50%;background:var(--opp-stage);box-shadow:0 0 8px color-mix(in srgb,var(--opp-stage) 60%,transparent)}.opp-column>header strong{font-size:.78rem}.opp-column>header>span{font-size:.66rem;color:var(--muted)}
+.opp-column-total{padding:0 12px 10px;font-size:.66rem;color:var(--muted);font-weight:700}
+.opp-column-cards{display:grid;gap:8px;padding:0 8px 8px}
+.opp-card{padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:0 5px 14px rgba(10,35,61,.04)}
+.opp-card.is-risk{border-color:color-mix(in srgb,#d75d5d 55%,var(--line));box-shadow:inset 3px 0 #d75d5d}
+.opp-card>header{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.opp-card>header small{display:block;color:var(--muted);font-size:.56rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}.opp-card h3{margin:3px 0 0;font-size:.82rem;line-height:1.25}
+.opp-risk-badge{font-size:.48rem;font-weight:900;letter-spacing:.06em;padding:4px 5px;border-radius:6px;background:#fbe0e0;color:#a42626}
+.opp-card-value{margin:10px 0}.opp-card-value strong{display:block;font-size:1rem}.opp-card-value span{display:block;margin-top:2px;font-size:.57rem;color:var(--muted)}
+.opp-card-metrics{display:grid;grid-template-columns:1fr 1fr;gap:6px}.opp-card-metrics span{padding:7px;border-radius:8px;background:color-mix(in srgb,var(--panel) 90%,var(--blue) 10%)}.opp-card-metrics small,.opp-card-metrics b{display:block}.opp-card-metrics small{font-size:.5rem;color:var(--muted)}.opp-card-metrics b{margin-top:2px;font-size:.61rem}
+.opp-card-owner{margin-top:8px;font-size:.56rem;color:var(--muted)}
+.opp-card-next{margin:8px 0 0;padding-top:8px;border-top:1px solid var(--line)}.opp-card-next small,.opp-card-next strong{display:block}.opp-card-next small{font-size:.5rem;color:var(--muted)}.opp-card-next strong{margin-top:3px;font-size:.62rem;line-height:1.3}
+.opp-card-risk-reasons{margin:7px 0 0;color:#b33b3b;font-size:.54rem;line-height:1.35}
+.opp-card footer{margin-top:9px}.opp-card footer button{width:100%;min-height:34px;padding:6px 8px;font-size:.62rem;background:transparent}
+.opp-column-empty{padding:18px 8px;text-align:center;font-size:.62rem;color:var(--muted)}
+.opp-lost-list{margin-top:12px;padding:14px;border:1px solid var(--line);border-radius:14px}.opp-lost-list h3{margin:0 0 8px}.opp-lost-list button{display:flex;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent}
+html[data-theme="night"] .opp-card{background:#102136}
+@media(max-width:900px){.opp-kpis{grid-template-columns:1fr 1fr}.opp-command>header{align-items:flex-start;flex-direction:column}.opp-command>header button{width:100%}}
+@media(max-width:700px){
+ .app[data-page="opportunities"] .toolbar{grid-template-columns:1fr 1fr!important}
+ .app[data-page="opportunities"] .toolbar input{grid-column:1/-1!important}
+ .opp-command>header{padding:14px}.opp-command h2{font-size:1.05rem}.opp-command>header p{font-size:.72rem}
+ .opp-kpis{gap:7px}.opp-kpis button{padding:10px}.opp-kpis strong{font-size:1.02rem}.opp-kpis small,.opp-kpis span{font-size:.56rem}
+ .opp-board{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(82vw,82vw);gap:9px;margin-right:-16px;padding-right:16px}
+ .opp-column{min-width:0}.opp-card{padding:13px}.opp-card h3{font-size:.9rem}.opp-card>header small{font-size:.6rem;max-width:220px}
+ .opp-card-value strong{font-size:1.15rem}.opp-card-value span{font-size:.62rem}
+ .opp-card-metrics small{font-size:.54rem}.opp-card-metrics b{font-size:.68rem}.opp-card-owner{font-size:.6rem}.opp-card-next small{font-size:.54rem}.opp-card-next strong{font-size:.68rem}
+}
