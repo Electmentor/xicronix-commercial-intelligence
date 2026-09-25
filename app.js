@@ -2,8 +2,8 @@ import {escapeHTML as esc, filterRecords, money, metrics, priorities, taskUrgenc
 
 import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWriteModule, assignedUserId, scopeWorkspaceData} from './workspace.mjs';
 
-import {DEMO_VERSION, DEMO_SELLERS, createDemoData, upgradeDemoData, mutateDemo, realOnly, localDay} from './demo.mjs?v=20260924-v2.41.16';
-import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260924-v2.41.16';
+import {DEMO_VERSION, DEMO_SELLERS, createDemoData, upgradeDemoData, mutateDemo, realOnly, localDay} from './demo.mjs?v=20260924-v2.42.0-preview1';
+import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260924-v2.42.0-preview1';
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
@@ -109,15 +109,15 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-24-v2.41.16';
-const CRM_VERSION_LABEL='v2.41.16';
+const CRM_RELEASE='2026-09-25-v2.42.0-preview1';
+const CRM_VERSION_LABEL='v2.42.0-preview1';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
 let entryRoute=readEntryRoute();
 const emptyData=()=>Object.fromEntries([...Object.keys(modules),'scores','document_versions'].map(k=>[k,[]]));
 const writable=()=>profile && ['ADMIN','MANAGER','SALES'].includes(profile.role);
-let workspace=SELLER, workspaceIdentity=null, workspaceEntryChosen=false, loading=false;
+let workspace=SELLER, workspaceIdentity=null, workspaceEntryChosen=true, loading=false;
 let dataSource='live', sourceIdentity=null, demoData=null, demoSeller=DEMO_SELLERS[0].id, demoSaved=true, executiveFilter='', executiveOwner='', sellerQuickFilter='', prospectDashboardFilter='';
 let noticeTimer=null;
 let analyticsPeriod='year';
@@ -188,12 +188,16 @@ const databaseTable=table=>({prospects:'prospect_intelligence_snapshot',users:'p
 function restoreWorkspace(){
  const identity=workspaceKey(session.user.id,profile.organization_id);
  if(workspaceIdentity!==identity){
-  let saved=ADMIN;try{saved=localStorage.getItem(identity)||ADMIN;}catch(_error){}
-  workspace=effectiveWorkspace(profile,saved);workspaceIdentity=identity;
+  workspace=effectiveWorkspace(profile,profile?.role==='ADMIN'?ADMIN:SELLER);
+  workspaceIdentity=identity;
+  try{localStorage.setItem(identity,workspace);}catch(_error){}
  }else workspace=effectiveWorkspace(profile,workspace);
 }
 function renderWorkspaceControls(){
  const admin=canViewDashboard();
+ const labMode=new URLSearchParams(location.search).get('lab')==='1';
+ const sidebarDataMode=$('sidebarDataMode');if(sidebarDataMode)sidebarDataMode.hidden=!labMode;
+ const sidebarWorkspaceMode=$('sidebarWorkspaceMode');if(sidebarWorkspaceMode)sidebarWorkspaceMode.hidden=true;
  const sidebarLive=$('sidebarLiveBtn'),sidebarDemo=$('sidebarDemoBtn');
  if(sidebarLive&&sidebarDemo){
   sidebarLive.setAttribute('aria-pressed',String(dataSource==='live'));
@@ -223,7 +227,7 @@ function renderWorkspaceControls(){
  }
  $('adminModeBtn').disabled=$('sellerModeBtn').disabled=loading||busy;
  $('workspaceHint').textContent='';$('workspaceHint').hidden=true;
- $('workspaceLabel').textContent=admin?'DIRECCIÓN':'EJECUTIVO COMERCIAL';
+ $('workspaceLabel').textContent=admin?'CENTRO EJECUTIVO':'EJECUCIÓN COMERCIAL';
  const identity=$('userIdentity');if(identity){const userLabel=profile?.full_name||session?.user?.email||'Usuario';identity.title=userLabel;identity.setAttribute('aria-label','Usuario: '+userLabel);}
  $('appView').dataset.workspace=admin?ADMIN:SELLER;
  const mobileBottom=$('mobileAppBottomNav');
@@ -235,39 +239,34 @@ function renderWorkspaceControls(){
    const label=primary.querySelector('small');if(label)label.textContent=admin?'Oportunidades':'Mis casos';
   }
   if(reports){
-   reports.dataset.page=admin?'goals':'meetings';
-   const label=reports.querySelector('small');if(label)label.textContent=admin?'Reportes':'Mi agenda';
+   reports.dataset.page=admin?'radar':'meetings';
+   const label=reports.querySelector('small');if(label)label.textContent=admin?'Radar':'Mi agenda';
   }
   if(nowBtn){
    nowBtn.dataset.page='now';
-   const label=nowBtn.querySelector('small');if(label)label.textContent=admin?'Notificaciones':'Ahora';
+   const label=nowBtn.querySelector('small');if(label)label.textContent=admin?'Hoy':'Ahora';
   }
  }
  const labels=admin
-  ?{dashboard:'Dashboard de Dirección',now:'Prioridades',radar:'Radar Comercial',leads:'Gestión Comercial',meetings:'Agenda del equipo',mail:'Correo Zoho',users:'Equipo comercial',goals:'Metas',opportunities:'Oportunidades',institutions:'Instituciones',contacts:'Contactos',documents:'Documentos',catalog_products:'Catálogo',cost_profiles:'Costos',expenses:'Gastos'}
-  :{dashboard:'Mi Dashboard',now:'Ahora',leads:'Mis casos',tasks:'Mis tareas',meetings:'Mi agenda',mail:'Correo Zoho',opportunities:'Mis oportunidades',contacts:'Mis contactos',documents:'Mis documentos',catalog_products:'Catálogo'};
+  ?{dashboard:'Centro Ejecutivo',now:'Qué hacer hoy',radar:'Radar e Inteligencia',leads:'Prospectos',meetings:'Agenda',opportunities:'Oportunidades'}
+  :{dashboard:'Mi jornada',now:'Ahora',leads:'Mis prospectos',tasks:'Mis tareas',meetings:'Mi agenda',opportunities:'Mis oportunidades'};
  const navButton=(key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen')+'</button>';
  const navSection=(title,keys,start)=>{const visible=keys.filter(accessible);return visible.length?'<p class="nav-section-label">'+title+'</p>'+visible.map((key,index)=>navButton(key,start+index)).join(''):'';};
  if(admin){
   const command=['dashboard','now'];
-  const operation=['radar','leads','meetings','mail'];
-  const control=['users','goals','opportunities'];
-  const support=['institutions','contacts','documents','catalog_products','cost_profiles','expenses'];
-  const commandVisible=command.filter(accessible);
+  const execution=['leads','opportunities','meetings'];
+  const intelligence=['radar'];
   let offset=0;
-  let html=navSection('CENTRO DE DIRECCIÓN',command,offset);offset+=commandVisible.length;
-  html+=navSection('OPERACIÓN COMERCIAL',operation,offset);offset+=operation.filter(accessible).length;
-  html+=navSection('CONTROL Y EQUIPO',control,offset);offset+=control.filter(accessible).length;
-  html+=navSection('DATOS Y SOPORTE',support,offset);
+  let html=navSection('DECISIÓN',command,offset);offset+=command.filter(accessible).length;
+  html+=navSection('EJECUCIÓN COMERCIAL',execution,offset);offset+=execution.filter(accessible).length;
+  html+=navSection('INTELIGENCIA',intelligence,offset);
   $('navigation').innerHTML=html;
  }else{
   const day=['dashboard','now'];
-  const portfolio=['leads','tasks','meetings','mail','opportunities'];
-  const support=['contacts','documents','catalog_products'];
+  const portfolio=['leads','opportunities','tasks','meetings'];
   let offset=0;
   let html=navSection('MI JORNADA',day,offset);offset+=day.filter(accessible).length;
-  html+=navSection('MI CARTERA',portfolio,offset);offset+=portfolio.filter(accessible).length;
-  html+=navSection('APOYO COMERCIAL',support,offset);
+  html+=navSection('MI CARTERA',portfolio,offset);
   $('navigation').innerHTML=html;
  }
 }
