@@ -3080,3 +3080,21 @@ html[data-theme="night"] .opp-card{background:#102136}
  .opp-card-value strong{font-size:1.15rem}.opp-card-value span{font-size:.62rem}
  .opp-card-metrics small{font-size:.54rem}.opp-card-metrics b{font-size:.68rem}.opp-card-owner{font-size:.6rem}.opp-card-next small{font-size:.54rem}.opp-card-next strong{font-size:.68rem}
 }
+
+
+/* V2.42.1 · Daily commercial action command */
+.seller-command-summary{display:flex;gap:12px;align-items:flex-start;margin:0 0 12px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+.seller-command-summary span{font-size:.66rem;letter-spacing:.1em;font-weight:800;color:var(--muted);white-space:nowrap}
+.seller-command-summary strong{font-size:.84rem;line-height:1.4}
+.seller-today-command{margin:0 0 16px;padding:16px;border:1px solid color-mix(in srgb,var(--blue) 45%,var(--line));border-radius:18px;background:color-mix(in srgb,var(--panel) 94%,var(--blue) 6%)}
+.seller-today-command>header{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+.seller-today-command>header small{font-size:.66rem;letter-spacing:.1em;font-weight:800;color:var(--muted)}
+.seller-today-command h2{margin:4px 0 0;font-size:1.15rem}
+.seller-channel{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:6px 10px;border-radius:999px;background:var(--blue);color:#fff;font-size:.75rem;font-weight:800}
+.seller-today-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:9px;margin:14px 0}
+.seller-today-grid p{margin:0;padding:11px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.seller-today-grid small,.seller-today-grid strong{display:block}
+.seller-today-grid small{font-size:.62rem;letter-spacing:.08em;color:var(--muted);font-weight:800;margin-bottom:5px}
+.seller-today-grid strong{font-size:.8rem;line-height:1.4}
+.seller-today-command>.primary{min-height:42px}
+@media(max-width:760px){.seller-command-summary{flex-direction:column;gap:5px}.seller-today-grid{grid-template-columns:1fr}.seller-today-command>header{align-items:flex-start}.seller-today-command>.primary{width:100%}}
