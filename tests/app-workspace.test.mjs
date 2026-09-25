@@ -83,11 +83,14 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
 test('ADMIN starts in executive mode; data is loaded from existing profiles/goals tables',async()=>{
  const h=harness();await h.boot();
  assert.equal(h.run('workspace'),'admin');
- assert.equal(h.nodes.get('pageTitle').textContent,'Centro de decisiones');
+ assert.equal(h.nodes.get('pageTitle').textContent,'Centro Ejecutivo');
  assert.equal(h.nodes.get('adminModeBtn').hidden,false);
  assert.equal(h.nodes.get('adminModeBtn').getAttribute('aria-pressed'),'true');
+ assert.equal(h.nodes.get('sidebarDataMode').hidden,true);
+ assert.equal(h.nodes.get('sidebarWorkspaceMode').hidden,true);
  assert.match(h.nodes.get('dashboard').innerHTML,/LECTURA EJECUTIVA/);
- assert.match(h.nodes.get('navigation').innerHTML,/data-page="goals"/);
+ for(const route of ['dashboard','now','leads','opportunities','tasks','meetings','radar'])assert.match(h.nodes.get('navigation').innerHTML,new RegExp('data-page="'+route+'"'));
+ assert.doesNotMatch(h.nodes.get('navigation').innerHTML,/data-page="(?:mail|users|goals|institutions|contacts|documents|catalog_products|cost_profiles|expenses)"/);
  assert.ok(h.queries.some(q=>q.table==='profiles'));
  assert.ok(h.queries.some(q=>q.table==='commercial_goals'));
  assert.equal(h.queries.some(q=>q.table==='users'||q.table==='goals'),false);
@@ -192,12 +195,12 @@ test('goals save to commercial_goals and profile edits to profiles',async()=>{
  await h.run('saveRecord({preventDefault(){}})');
  assert.ok(h.queries.some(q=>q.operation==='update'&&q.table==='profiles'));
 });
-test('saved seller mode restores after reload and remains independent of night theme',async()=>{
+test('ADMIN always opens in executive mode while theme remains independent',async()=>{
  const h=harness('ADMIN','seller');await h.boot();
- assert.equal(h.run('workspace'),'seller');
+ assert.equal(h.run('workspace'),'admin');
  h.click('themeToggle');
  assert.equal(h.run('document.documentElement.dataset.theme'),'night');
- await h.click('adminModeBtn');
+ await h.click('sellerModeBtn');
  assert.equal(h.run('document.documentElement.dataset.theme'),'night');
 });
 test('logout invalidates in-flight data and clears both views and editors',async()=>{
