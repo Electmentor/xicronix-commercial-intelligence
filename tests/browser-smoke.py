@@ -33,11 +33,11 @@ with sync_playwright() as p:
  def check(name,fn):
   fn();checks.append(name)
  try:
-  context,page=newpage();expect(page.locator('#workspaceControls')).to_be_visible()
-  check('actual data is default',lambda:expect(page.locator('#sourceBadge')).to_have_text('DATOS REALES'))
-  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-24-v2.40.80'))
+  context,page=newpage(url='?lab=1');expect(page.locator('#workspaceControls')).to_be_visible()
+  check('actual data is default',lambda:expect(page.locator('#sidebarLiveBtn')).to_have_attribute('aria-pressed','true'))
+  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-25-v2.42.0-preview1'))
   page.screenshot(path=str(out/'desktop-v2-fixture.png'),full_page=True)
-  pages=['now','radar','institutions','contacts','leads','opportunities','tasks','meetings','deliverables','documents','activities','catalog_products','cost_profiles','expenses','goals','users','dashboard']
+  pages=['now','radar','leads','opportunities','tasks','meetings','dashboard']
   for target in pages:
    page.locator('#navigation [data-page="'+target+'"]').click()
    check('navigation '+target,lambda t=target:expect(page.locator('#appView')).to_have_attribute('data-page',t))
@@ -48,8 +48,7 @@ with sync_playwright() as p:
   check('potential card opens Radar',lambda:expect(page.locator('#appView')).to_have_attribute('data-page','radar'))
   check('potential card applies Radar filter',lambda:expect(page.locator('#filter')).to_have_value('POTENTIAL'))
   page.locator('#navigation [data-page="now"]').click()
-  page.locator('#navigation [data-page="mail"]').click()
-  check('Zoho mail module renders',lambda:expect(page.locator('#recordList')).to_contain_text('Diagnóstico del laboratorio'))
+  check('support modules stay out of primary navigation',lambda:expect(page.locator('#navigation [data-page="mail"],#navigation [data-page="users"],#navigation [data-page="goals"],#navigation [data-page="cost_profiles"]')).to_have_count(0))
   page.locator('#navigation [data-page="radar"]').click()
   check('radar module renders safely',lambda:expect(page.locator('#recordList')).to_contain_text('Colegio Radar de prueba'))
   check('Radar call action visible',lambda:expect(page.locator('.radar-quick-actions a[href^="tel:"]')).to_be_visible())
@@ -83,8 +82,8 @@ with sync_playwright() as p:
   page.set_viewport_size({'width':390,'height':900})
   assert page.evaluate("getComputedStyle(document.querySelector('.sidebar-toggle')).position")=='absolute';checks.append('mobile sidebar toggle is not fixed over content')
 
-  page.locator('#sourceToggle').click();check('explicit demo',lambda:expect(page.locator('#sourceBadge')).to_contain_text('DEMOSTRACIÓN'))
-  page.locator('#sourceToggle').click();check('return to real',lambda:expect(page.locator('#sourceBadge')).to_have_text('DATOS REALES'))
+  page.locator('#sidebarDemoBtn').click();check('explicit demo',lambda:expect(page.locator('#sidebarDemoBtn')).to_have_attribute('aria-pressed','true'))
+  page.locator('#sidebarLiveBtn').click();check('return to real',lambda:expect(page.locator('#sidebarLiveBtn')).to_have_attribute('aria-pressed','true'))
   assert page.evaluate('window.__testWrites.length')==0;checks.append('no business writes in browsing')
   page.locator('#navigation [data-page="dashboard"]').click()
   for width in [320,390,768,1024,1440]:

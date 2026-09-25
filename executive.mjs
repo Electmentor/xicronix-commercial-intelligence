@@ -149,6 +149,48 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
   ...executiveTasks.filter(row=>row.due_at&&Date.parse(row.due_at)>=now.getTime()).map(row=>({date:row.due_at,type:'Tarea',title:row.title||'Tarea comercial',page:'tasks'})),
   ...openOpportunities.filter(row=>row.expected_close_date&&Date.parse(row.expected_close_date)>=now.getTime()).map(row=>({date:row.expected_close_date,type:'Cierre esperado',title:row.name||'Oportunidad',page:'opportunities'}))
  ].sort((a,b)=>Date.parse(a.date)-Date.parse(b.date)).slice(0,6);
+ const priorityActions=[];
+ m.decisions.slice(0,3).forEach(item=>priorityActions.push({
+  tone:item.tone||'blue',
+  label:item.title,
+  title:item.detail,
+  reason:item.reason,
+  meta:item.exposure?compactMoney(item.exposure):'',
+  action:item.action,
+  attrs:'data-edit="'+esc(item.id)+'" data-table="'+esc(item.table)+'"'
+ }));
+ const topActionProspect=actionNow[0]||null;
+ if(priorityActions.length<4&&topActionProspect)priorityActions.push({
+  tone:'blue',
+  label:'PROSPECTO LISTO PARA ACCIÓN',
+  title:topActionProspect.institution_name||topActionProspect.name||topActionProspect.title||'Prospecto priorizado',
+  reason:'Prospect Intelligence lo ubica en ACTION_NOW. Revisar evidencia y ejecutar el siguiente contacto comercial.',
+  meta:actionNow.length+' listo'+(actionNow.length===1?'':'s'),
+  action:'Abrir prospectos',
+  attrs:'data-page="prospects"'
+ });
+ if(priorityActions.length<4&&topSignal)priorityActions.push({
+  tone:radarCritical.includes(topSignal)?'red':'amber',
+  label:'SEÑAL COMERCIAL',
+  title:topSignal.institution_name||'Señal prioritaria',
+  reason:'Radar detectó una señal que merece revisión antes de perder oportunidad o contexto.',
+  meta:Number(topSignal.weighted_score||0)?Math.round(Number(topSignal.weighted_score))+'/100':'Radar',
+  action:'Revisar señal',
+  attrs:'data-page="radar"'
+ });
+ if(priorityActions.length<4&&upcoming[0])priorityActions.push({
+  tone:'neutral',
+  label:'PRÓXIMO HITO',
+  title:upcoming[0].title,
+  reason:'Es el siguiente compromiso registrado en la operación comercial.',
+  meta:new Date(upcoming[0].date).toLocaleDateString('es-PE',{day:'2-digit',month:'short'}),
+  action:'Abrir agenda',
+  attrs:'data-page="'+esc(upcoming[0].page)+'"'
+ });
+ const priorityActionCards=priorityActions.slice(0,4).map((item,index)=>
+  '<article class="executive-action-card '+item.tone+'"><div class="executive-action-index">0'+(index+1)+'</div><div class="executive-action-copy"><small>'+esc(item.label)+'</small><h3>'+esc(item.title)+'</h3><p>'+esc(item.reason)+'</p></div><div class="executive-action-side"><strong>'+esc(item.meta)+'</strong><button '+item.attrs+'>'+esc(item.action)+' →</button></div></article>'
+ ).join('');
+ const executiveActionBoard='<section class="executive-action-board"><header><div><small>MANDO EJECUTIVO</small><h2>Acciones prioritarias de hoy</h2><p>Solo decisiones que requieren atención. El resto del sistema queda fuera del camino principal.</p></div><span>'+priorityActions.length+' prioridad'+(priorityActions.length===1?'':'es')+'</span></header><div class="executive-action-grid">'+(priorityActionCards||'<article class="executive-action-empty"><strong>Sin acciones críticas pendientes.</strong><span>La operación no presenta excepciones según las reglas actuales.</span></article>')+'</div></section>';
  const teamCards=incomplete?'<div class="director-empty">Equipo pendiente de cargar.</div>':m.team.length?m.team.slice(0,6).map(row=>{
   const attention=row.riskCount||row.overdueTasks;
   return '<button class="director-team-card '+(attention?'needs-attention':'')+'" data-ceo-seller="'+esc(row.user.id)+'">'+
@@ -196,6 +238,7 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  const pipeline=m.stages.map((row,index)=>'<div class="ceo-stage"><span>'+row.label+'</span><b>'+row.count+'</b><strong>'+compactMoney(row.value)+'</strong><div><i style="width:'+row.value/maxStage*100+'%;--stage-color:'+['#4b8cff','#62b3e4','#a790ed','#efad55','#40bda0'][index]+'"></i></div></div>').join('');
  return '<div class="ceo-dashboard director-dashboard">'+mobileClone+
  '<section class="director-hero"><div><small>DIRECCIÓN COMERCIAL · '+esc(now.toLocaleDateString('es-PE',{month:'long',year:'numeric'}))+'</small><h2>Hola, Toshi</h2><p>'+esc(headline)+'</p></div><div class="director-hero-actions"><button data-page="now">Ver prioridades</button><button id="ceoMethodBtn" class="secondary">Cómo se calcula</button></div></section>'+
+ executiveActionBoard+
  '<section class="director-kpis">'+
   '<button data-ceo-view="won"><small>Ventas ganadas · mes</small><strong>'+compactMoney(m.revenue)+'</strong><span>'+m.wonCount+' cierres · '+progress+'</span></button>'+
   '<button data-ceo-view="pipeline"><small>Pipeline abierto</small><strong>'+compactMoney(m.pipeline)+'</strong><span>'+m.openCount+' oportunidades</span></button>'+
