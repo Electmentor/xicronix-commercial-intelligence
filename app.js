@@ -248,13 +248,13 @@ function renderWorkspaceControls(){
   }
  }
  const labels=admin
-  ?{dashboard:'Centro Ejecutivo',now:'Qué hacer hoy',radar:'Radar e Inteligencia',leads:'Prospectos',meetings:'Agenda',opportunities:'Oportunidades'}
+  ?{dashboard:'Centro Ejecutivo',now:'Qué hacer hoy',radar:'Radar e Inteligencia',leads:'Prospectos',tasks:'Tareas',meetings:'Agenda',opportunities:'Oportunidades'}
   :{dashboard:'Mi jornada',now:'Ahora',leads:'Mis prospectos',tasks:'Mis tareas',meetings:'Mi agenda',opportunities:'Mis oportunidades'};
  const navButton=(key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen')+'</button>';
  const navSection=(title,keys,start)=>{const visible=keys.filter(accessible);return visible.length?'<p class="nav-section-label">'+title+'</p>'+visible.map((key,index)=>navButton(key,start+index)).join(''):'';};
  if(admin){
   const command=['dashboard','now'];
-  const execution=['leads','opportunities','meetings'];
+  const execution=['leads','opportunities','tasks','meetings'];
   const intelligence=['radar'];
   let offset=0;
   let html=navSection('DECISIÓN',command,offset);offset+=command.filter(accessible).length;
@@ -527,7 +527,7 @@ function render(){
  const sellerCommercialView=!admin&&page==='leads';
  $('dashboard').hidden=page!=='dashboard'&&!sellerCommercialView;
  $('records').hidden=page==='dashboard'||sellerCommercialView;
- $('pageTitle').textContent=page==='dashboard'?(admin?'Dashboard Ejecutivo':'Mi Dashboard Comercial'):page==='now'?'Xicronix Ahora':!admin&&page==='prospects'?'Prospectos':!admin&&page==='leads'?'Gestión comercial':modules[page].label;
+ $('pageTitle').textContent=page==='dashboard'?(admin?'Centro Ejecutivo':'Mi Dashboard Comercial'):page==='now'?(admin?'Qué hacer hoy':'Ahora'):!admin&&page==='prospects'?'Prospectos':!admin&&page==='leads'?'Gestión comercial':modules[page].label;
  const target=page==='dashboard'?(admin?'institutions':'leads'):page==='now'?'leads':page;
  $('newBtn').hidden=page==='dashboard'||page==='now'||(!admin&&page==='leads')||target==='users'||!writableFor(target);
  $('newBtn').textContent='+ Crear '+modules[target].singular;
