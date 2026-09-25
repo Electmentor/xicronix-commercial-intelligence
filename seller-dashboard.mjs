@@ -80,6 +80,41 @@ function leadStory(data,lead){
   return {activities,latest,contact,problem,evidence,decision,missingText,situation};
 }
 
+function recommendedMove(row){
+  const contact=row.contact||null, lead=row.lead;
+  const phone=contact?.phone||'', email=contact?.email||'';
+  const urgent=row.urgency?.label==='Alta';
+  const advanced=row.maturity>=70;
+  const contacted=['CONTACTED','QUALIFIED'].includes(lead.status);
+
+  if(phone && (urgent||advanced||contacted)){
+    return {
+      channel:'Llamada',
+      reason:urgent?'Hay una acción vencida o inmediata; conviene reducir latencia y obtener respuesta directa.':advanced?'La madurez comercial ya es alta; una conversación directa ayuda a destrabar el siguiente hito.':'Ya existe contacto previo; conviene confirmar interés y fijar el siguiente paso.',
+      action:row.urgency?.next||'Llamar y acordar el siguiente paso'
+    };
+  }
+  if(email){
+    return {
+      channel:'Correo',
+      reason:row.evidence&& !row.evidence.startsWith('Sin evidencia')?'Hay evidencia comercial registrada; conviene enviar un mensaje breve y contextualizado con una llamada a la acción concreta.':'Existe correo de contacto, pero falta evidencia suficiente; conviene un primer contacto corto orientado a diagnóstico.',
+      action:row.urgency?.next||'Enviar correo y fijar seguimiento'
+    };
+  }
+  if(phone){
+    return {
+      channel:'Llamada',
+      reason:'Hay teléfono disponible y todavía no existe un canal digital mejor documentado para este caso.',
+      action:row.urgency?.next||'Llamar para identificar necesidad y decisor'
+    };
+  }
+  return {
+    channel:'Investigar',
+    reason:'No hay teléfono ni correo de contacto registrados. Antes de intentar vender, completa el decisor y un canal verificable.',
+    action:'Identificar contacto y canal verificable'
+  };
+}
+
 function prospectRows(data,now){
   const institutions=data.institutions||[],tasks=data.tasks||[],scores=data.scores||[];
   return (data.leads||[]).filter(row=>!closedLead(row)).map(lead=>{
@@ -88,7 +123,8 @@ function prospectRows(data,now){
     const maturity=safePct(lead.maturity_percent);
     const potential=potentialForLead(lead,scores);
     const story=leadStory(data,lead);
-    return {lead,institution,urgency,maturity,potential,...story};
+    const base={lead,institution,urgency,maturity,potential,...story};
+    return {...base,recommended:recommendedMove(base)};
   }).sort((a,b)=>b.urgency.rank-a.urgency.rank||(b.potential??-1)-(a.potential??-1)||b.maturity-a.maturity);
 }
 
@@ -129,6 +165,7 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
     !selected?'No hay prospectos activos. Registra o asigna el siguiente prospecto.':
     selected.urgency.label==='Alta'?'Prioridad: '+(selected.institution?.name||selected.lead.title)+'. '+selected.urgency.next+'.':
     'La cartera está bajo control. El siguiente movimiento con mayor impacto está en '+(selected.institution?.name||selected.lead.title)+'.';
+  const todayAction=selected?'<section class="seller-today-command"><header><div><small>QUÉ HACER AHORA</small><h2>'+esc(selected.institution?.name||selected.lead.title)+'</h2></div><span class="seller-channel">'+esc(selected.recommended.channel)+'</span></header><div class="seller-today-grid"><p><small>POR QUÉ</small><strong>'+esc(selected.recommended.reason)+'</strong></p><p><small>ACCIÓN</small><strong>'+esc(selected.recommended.action)+'</strong></p><p><small>FALTA PARA AVANZAR</small><strong>'+esc(selected.missingText)+'</strong></p></div><button class="primary" data-lead-detail="'+esc(selected.lead.id)+'">Abrir expediente y ejecutar →</button></section>':'';
 
   const kpi=(key,label,value,detail,tone='')=>'<button type="button" class="seller-story-kpi '+tone+'" data-seller-filter="'+key+'" aria-label="'+esc(label)+': '+esc(value)+'. Abrir cartera filtrada"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong><span>'+esc(detail)+'</span><em>Ver cartera →</em></button>';
   const kpis=kpi('active','Prospectos activos',String(rows.length),highPotential+' con potencial alto')+
@@ -144,6 +181,7 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
       '<p class="seller-candidate-problem"><b>Problema:</b> '+esc(row.problem)+'</p>'+
       '<div class="seller-candidate-meta"><span><b>'+row.maturity+'%</b><small>Madurez</small></span><span><b>'+esc(potential)+'</b><small>Calidad comercial</small></span></div>'+
       '<p class="seller-candidate-next"><b>Siguiente:</b> '+esc(row.urgency.next)+(row.urgency.date?' · '+esc(compactDate(row.urgency.date)):'')+'</p>'+
+      '<p class="seller-candidate-next"><b>Canal recomendado:</b> '+esc(row.recommended.channel)+'</p>'+
       '<small class="seller-candidate-evidence">'+esc(row.evidence)+'</small>'+
     '</button>';
   }).join(''):'<div class="seller-story-empty">No hay prospectos activos en tu cartera.</div>';
@@ -174,6 +212,8 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
     '</div>':'';
   const searchBox=showSearch?'<section class="commercial-search"><div class="commercial-search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg><input id="commercialSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Buscar por ID o nombre…" value="'+esc(searchQuery)+'" aria-label="Buscar prospecto por ID o nombre"></div><small>'+searchedRows.length+' resultado'+(searchedRows.length===1?'':'s')+'</small></section>':'';
   return '<div class="seller-story-dashboard">'+
+    '<section class="seller-command-summary"><span>PRIORIDAD DIARIA</span><strong>'+esc(narrative)+'</strong></section>'+
+    todayAction+
     searchBox+
     focus+
     '<details class="seller-prospects-panel seller-prospects-panel--cards seller-secondary-list"><summary>Ver otros prospectos de mi cartera</summary><div class="seller-candidate-list">'+cards+'</div></details>'+
