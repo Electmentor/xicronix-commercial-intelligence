@@ -3,11 +3,11 @@ import {escapeHTML as esc, filterRecords, money, metrics, priorities, taskUrgenc
 import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWriteModule, assignedUserId, scopeWorkspaceData} from './workspace.mjs';
 
 import {DEMO_VERSION, DEMO_SELLERS, createDemoData, upgradeDemoData, mutateDemo, realOnly, localDay} from './demo.mjs?v=20260924-v2.41.16';
-import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260925-v2.43.1';
+import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260925-v2.43.2';
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
-import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260925-v2.43.1';
+import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260925-v2.43.2';
 
 const $ = id => document.getElementById(id);
 const SPLASH_STARTED_AT=performance.now();
@@ -109,8 +109,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-25-v2.43.1';
-const CRM_VERSION_LABEL='v2.43.1';
+const CRM_RELEASE='2026-09-25-v2.43.2';
+const CRM_VERSION_LABEL='v2.43.2';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -288,7 +288,7 @@ async function chooseWorkspaceEntry(next){
  workspaceEntryChosen=true;
  $('workspaceEntry').hidden=true;
  if(next===workspace){
-  renderWorkspaceControls();
+  renderWorkspaceControls();renderConnectionState();
   navigate('dashboard');
   return;
  }
@@ -390,10 +390,25 @@ async function allRows(table,org){
  if(error)throw error;rows.push(...batch);if(batch.length<500)return rows;
  }
 }
+function connectionState(){
+ if(!session||!profile||dataSource!=='live')return {state:'offline',label:'Sin conexión'};
+ if(failures.prospects||failures.radar)return {state:'error',label:'Error'};
+ if(!liveIntelligenceLastSync)return {state:'connecting',label:'Conectando'};
+ const age=Date.now()-liveIntelligenceLastSync;
+ if(age<=90000)return {state:'online',label:'Conectado'};
+ if(age<=180000)return {state:'stale',label:'Actualizando'};
+ return {state:'error',label:'Sin sincronizar'};
+}
+function renderConnectionState(){
+ const presence=$('userPresence'),label=$('connectionLabel');if(!presence||!label)return;
+ const status=connectionState();presence.dataset.state=status.state;label.textContent=status.label;
+ const sync=liveIntelligenceLastSync?new Date(liveIntelligenceLastSync).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}):'pendiente';
+ presence.title=status.label+' · última sincronización '+sync;
+}
 function primeLiveIntelligence(){
  if(dataSource!=='live'||!profile)return;
  liveIntelligenceKnownProspects=new Set((data.prospects||[]).map(row=>String(row.id)));
- liveIntelligencePrimed=true;liveIntelligenceLastSync=Date.now();
+ liveIntelligencePrimed=true;liveIntelligenceLastSync=Date.now();renderConnectionState();
 }
 function stopLiveIntelligence(){
  if(liveIntelligenceTimer){clearInterval(liveIntelligenceTimer);liveIntelligenceTimer=null;}
@@ -421,14 +436,14 @@ async function refreshLiveIntelligence(announce=false){
     data.radar=realOnly({radar:radarResult.value}).radar||radarResult.value;
     failures.radar=false;
   }
-  liveIntelligencePrimed=true;liveIntelligenceLastSync=Date.now();
+  liveIntelligencePrimed=true;liveIntelligenceLastSync=Date.now();renderConnectionState();
   if(['dashboard','prospects','radar','now'].includes(page))render();
   if(announce&&newRows.length){
     const actionNow=newRows.filter(row=>row.operating_bucket==='ACTION_NOW').length;
     const first=newRows[0]?.name||'nuevo candidato';
     notice(newRows.length+' nuevo'+(newRows.length===1?'':'s')+' prospecto'+(newRows.length===1?'':'s')+' potencial'+(newRows.length===1?'':'es')+' detectado'+(newRows.length===1?'':'s')+(actionNow?' · '+actionNow+' listo'+(actionNow===1?'':'s')+' para acción':'')+' · '+first, false, 12000);
   }
- }catch(_error){}
+ }catch(_error){failures.prospects=true;renderConnectionState();}
 }
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshLiveIntelligence(false);});
 
