@@ -7,7 +7,7 @@ import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executiv
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
-import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.4';
+import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.5';
 
 const $ = id => document.getElementById(id);
 const SPLASH_STARTED_AT=performance.now();
@@ -120,8 +120,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-26-v2.45.4';
-const CRM_VERSION_LABEL='v2.45.4';
+const CRM_RELEASE='2026-09-26-v2.45.5';
+const CRM_VERSION_LABEL='v2.45.5';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -137,9 +137,12 @@ let deferredInstallPrompt=null;
 let criticalPushState='unknown';
 let mailWebhookConfig=null;
 let smartMailUploadState=null;
+let dailyBriefingShownForSession=false;
 let liveIntelligenceTimer=null,liveIntelligencePrimed=false,liveIntelligenceLastSync=null;
 let liveMailChannel=null,liveMailFallbackTimer=null;
 let liveIntelligenceKnownProspects=new Set();
+window.addEventListener('online',()=>renderConnectionState());
+window.addEventListener('offline',()=>renderConnectionState());
 window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;if(page==='now')renderNow();});
 window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;if(page==='now')renderNow();});
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
@@ -385,6 +388,7 @@ function resetPasswordVisibility(){
  });
 }
 function clearSession(){
+ dailyBriefingShownForSession=false;
  stopLiveIntelligence();
  stopLiveMailRealtime();
  closeLeadDetails(false);
@@ -485,13 +489,9 @@ async function promoteRadarSignal(signalId){
 }
 
 function connectionState(){
- if(!session||!profile||dataSource!=='live')return {state:'offline',label:'Sin conexión'};
- if(failures.prospects||failures.radar)return {state:'error',label:'Error'};
+ if(!session||!profile||dataSource!=='live'||navigator.onLine===false)return {state:'offline',label:'Desconectado'};
  if(!liveIntelligenceLastSync)return {state:'connecting',label:'Conectando'};
- const freshness=intelligenceFreshness();
- if(freshness.snapshotFresh&&freshness.radarFresh)return {state:'online',label:'Conectado'};
- if(freshness.radarFresh)return {state:'stale',label:'Inteligencia parcial'};
- return {state:'error',label:'Inteligencia desactualizada'};
+ return {state:'online',label:'Conectado'};
 }
 function renderConnectionState(){
  const status=connectionState();
@@ -499,7 +499,8 @@ function renderConnectionState(){
  const fresh=intelligenceFreshness();
  const snap=fresh.snapshotLatest?new Date(fresh.snapshotLatest).toLocaleString('es-PE',{dateStyle:'short',timeStyle:'short'}):'sin snapshot';
  const radar=fresh.radarLatest?new Date(fresh.radarLatest).toLocaleString('es-PE',{dateStyle:'short',timeStyle:'short'}):'sin Radar';
- const title=status.label+' · consulta '+sync+' · Prospect Intelligence '+snap+' · Radar '+radar;
+ const freshnessLabel=fresh.snapshotFresh&&fresh.radarFresh?'Inteligencia vigente':fresh.radarFresh?'Inteligencia parcial':'Inteligencia desactualizada';
+ const title=status.label+' · '+freshnessLabel+' · consulta '+sync+' · Prospect Intelligence '+snap+' · Radar '+radar;
  const presence=$('userPresence'),label=$('connectionLabel');
  if(presence&&label){presence.dataset.state=status.state;label.textContent=status.label;presence.title=title;}
  const mobile=$('mobileConnectionPresence'),mobileLabel=$('mobileConnectionLabel');
@@ -622,7 +623,7 @@ async function reload(){
  primeLiveIntelligence();startLiveIntelligence();startLiveMailRealtime();
  render();const bad=Object.keys(failures);notice(bad.length?'No se pudo cargar: '+bad.map(k=>modules[k]?.label||k).join(', ')+'. Pulsa Actualizar para reintentar.':'',!!bad.length);
  }catch(error){if(version===loadVersion){profile=null;data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice(errorText(error),true);}}
- finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;$('refreshBtn').classList.remove('is-refreshing');render();applyEntryRoute();renderWorkspaceEntry();hideAppSplash();}}
+ finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;$('refreshBtn').classList.remove('is-refreshing');render();applyEntryRoute();renderWorkspaceEntry();hideAppSplash();setTimeout(()=>openDailyBriefing(false),350);}}
 }
 function applyTheme(theme,persist=false){
  const night=theme==='night';document.documentElement.dataset.theme=night?'night':'day';
@@ -690,6 +691,62 @@ function renderAttentionButton(){
  count.textContent=String(rows.length);button.classList.toggle('has-alerts',rows.length>0);
  button.setAttribute('aria-label',rows.length?rows.length+' solicitudes requieren atención':'Sin solicitudes pendientes de primera respuesta');
 }
+function localDayKey(value=new Date()){
+ const d=new Date(value);if(!Number.isFinite(d.getTime()))return '';
+ return d.toLocaleDateString('en-CA');
+}
+function buildDailyBriefingActions(){
+ const now=new Date(),today=localDayKey(now),rows=[];
+ const leads=scopedRows('leads').filter(row=>!['DISQUALIFIED','CONVERTED'].includes(row.status));
+ const leadMap=new Map(leads.map(row=>[row.id,row]));
+ const institutionName=lead=>nameOf((data.institutions||[]).find(row=>row.id===lead?.institution_id)||{})||lead?.title||'Prospecto';
+ const push=(leadId,type,label,detail,rank,when=null)=>{
+   const lead=leadId?leadMap.get(leadId):null;
+   if(leadId&&!lead)return;
+   rows.push({leadId,type,label,detail,rank,when,name:lead?institutionName(lead):label});
+ };
+ (data.mail||[]).filter(row=>row.status==='NEW'&&row.lead_id).forEach(row=>push(row.lead_id,'Correo nuevo','Responder correo',row.subject||'Correo recibido',100,row.received_at||row.created_at));
+ attentionRows().forEach(row=>push(row.id,'Solicitud web','Responder solicitud','Primera respuesta pendiente',95,row.attention_due_at||row.created_at));
+ (data.tasks||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&row.lead_id&&row.due_at).forEach(row=>{
+   const day=localDayKey(row.due_at);if(day===today||Date.parse(row.due_at)<now.getTime())push(row.lead_id,Date.parse(row.due_at)<now.getTime()?'Tarea vencida':'Tarea de hoy',row.title||'Completar tarea',row.priority||'',Date.parse(row.due_at)<now.getTime()?90:80,row.due_at);
+ });
+ leads.forEach(row=>{
+   if(!row.next_action_date)return;
+   const day=localDayKey(row.next_action_date),past=Date.parse(row.next_action_date)<now.getTime();
+   if(day===today||past)push(row.id,past?'Seguimiento vencido':'Seguimiento de hoy',row.next_action||'Realizar seguimiento','',past?88:78,row.next_action_date);
+ });
+ (data.meetings||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&localDayKey(row.start_at)===today).forEach(row=>{
+   if(row.lead_id)push(row.lead_id,'Reunión de hoy',row.title||'Reunión comercial',row.start_at?date(row.start_at):'',75,row.start_at);
+   else rows.push({leadId:null,type:'Reunión de hoy',label:row.title||'Reunión comercial',detail:row.start_at?date(row.start_at):'',rank:75,when:row.start_at,name:row.title||'Reunión'});
+ });
+ return rows.sort((a,b)=>b.rank-a.rank||Date.parse(a.when||0)-Date.parse(b.when||0));
+}
+function renderDailyBriefing(){
+ const target=$('dailyBriefingContent');if(!target)return;
+ const rows=buildDailyBriefingActions();
+ if(!rows.length){
+   target.innerHTML='<div class="daily-briefing-empty"><strong>Sin acciones críticas pendientes.</strong><span>Tu jornada comercial no tiene tareas vencidas, correos nuevos ni seguimientos para hoy.</span></div>';
+   return;
+ }
+ const grouped=new Map();
+ rows.forEach(row=>{
+   const key=row.leadId||'agenda:'+row.name;
+   const item=grouped.get(key)||{leadId:row.leadId,name:row.name,items:[],rank:row.rank};
+   item.items.push(row);item.rank=Math.max(item.rank,row.rank);grouped.set(key,item);
+ });
+ const groups=[...grouped.values()].sort((a,b)=>b.rank-a.rank);
+ target.innerHTML='<div class="daily-briefing-summary"><strong>'+rows.length+' acción'+(rows.length===1?'':'es')+' para hoy</strong><span>'+groups.length+' prospecto'+(groups.length===1?'':'s')+' / asunto'+(groups.length===1?'':'s')+'</span></div><div class="daily-briefing-list">'+groups.map(group=>
+   '<article class="daily-briefing-item"><header><div><small>'+esc(group.items[0].type)+'</small><h3>'+esc(group.name)+'</h3></div><span>'+group.items.length+'</span></header><div class="daily-briefing-actions-list">'+group.items.map(item=>'<p><b>'+esc(item.label)+'</b><span>'+esc(item.detail||'')+'</span></p>').join('')+'</div><footer>'+(group.leadId?'<button type="button" class="primary" data-daily-lead="'+esc(group.leadId)+'">Ir al prospecto y actuar</button>':'<button type="button" class="primary" data-daily-page="meetings">Abrir agenda</button>')+'</footer></article>'
+ ).join('')+'</div>';
+}
+function openDailyBriefing(force=false){
+ if(!profile||loading||busy||recovery)return;
+ if(!force&&dailyBriefingShownForSession)return;
+ dailyBriefingShownForSession=true;
+ renderDailyBriefing();
+ const dialog=$('dailyBriefingDialog');if(dialog&&!dialog.open)dialog.showModal();
+}
+
 function renderAttentionCenter(){
  const rows=attentionRows(),target=$('attentionContent');if(!target)return;
  if(!rows.length){target.innerHTML='<div class="panel empty">No hay solicitudes web pendientes de primera respuesta humana.</div>';return;}
@@ -2244,7 +2301,7 @@ function init(){
  restoreRememberedEmail();
  try{recovery=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery'||sessionStorage.getItem(RECOVERY_KEY)==='1';}catch(_error){}
  $('rememberEmail').onchange=()=>{if(!$('rememberEmail').checked){try{localStorage.removeItem(REMEMBER_EMAIL_KEY);}catch(_error){}}};
- $('closeLeadDetail').onclick=()=>closeLeadDetails();$('closeAttention').onclick=()=>{if($('attentionDialog').open)$('attentionDialog').close();};$('closeSmartMail').onclick=()=>{if($('smartMailDialog').open)$('smartMailDialog').close();};
+ $('closeLeadDetail').onclick=()=>closeLeadDetails();$('closeAttention').onclick=()=>{if($('attentionDialog').open)$('attentionDialog').close();};$('closeDailyBriefing').onclick=()=>{if($('dailyBriefingDialog').open)$('dailyBriefingDialog').close();};$('closeSmartMail').onclick=()=>{if($('smartMailDialog').open)$('smartMailDialog').close();};
  $('leadDetailDialog').addEventListener('close',()=>{$('leadDetailContent').replaceChildren();rememberPage();});$('attentionDialog').addEventListener('close',()=>{$('attentionContent').replaceChildren();});
  initTheme();
  initSidebar();
@@ -2259,7 +2316,9 @@ function init(){
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  $('sidebarToggle').onclick=event=>{event.stopPropagation();applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);};
  document.addEventListener('click',event=>{if(!mobileNavMode())return;const sidebar=$('mainSidebar');if(!sidebar||$('appView').classList.contains('sidebar-collapsed'))return;if(sidebar.contains(event.target)||event.target===$('sidebarToggle'))return;applySidebar(true);});
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.radarPromote){promoteRadarSignal(b.dataset.radarPromote);return;}if(b.id==='refreshIntelligenceBtn'){b.disabled=true;b.classList.add('is-refreshing');refreshLiveIntelligence(true).finally(()=>{const next=$('refreshIntelligenceBtn');if(next){next.disabled=false;next.classList.remove('is-refreshing');}});return;}if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='brandThemeToggle'){applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.sellerFilter){navigate('leads');sellerQuickFilter=b.dataset.sellerFilter;renderRecords();return;}if(b.dataset.prospectKpi){navigate('prospects');prospectDashboardFilter=b.dataset.prospectKpi==='ALL'?'':b.dataset.prospectKpi;$('filter').value='';pageIndex=0;renderRecords();return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){if(openEditor('leads',b.dataset.editLead))closeLeadDetails(false);return;}if(b.dataset.editActivity){if(openEditor('activities',b.dataset.editActivity))closeLeadDetails(false);return;}if(b.dataset.activityLead){if(openActivityForLead(b.dataset.activityLead)!==false)closeLeadDetails(false);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.radarLead){openLeadFromRadar(b.dataset.radarLead);return;}if(b.dataset.radarActivity){openActivityForLead(b.dataset.radarActivity);return;}if(b.dataset.editSmartContact!==undefined){const contactId=b.dataset.editSmartContact||'';const institutionId=b.dataset.editSmartInstitution||'';if($('smartMailDialog').open)$('smartMailDialog').close();if(contactId){openEditor('contacts',contactId);}else if(institutionId){openEditor('institutions',institutionId);}return;}if(b.dataset.smartUploadCategory){uploadSmartMaterial(b.dataset.smartUploadLead,b.dataset.smartUploadCategory);return;}if(b.dataset.smartMaterial){toggleSmartMaterial(b.dataset.smartMaterial);return;}if(b.dataset.smartMail){openSmartMailDraft(b.dataset.smartMail);return;}if(b.dataset.copySmartMail){copySmartMailDraft(b.dataset.copySmartMail);return;}if(b.dataset.openSmartZoho){openSmartMailInZoho(b.dataset.openSmartZoho);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.radarPromote){promoteRadarSignal(b.dataset.radarPromote);return;}if(b.id==='refreshIntelligenceBtn'){b.disabled=true;b.classList.add('is-refreshing');refreshLiveIntelligence(true).finally(()=>{const next=$('refreshIntelligenceBtn');if(next){next.disabled=false;next.classList.remove('is-refreshing');}});return;}if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='brandThemeToggle'){applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.sellerFilter){navigate('leads');sellerQuickFilter=b.dataset.sellerFilter;renderRecords();return;}if(b.dataset.prospectKpi){navigate('prospects');prospectDashboardFilter=b.dataset.prospectKpi==='ALL'?'':b.dataset.prospectKpi;$('filter').value='';pageIndex=0;renderRecords();return;}if(b.dataset.dailyLead){if($('dailyBriefingDialog')?.open)$('dailyBriefingDialog').close();navigate('leads');openLeadDetails(b.dataset.dailyLead);return;}
+if(b.dataset.dailyPage){if($('dailyBriefingDialog')?.open)$('dailyBriefingDialog').close();navigate(b.dataset.dailyPage);return;}
+if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){if(openEditor('leads',b.dataset.editLead))closeLeadDetails(false);return;}if(b.dataset.editActivity){if(openEditor('activities',b.dataset.editActivity))closeLeadDetails(false);return;}if(b.dataset.activityLead){if(openActivityForLead(b.dataset.activityLead)!==false)closeLeadDetails(false);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.radarLead){openLeadFromRadar(b.dataset.radarLead);return;}if(b.dataset.radarActivity){openActivityForLead(b.dataset.radarActivity);return;}if(b.dataset.editSmartContact!==undefined){const contactId=b.dataset.editSmartContact||'';const institutionId=b.dataset.editSmartInstitution||'';if($('smartMailDialog').open)$('smartMailDialog').close();if(contactId){openEditor('contacts',contactId);}else if(institutionId){openEditor('institutions',institutionId);}return;}if(b.dataset.smartUploadCategory){uploadSmartMaterial(b.dataset.smartUploadLead,b.dataset.smartUploadCategory);return;}if(b.dataset.smartMaterial){toggleSmartMaterial(b.dataset.smartMaterial);return;}if(b.dataset.smartMail){openSmartMailDraft(b.dataset.smartMail);return;}if(b.dataset.copySmartMail){copySmartMailDraft(b.dataset.copySmartMail);return;}if(b.dataset.openSmartZoho){openSmartMailInZoho(b.dataset.openSmartZoho);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>{if(canViewDashboard())openEditor(page==='dashboard'?'institutions':page);else openEditor('leads');};
