@@ -126,3 +126,9 @@
 .menu-version{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:5px 9px;border:1px solid #4b6380;border-radius:999px;color:#eef6ff;background:#173656;font-size:.68rem;font-weight:800;letter-spacing:.04em;white-space:nowrap;flex:none;margin-top:2px}
 .sidebar-collapsed .menu-version{display:none}
 @media(max-width:700px){.sidebar-brand-row{padding-right:44px}.menu-version{position:absolute;top:2px;right:44px;z-index:30;min-height:30px;padding:6px 9px;font-size:.68rem;background:#173656;color:#fff;border-color:#6c86a3}}
+/* Action-first prospect dossier */
+.lead-action-center{border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0 16px;background:var(--panel,#fff)}
+.lead-action-primary{display:grid;gap:4px;margin-bottom:12px}.lead-action-primary small{font-weight:800;color:var(--muted);letter-spacing:.04em}.lead-action-primary strong{font-size:1.08rem}.lead-action-primary span{color:var(--muted);font-size:.92rem}
+.lead-action-buttons{display:flex;flex-wrap:wrap;gap:10px}.lead-action-button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 14px;border:1px solid var(--line);border-radius:10px;text-decoration:none;font-weight:800;background:var(--panel,#fff);color:inherit;cursor:pointer}.lead-action-button.primary{background:var(--accent,#1f6feb);border-color:var(--accent,#1f6feb);color:#fff}
+.lead-action-contact{margin:12px 0 0;color:var(--muted);font-size:.92rem;overflow-wrap:anywhere}.lead-admin-tools{margin:0 0 14px}.lead-admin-tools summary{cursor:pointer;font-weight:800;color:var(--muted)}.lead-admin-tools[open] summary{margin-bottom:10px}
+@media(max-width:700px){.lead-action-buttons{display:grid;grid-template-columns:1fr 1fr}.lead-action-button{width:100%}.lead-action-center{padding:14px}.lead-master-kpis{grid-template-columns:1fr 1fr}.deliverable-grid{grid-template-columns:1fr 1fr}}
