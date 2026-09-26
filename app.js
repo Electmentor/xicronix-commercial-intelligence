@@ -1305,12 +1305,20 @@ function renderLeadCards(rows){
   const maturity=Math.max(0,Math.min(100,Number(row.maturity_percent)||0));
   const next=row.next_action||'Definir siguiente acción';
   const overdue=row.next_action_date&&Date.parse(row.next_action_date)<Date.now();
+  const phone=String(contact?.phone||institution?.phone||'').trim();
+  const email=String(contact?.email||institution?.email||'').trim();
+  const mailRow={contact_email:email,institution_name:institution?.name||row.title||'Prospecto'};
   return '<article class="lead-mobile-card '+(overdue?'overdue':'')+'">'+
    '<header><div><span class="lead-mobile-kicker">PROSPECTO</span><h3>'+esc(institution?.name||row.title||'Prospecto')+'</h3><small>'+esc(contact?nameOf(contact):'Contacto decisor pendiente')+'</small></div><span class="badge '+(overdue?'warn':'')+'">'+esc(enums.status[row.status]||row.status)+'</span></header>'+
    '<div class="lead-mobile-story"><p><b>Problema</b><span>'+esc(need)+'</span></p><p><b>Evidencia</b><span>'+esc(evidence)+'</span></p></div>'+
    '<div class="lead-mobile-scores"><span><b>'+maturity+'%</b><small>Madurez</small></span><span><b>'+(potential===null?'—':potential+'%')+'</b><small>Potencial</small></span><span><b>'+esc(row.estimated_value?money(row.estimated_value):'—')+'</b><small>Valor</small></span></div>'+
    '<p class="lead-mobile-next"><b>Siguiente:</b> '+esc(next)+(row.next_action_date?' · '+esc(date(row.next_action_date)):'')+'</p>'+
-   '<div class="lead-mobile-actions"><button type="button" class="primary" data-lead-detail="'+row.id+'">Abrir expediente</button>'+(writable()?'<button type="button" data-activity-lead="'+row.id+'">Registrar movimiento</button>':'')+'<button type="button" data-edit="'+row.id+'" data-table="leads">Editar</button></div>'+
+   '<div class="lead-mobile-actions lead-mobile-quick-actions">'+
+    (phone?'<a class="lead-quick-action primary" href="'+esc(radarPhoneHref(phone))+'">Llamar</a>':'')+
+    (email?'<a class="lead-quick-action" href="'+esc(zohoMailComposeHref(mailRow))+'">Correo Zoho</a>':'')+
+    (phone?'<a class="lead-quick-action" href="'+esc(radarWhatsappHref(phone))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
+    '<button type="button" class="lead-open-compact" data-lead-detail="'+row.id+'">Abrir expediente</button>'+
+   '</div>'+
   '</article>';
  }).join('')+'</section>';
 }
@@ -1931,9 +1939,18 @@ function openLeadDetails(id){
  const decisionContext=[decisionSignal?.decision_timeline,decisionSignal?.budget_signal].filter(Boolean).join(' · ')||'Timing y presupuesto aún no confirmados.';
  const budget=Number(lead.estimated_value)>0?money(lead.estimated_value):'Sin definir';
  const field=(label,value)=>'<div class="lead-detail-row"><dt>'+esc(label)+'</dt><dd>'+esc(value||'Sin registrar')+'</dd></div>';
- const buttons=writableFor('leads')?'<div class="lead-master-actions"><button type="button" data-edit-lead="'+lead.id+'">Editar prospecto</button><button type="button" class="primary" data-activity-lead="'+lead.id+'">Registrar movimiento</button><button type="button" data-create-task-lead="'+lead.id+'">Crear tarea</button><button type="button" data-create-meeting-lead="'+lead.id+'">Agendar reunión</button><button type="button" data-create-deliverable-lead="'+lead.id+'">Registrar entregable</button><button type="button" data-create-document-lead="'+lead.id+'">Subir documento</button></div>':'';
+ const directPhone=String(contact?.phone||institution?.phone||'').trim();
+ const directEmail=String(contact?.email||institution?.email||'').trim();
+ const directRow={contact_email:directEmail,institution_name:institution?.name||lead.title||'Prospecto'};
+ const quickActions='<section class="lead-action-center"><div class="lead-action-primary"><small>ACCIÓN RECOMENDADA</small><strong>'+esc(action)+'</strong><span>'+(nextDate?'Antes de '+esc(date(nextDate)):'Sin fecha comprometida')+'</span></div><div class="lead-action-buttons">'+
+  (directPhone?'<a class="lead-action-button primary" href="'+esc(radarPhoneHref(directPhone))+'">Llamar ahora</a>':'')+
+  (directEmail?'<a class="lead-action-button" href="'+esc(zohoMailComposeHref(directRow))+'">Correo Zoho</a>':'')+
+  (directPhone?'<a class="lead-action-button" href="'+esc(radarWhatsappHref(directPhone))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
+  (writableFor('activities')?'<button type="button" class="lead-action-button" data-activity-lead="'+lead.id+'">Registrar resultado</button>':'')+
+ '</div><p class="lead-action-contact">'+esc(contact?nameOf(contact):'Contacto decisor pendiente')+(contact?.job_title?' · '+esc(contact.job_title):'')+(directPhone?' · '+esc(directPhone):'')+(directEmail?' · '+esc(directEmail):'')+'</p></section>';
+ const buttons=writableFor('leads')?'<details class="lead-admin-tools"><summary>Gestión del expediente</summary><div class="lead-master-actions"><button type="button" data-edit-lead="'+lead.id+'">Editar prospecto</button><button type="button" data-create-task-lead="'+lead.id+'">Crear tarea</button><button type="button" data-create-meeting-lead="'+lead.id+'">Agendar reunión</button><button type="button" data-create-deliverable-lead="'+lead.id+'">Registrar entregable</button><button type="button" data-create-document-lead="'+lead.id+'">Subir documento</button></div></details>':'';
  $('leadDetailTitle').textContent='Expediente Comercial · '+(institution?.name||lead.title||'Prospecto');
- $('leadDetailContent').innerHTML='<section class="lead-master commercial-dossier"><p class="muted">'+(dataSource==='demo'?'Demostración, sin datos reales.':'Radiografía comercial basada únicamente en los registros del expediente.')+'</p>'+buttons+
+ $('leadDetailContent').innerHTML='<section class="lead-master commercial-dossier"><p class="muted">'+(dataSource==='demo'?'Demostración, sin datos reales.':'Radiografía comercial basada únicamente en los registros del expediente.')+'</p>'+quickActions+buttons+
  '<section class="candidate-story"><article><small>1 · PROBLEMA</small><h3>'+esc(need)+'</h3><p>'+(latest?esc(latest.subject||'Último movimiento registrado'):'Sin movimiento reciente')+'</p></article><article><small>2 · EVIDENCIA</small><h3>'+esc(evidence)+'</h3><p>'+esc(latest?'Última interacción: '+date(latest.occurred_at):'Sin interacción verificada')+'</p></article><article><small>3 · ACCIÓN</small><h3>'+esc(action)+'</h3><p>'+(nextDate?'Próximo compromiso: '+esc(date(nextDate)):'Aún no existe una fecha comprometida.')+'</p></article><article><small>4 · VALOR / DECISIÓN</small><h3>'+esc(budget)+'</h3><p>'+esc(decisionContext)+'</p></article></section>'+
  '<div class="dossier-status-row"><span class="dossier-state '+health.className+'"><small>Estado actual</small><strong>'+health.label+'</strong></span><span class="dossier-state '+urgency.className+'"><small>Urgencia</small><strong>'+urgency.label+'</strong></span><span class="dossier-state '+potentialState.className+'"><small>Potencial</small><strong>'+potentialState.label+(potentialState.value!==undefined?' · '+potentialState.value+'%':'')+'</strong></span></div>'+
  '<section class="dossier-first-look"><article><small>Último movimiento</small><strong>'+esc(latest?date(latest.occurred_at):'Sin registro')+'</strong></article><article><small>Próxima fecha clave</small><strong>'+esc(nextDate?date(nextDate):'Sin fecha')+'</strong></article><article><small>Próxima reunión</small><strong>'+esc(nextMeeting?date(nextMeeting.start_at):'Sin reunión')+'</strong></article><article><small>Hito actual</small><strong>'+maturity+'% · '+esc(milestoneLabel(lead.commercial_milestone))+'</strong><div class="dossier-progress"><i style="width:'+maturity+'%"></i></div></article></section>'+
