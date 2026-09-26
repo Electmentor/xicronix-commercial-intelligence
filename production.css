@@ -3140,3 +3140,9 @@ html[data-theme="night"] .opp-card{background:#102136}
 @keyframes xicronix-led-soft{0%,100%{opacity:.45}50%{opacity:1}}
 @media(prefers-reduced-motion:reduce){.connection-led{animation:none!important}}
 @media(max-width:430px){.connection-label{display:none}.user-presence{gap:5px}}
+
+
+/* V2.44 · Pareto bridge + freshness */
+.pi-live-radar{border-color:color-mix(in srgb,var(--success) 45%,var(--line));background:color-mix(in srgb,var(--panel) 94%,var(--success) 6%)}
+.pi-promote{width:100%;margin-top:10px;min-height:42px}
+.user-presence[data-state="stale"] .connection-label{color:#9a6700}
