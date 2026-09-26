@@ -144,7 +144,7 @@ test('local demo upgrade is additive and idempotent, preserves edited records, b
  assert.equal(data.opportunities[0],original);assert.equal(data.opportunities[0].value,123456);assert.equal(currentGoal.target_expenses,0);
  assert.equal(data.expenses.length,expenses);assert.equal(data.opportunities.length,opportunities);assert.equal(data.goals.length,goals);
  const snapshot=JSON.stringify(data);upgradeDemoData(data,'org',new Date('2026-09-15T17:00:00Z'));assert.equal(JSON.stringify(data),snapshot);
- assert.equal(DEMO_VERSION,2);assert.ok(Object.values(data).every(Array.isArray));
+ assert.equal(DEMO_VERSION,3);assert.ok(Object.values(data).every(Array.isArray));
 });
 
 test('saved demo category repair only normalizes generated legacy categories and preserves all other edits',()=>{
