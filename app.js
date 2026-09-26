@@ -238,7 +238,7 @@ function renderWorkspaceControls(){
   }
   if(reports){
    reports.dataset.page=admin?'goals':'meetings';
-   const label=reports.querySelector('small');if(label)label.textContent=admin?'Reportes':'Mi agenda';
+   const label=reports.querySelector('small');if(label)label.textContent=admin?'Metas':'Mi agenda';
   }
   if(nowBtn){
    nowBtn.dataset.page='now';
@@ -673,7 +673,7 @@ function render(){
  const sellerCommercialView=!admin&&page==='leads';
  $('dashboard').hidden=page!=='dashboard'&&!sellerCommercialView;
  $('records').hidden=page==='dashboard'||sellerCommercialView;
- $('pageTitle').textContent=page==='dashboard'?(admin?'Dirección Comercial':'Mi Dashboard Comercial'):page==='now'?'Xicronix Ahora':!admin&&page==='prospects'?'Prospectos':!admin&&page==='leads'?'Gestión comercial':modules[page].label;
+ $('pageTitle').textContent=page==='dashboard'?(admin?'Dirección Comercial':'Mi Dashboard Comercial'):page==='now'?'Xicronix Ahora':!admin&&page==='prospects'?'Prospectos':!admin&&page==='leads'?'Gestión comercial':page==='goals'?'Metas comerciales':modules[page].label;
  const target=page==='dashboard'?(admin?'institutions':'leads'):page==='now'?'leads':page;
  $('newBtn').hidden=page==='dashboard'||page==='now'||(!admin&&page==='leads')||target==='users'||!writableFor(target);
  $('newBtn').textContent='+ Crear '+modules[target].singular;
@@ -1503,7 +1503,43 @@ function renderOpportunityBoard(){
  });
 }
 
+function renderGoalsPage(){
+ const toolbar=document.querySelector('#records .toolbar');
+ const pagination=document.querySelector('#records .pagination');
+ if(toolbar)toolbar.hidden=true;
+ if(pagination)pagination.hidden=true;
+ $('importHelp').hidden=true;
+ $('sellerSummary').hidden=true;
+ $('recordContext').hidden=true;
+ $('exportBtn').disabled=true;
+ const rows=(data.goals||[]).slice().sort((a,b)=>String(b.period_end||'').localeCompare(String(a.period_end||''))||String(b.created_at||'').localeCompare(String(a.created_at||'')));
+ const current=rows[0]||null;
+ $('recordCount').textContent=rows.length?rows.length+' periodo'+(rows.length===1?'':'s')+' de metas':'Sin meta comercial definida';
+ if(!current){
+   $('recordList').innerHTML='<section class="goals-empty"><small>CONTROL COMERCIAL</small><h2>Define la meta del periodo</h2><p>Ventas, margen y presupuesto deben verse aquí como objetivos operativos, no como una tabla vacía.</p><button id="createGoalBtn" type="button" class="primary">+ Crear meta comercial</button></section>';
+   const create=$('createGoalBtn');if(create)create.onclick=()=>openEditor('goals');
+   return;
+ }
+ const owner=relationName('owner_user_id',current)||'Organización';
+ const period=[current.period_start,current.period_end].filter(Boolean).join(' → ');
+ const expenses=current.target_expenses===null||current.target_expenses===undefined?'Sin presupuesto':money(current.target_expenses);
+ $('recordList').innerHTML='<section class="goals-command">'+
+   '<header><div><small>METAS COMERCIALES</small><h2>'+esc(period||'Periodo vigente')+'</h2><p>'+esc(owner)+'</p></div><button id="editCurrentGoalBtn" type="button" class="primary">Editar meta</button></header>'+
+   '<div class="goals-kpi-grid">'+
+     '<article><small>VENTAS OBJETIVO</small><strong>'+money(current.target_won_value)+'</strong></article>'+
+     '<article><small>MARGEN OBJETIVO</small><strong>'+money(current.target_margin)+'</strong></article>'+
+     '<article><small>PRESUPUESTO DE GASTOS</small><strong>'+expenses+'</strong></article>'+
+     '<article><small>PERIODOS REGISTRADOS</small><strong>'+rows.length+'</strong></article>'+
+   '</div>'+
+   (current.notes?'<p class="goals-note">'+esc(current.notes)+'</p>':'')+
+   (rows.length>1?'<div class="goals-history"><h3>Historial</h3>'+rows.slice(1,6).map(row=>'<button type="button" data-edit="'+row.id+'" data-table="goals"><span>'+esc([row.period_start,row.period_end].filter(Boolean).join(' → '))+'</span><b>'+money(row.target_won_value)+'</b></button>').join('')+'</div>':'')+
+ '</section>';
+ const edit=$('editCurrentGoalBtn');if(edit)edit.onclick=()=>openEditor('goals',current.id);
+}
+
 function renderRecords(){
+ const toolbar=document.querySelector('#records .toolbar');const pagination=document.querySelector('#records .pagination');if(toolbar)toolbar.hidden=false;if(pagination)pagination.hidden=false;
+ if(page==='goals'){renderGoalsPage();return;}
  if(page==='prospects'){renderPotentialProspects();return;}
  if(page==='opportunities'){renderOpportunityBoard();return;}
  if(page==='now'){renderNow();return;}
