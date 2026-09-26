@@ -3,6 +3,7 @@
 export const ADMIN = 'admin';
 export const SELLER = 'seller';
 const operational = ['prospects', 'radar', 'mail', 'institutions', 'contacts', 'leads', 'opportunities', 'tasks', 'meetings', 'deliverables', 'documents', 'activities', 'catalog_products'];
+const managementOnly = ['users','goals','cost_profiles','expenses','supplier_relationships','strategic_alliances'];
 export function effectiveWorkspace(profile, requested = ADMIN) {
   return profile?.role === 'ADMIN' && requested === ADMIN ? ADMIN : SELLER;
 }
@@ -11,12 +12,13 @@ export function workspaceKey(userId, organizationId) {
 }
 export function canAccessPage(profile, workspace, page) {
   if (!profile?.organization_id || !['ADMIN','MANAGER','SALES','VIEWER'].includes(profile.role)) return false;
-  return (page==='mail' ? effectiveWorkspace(profile, workspace)===ADMIN : operational.includes(page)) || ['dashboard','now'].includes(page) || (effectiveWorkspace(profile, workspace) === ADMIN && ['users','goals','cost_profiles','expenses'].includes(page));
+  return (page==='mail' ? effectiveWorkspace(profile, workspace)===ADMIN : operational.includes(page)) || ['dashboard','now'].includes(page) || (effectiveWorkspace(profile, workspace) === ADMIN && managementOnly.includes(page));
 }
 export function canWriteModule(profile, workspace, table) {
   if (!canAccessPage(profile, workspace, table) || ['dashboard','radar','now','prospects'].includes(table) || !['ADMIN','MANAGER','SALES'].includes(profile.role)) return false;
-  if (['catalog_products','cost_profiles'].includes(table) && effectiveWorkspace(profile, workspace) !== ADMIN) return false;
-  return table !== 'cost_profiles' ? table !== 'catalog_products' || profile.role === 'ADMIN' : profile.role === 'ADMIN';
+  if (['catalog_products','cost_profiles','supplier_relationships','strategic_alliances'].includes(table) && effectiveWorkspace(profile, workspace) !== ADMIN) return false;
+  if (['cost_profiles','catalog_products','supplier_relationships','strategic_alliances'].includes(table)) return profile.role === 'ADMIN';
+  return true;
 }
 export function assignedUserId(row) {
   return row.owner_user_id || row.assigned_to || row.user_id || row.created_by || null;
