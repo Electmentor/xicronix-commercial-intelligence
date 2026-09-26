@@ -257,8 +257,8 @@ function renderWorkspaceControls(){
   }
  }
  const labels=admin
-  ?{dashboard:'Centro de mando',now:'Prioridades',prospects:'Prospectos potenciales',radar:'Radar Comercial',leads:'Gestión Comercial',meetings:'Agenda del equipo',mail:'Correo Zoho',users:'Equipo comercial',goals:'Metas',opportunities:'Oportunidades',institutions:'Instituciones',contacts:'Contactos',documents:'Documentos',catalog_products:'Catálogo',cost_profiles:'Costos',expenses:'Gastos'}
-  :{dashboard:'Mi Dashboard',now:'Ahora',leads:'Mis casos',tasks:'Mis tareas',meetings:'Mi agenda',mail:'Correo Zoho',opportunities:'Mis oportunidades',contacts:'Mis contactos',documents:'Mis documentos',catalog_products:'Catálogo'};
+  ?{dashboard:'Centro de mando',now:'Prioridades',prospects:'Prospectos potenciales',radar:'Radar Comercial',leads:'Gestión Comercial',meetings:'Agenda del equipo',mail:'Correo Zoho',users:'Equipo comercial',goals:'Metas',opportunities:'Oportunidades',institutions:'Instituciones',contacts:'Contactos',documents:'Repositorio comercial',catalog_products:'Catálogo',cost_profiles:'Costos',expenses:'Gastos'}
+  :{dashboard:'Mi Dashboard',now:'Ahora',leads:'Mis casos',tasks:'Mis tareas',meetings:'Mi agenda',mail:'Correo Zoho',opportunities:'Mis oportunidades',contacts:'Mis contactos',documents:'Mi repositorio',catalog_products:'Catálogo'};
  const navButton=(key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen')+'</button>';
  const navSection=(title,keys,start)=>{const visible=keys.filter(accessible);return visible.length?'<p class="nav-section-label">'+title+'</p>'+visible.map((key,index)=>navButton(key,start+index)).join(''):'';};
  if(admin){
