@@ -3219,3 +3219,22 @@ dialog[data-ribbon] .dialog-header h2{margin:0;padding-right:8px}
  dialog[data-ribbon] .dialog-header{margin-left:-12px;margin-right:-12px;padding-left:12px;padding-right:12px}
  dialog[data-ribbon] .dialog-header::before{left:12px;max-width:calc(100% - 96px)}
 }
+
+/* Windows-style dialog close button */
+dialog[data-ribbon] .dialog-header>button{
+  width:34px;min-width:34px;height:30px;padding:0;
+  border:0;border-radius:8px;background:transparent;
+  font-size:0;position:relative;transition:background .16s ease,color .16s ease,transform .08s ease
+}
+dialog[data-ribbon] .dialog-header>button::before{
+  content:"×";font-size:1.35rem;line-height:1;font-weight:500;color:currentColor
+}
+dialog[data-ribbon] .dialog-header>button:hover{
+  background:#c42b1c;color:#fff
+}
+dialog[data-ribbon] .dialog-header>button:active{
+  transform:scale(.96);background:#a92518
+}
+dialog[data-ribbon] .dialog-header>button:focus-visible{
+  outline:2px solid #ff7a70;outline-offset:2px
+}
