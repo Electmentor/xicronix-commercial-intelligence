@@ -34,7 +34,7 @@ with sync_playwright() as p:
   fn();checks.append(name)
  try:
   context,page=newpage();expect(page.locator('#workspaceControls')).to_be_visible()
-  check('actual data is default',lambda:expect(page.locator('#sourceBadge')).to_have_text('DATOS REALES'))
+  check('actual data is default',lambda:expect(page.locator('#sidebarLiveBtn')).to_have_attribute('aria-pressed','true'))
   check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-25-v2.44.2'))
   page.screenshot(path=str(out/'desktop-v2-fixture.png'),full_page=True)
   pages=['now','radar','institutions','contacts','leads','opportunities','tasks','meetings','deliverables','documents','activities','catalog_products','cost_profiles','expenses','goals','users','dashboard']
@@ -83,8 +83,8 @@ with sync_playwright() as p:
   page.set_viewport_size({'width':390,'height':900})
   assert page.evaluate("getComputedStyle(document.querySelector('.sidebar-toggle')).position")=='absolute';checks.append('mobile sidebar toggle is not fixed over content')
 
-  page.locator('#sourceToggle').click();check('explicit demo',lambda:expect(page.locator('#sourceBadge')).to_contain_text('DEMOSTRACIÓN'))
-  page.locator('#sourceToggle').click();check('return to real',lambda:expect(page.locator('#sourceBadge')).to_have_text('DATOS REALES'))
+  page.locator('#sidebarDemoBtn').click();check('explicit demo',lambda:expect(page.locator('#sidebarDemoBtn')).to_have_attribute('aria-pressed','true'))
+  page.locator('#sidebarLiveBtn').click();check('return to real',lambda:expect(page.locator('#sidebarLiveBtn')).to_have_attribute('aria-pressed','true'))
   assert page.evaluate('window.__testWrites.length')==0;checks.append('no business writes in browsing')
   page.locator('#navigation [data-page="dashboard"]').click()
   for width in [320,390,768,1024,1440]:
