@@ -72,6 +72,9 @@ with sync_playwright() as p:
   page.locator('#closeLeadDetail').click()
   page.get_by_role('button',name='Registrar movimiento').first.click();check('interaction form',lambda:expect(page.locator('#editor')).to_be_visible());page.locator('#cancelEditor').click()
   page.locator('#themeToggle').click();page.reload(wait_until='networkidle')
+  page.locator('#entryDirectionBtn').click();expect(page.locator('#workspaceEntry')).to_be_hidden();page.wait_for_timeout(500)
+  if page.locator('#dailyBriefingDialog').evaluate("el=>el.open"):
+   page.locator('#closeDailyBriefing').click()
   check('night mode persists',lambda:expect(page.locator('html')).to_have_attribute('data-theme','night'))
   page.locator('#navigation [data-page="radar"]').click()
   page.locator('#recordList').evaluate("""node=>node.insertAdjacentHTML('beforeend','<article id="nightRadarProbe" class="radar-card critical"><header><div><span class="radar-class">Crítica</span><h3>Prueba visual</h3><p>Lima</p></div><div class="radar-score"><b>94</b><span>/100</span></div></header><p class="radar-summary">Texto principal legible</p><div class="radar-facts"><span><b>Laboratorio</b>Confirmado</span></div><footer><a href="#">Fuente</a></footer></article>')""")
