@@ -3246,3 +3246,46 @@ dialog[data-ribbon] .dialog-header>button:focus-visible{
 }
 .smart-mail-edit:hover{background:rgba(127,127,127,.12)}
 .smart-mail-summary span{display:block;margin-top:4px;color:var(--muted);font-size:.86rem}
+
+/* Xicronix corporate smart-mail refinement */
+#smartMailDialog[data-ribbon] .dialog-header{
+  min-height:42px;margin:0 -18px 12px;padding:15px 18px 7px;
+  box-shadow:0 4px 10px rgba(0,0,0,.10)
+}
+#smartMailDialog[data-ribbon] .dialog-header::before{
+  top:4px;font-size:.58rem;letter-spacing:.10em
+}
+#smartMailDialog[data-ribbon] .dialog-header h2{
+  font-size:.98rem;line-height:1.15;font-weight:750
+}
+#smartMailDialog[data-ribbon] .dialog-header>button{
+  width:30px;min-width:30px;height:26px;border-radius:6px
+}
+.smart-mail-summary label,.smart-mail-summary>div{
+  display:block;border:1px solid var(--line);border-radius:10px;
+  padding:10px 11px;background:var(--panel,#fff)
+}
+.smart-mail-summary input{
+  width:100%;margin-top:5px;border:0;border-bottom:1px solid transparent;
+  background:transparent;color:inherit;font:inherit;font-weight:750;
+  padding:2px 0 4px;outline:none
+}
+.smart-mail-summary input:hover{border-bottom-color:var(--line)}
+.smart-mail-summary input:focus{
+  border-bottom-color:var(--accent,#1f6feb);
+  box-shadow:0 1px 0 var(--accent,#1f6feb)
+}
+.smart-mail-folders{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 12px}
+.smart-mail-folders span{
+  display:inline-flex;align-items:center;min-height:26px;padding:0 9px;
+  border:1px solid var(--line);border-radius:999px;
+  background:rgba(127,127,127,.06);font-size:.75rem;font-weight:800
+}
+.smart-mail-body,.smart-mail-assets,.smart-mail-summary>div,.smart-mail-summary label{
+  box-shadow:none
+}
+.smart-mail-body h3,.smart-mail-assets h3{font-size:1rem}
+.smart-mail-actions button{min-height:38px;border-radius:8px;font-weight:800}
+@media(max-width:700px){
+ #smartMailDialog[data-ribbon] .dialog-header{margin-left:-12px;margin-right:-12px;padding:14px 12px 7px}
+}
