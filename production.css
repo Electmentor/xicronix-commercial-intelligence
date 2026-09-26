@@ -3098,3 +3098,22 @@ html[data-theme="night"] .opp-card{background:#102136}
 .seller-today-grid strong{font-size:.8rem;line-height:1.4}
 .seller-today-command>.primary{min-height:42px}
 @media(max-width:760px){.seller-command-summary{flex-direction:column;gap:5px}.seller-today-grid{grid-template-columns:1fr}.seller-today-command>header{align-items:flex-start}.seller-today-command>.primary{width:100%}}
+
+
+/* V2.43 · Live Prospect Intelligence feed */
+.director-prospect-feed{display:grid;grid-template-columns:minmax(0,1.4fr) auto auto;gap:16px;align-items:center;margin:0 0 16px;padding:16px;border:1px solid var(--line);border-radius:18px;background:color-mix(in srgb,var(--panel) 94%,var(--blue) 6%)}
+.director-prospect-feed small{color:var(--muted);font-size:.66rem;letter-spacing:.09em;font-weight:800}
+.director-prospect-feed h2{margin:4px 0 5px;font-size:1.05rem}
+.director-prospect-feed p{margin:0;color:var(--muted);font-size:.78rem;line-height:1.4}
+.director-prospect-feed>button{min-height:42px}
+.director-prospect-metrics{display:flex;gap:8px;flex-wrap:wrap}
+.director-prospect-metrics span{min-width:86px;padding:9px 10px;border:1px solid var(--line);border-radius:11px;background:var(--panel)}
+.director-prospect-metrics strong,.director-prospect-metrics small{display:block}
+.director-prospect-metrics strong{font-size:1.05rem}
+.director-mobile-prospect-feed{width:100%;display:grid;grid-template-columns:repeat(3,1fr) auto;gap:8px;align-items:center;text-align:left;padding:12px;border:1px solid var(--line);border-radius:13px;background:var(--panel)}
+.director-mobile-prospect-feed span:not(.clone-chevron){padding:7px 8px;border-radius:9px;background:color-mix(in srgb,var(--panel) 90%,var(--blue) 10%)}
+.director-mobile-prospect-feed strong,.director-mobile-prospect-feed small{display:block}
+.director-mobile-prospect-feed strong{font-size:1rem}
+.director-mobile-prospect-feed small{font-size:.62rem;color:var(--muted)}
+@media(max-width:900px){.director-prospect-feed{grid-template-columns:1fr}.director-prospect-metrics{order:2}.director-prospect-feed>button{order:3;width:100%}}
+@media(max-width:430px){.director-mobile-prospect-feed{grid-template-columns:1fr 1fr}.director-mobile-prospect-feed .clone-chevron{display:none}}
