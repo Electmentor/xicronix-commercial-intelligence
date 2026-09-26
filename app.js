@@ -207,6 +207,7 @@ function restoreWorkspace(){
 }
 function renderWorkspaceControls(){
  const admin=canViewDashboard();
+ const dataModePanel=$('sidebarDataMode');if(dataModePanel)dataModePanel.hidden=!isAdminAccount();
  const sidebarLive=$('sidebarLiveBtn'),sidebarDemo=$('sidebarDemoBtn');
  if(sidebarLive&&sidebarDemo){
   sidebarLive.setAttribute('aria-pressed',String(dataSource==='live'));
