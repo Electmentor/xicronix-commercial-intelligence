@@ -7,7 +7,7 @@ import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executiv
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
-import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.13';
+import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.14';
 
 const $ = id => document.getElementById(id);
 const SPLASH_STARTED_AT=performance.now();
@@ -98,6 +98,10 @@ const costProfile=f('cost_profile_id','Perfil de costos','relation');costProfile
 const quantity=f('quantity','Cantidad','number');
 const discount=f('discount_pct','Descuento negociado (%)','number');
 const negotiatedPrice=f('negotiated_unit_price','Precio unitario negociado (USD)','number');
+const supplierStatus={PROSPECT:'Prospecto',NEGOTIATING:'Negociando',ACTIVE:'Activo',PAUSED:'Pausado',ENDED:'Finalizado'};
+const supplierLevel={STANDARD:'Estándar',PREFERRED:'Preferente',STRATEGIC:'Estratégico',EXCLUSIVE:'Exclusivo'};
+const allianceStatus={EXPLORING:'Explorando',NEGOTIATING:'Negociando',ACTIVE:'Activa',PAUSED:'Pausada',ENDED:'Finalizada'};
+const allianceType={COMMERCIAL:'Comercial',TECHNOLOGY:'Tecnológica',EDUCATION:'Educación',RESEARCH:'Investigación',DISTRIBUTION:'Distribución',INSTITUTIONAL:'Institucional',OTHER:'Otra'};
 const modules={
  prospects:{label:'Prospectos',singular:'prospecto',filter:'operating_bucket',options:{ACTION_NOW:'Acción ahora',RESEARCH_FIRST:'Investigar primero',STRATEGIC_WATCH:'Vigilancia estratégica',MONITOR:'Monitorear',REVALIDATE:'Revalidar'},fields:[]},
  radar:{label:'Radar Comercial',singular:'señal radar',filter:'classification',options:enums.radarClass,fields:[]},
@@ -115,13 +119,24 @@ const modules={
  cost_profiles:{label:'Costos de importación',singular:'perfil de costos',filter:'destination_country',options:{Peru:'Perú'},fields:[f('name','Nombre','text',true),f('origin_country','Origen','text',true),f('destination_country','Destino','text',true),f('currency','Moneda','text',true),f('exchange_rate','Tipo de cambio','number',true),f('freight_international','Flete internacional','number'),f('insurance','Seguro','number'),f('ad_valorem_rate','Ad valorem (%)','number'),f('igv_rate','IGV (%)','number'),f('perception_rate','Percepción (%)','number'),f('customs_broker_fee','Agente de aduanas','number'),f('terminal_fee','Terminal','number'),f('storage_fee','Almacenaje','number'),f('inland_transport','Transporte interno','number'),f('installation_fee','Instalación','number'),f('contingency_rate','Contingencia (%)','number'),f('valid_from','Vigencia desde','date'),f('valid_until','Vigencia hasta','date'),f('notes','Notas','textarea')]},
  expenses:{label:'Gastos operativos',singular:'gasto operativo',filter:'category',options:enums.expenseCategory,fields:[f('description','Concepto','text',true),f('expense_date','Fecha del gasto','date',true),f('category','Categoría','select',true,enums.expenseCategory),f('amount','Importe (S/)','number',true),f('currency','Moneda','select',true,{PEN:'Soles (PEN)'}),f('notes','Notas','textarea')]},
  goals:{label:'Metas',singular:'meta',fields:[owner,f('period_start','Inicio del periodo','date',true),f('period_end','Fin del periodo','date',true),f('target_margin','Meta de margen bruto (S/)','number',true),f('target_won_value','Meta de ventas ganadas (S/)','number',true),f('target_expenses','Presupuesto de gastos operativos (S/)','number'),f('notes','Notas','textarea')]},
+ supplier_relationships:{label:'Proveedores',singular:'proveedor',filter:'status',options:supplierStatus,fields:[
+   f('name','Proveedor','text',true),f('country','País'),f('website','Sitio web','url'),f('contact_name','Contacto principal'),f('contact_email','Correo','email'),f('contact_phone','Teléfono','tel'),
+   f('status','Estado','select',true,supplierStatus),f('relationship_level','Nivel de relación','select',true,supplierLevel),f('currency','Moneda'),
+   f('payment_terms','Condiciones de pago'),f('lead_time_days','Lead time (días)','number'),f('minimum_order','Pedido mínimo','number'),f('terms_summary','Condiciones negociadas','textarea'),
+   owner,f('next_action','Próxima acción'),f('next_action_date','Fecha de seguimiento','datetime-local'),f('notes','Notas','textarea')
+ ]},
+ strategic_alliances:{label:'Alianzas',singular:'alianza',filter:'status',options:allianceStatus,fields:[
+   f('name','Nombre de la alianza','text',true),institution,contact,f('alliance_type','Tipo','select',true,allianceType),f('status','Estado','select',true,allianceStatus),
+   f('strategic_objective','Objetivo estratégico','textarea'),f('mutual_value','Valor para ambas partes','textarea'),owner,
+   f('start_date','Inicio','date'),f('renewal_date','Renovación / revisión','date'),f('next_action','Próxima acción'),f('next_action_date','Fecha de seguimiento','datetime-local'),f('notes','Notas','textarea')
+ ]},
  users:{label:'Usuarios',singular:'usuario',filter:'role',options:enums.role,fields:[f('full_name','Nombre completo','text',true),f('role','Rol','select',true,enums.role)]}
 };
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-26-v2.45.13';
-const CRM_VERSION_LABEL='v2.45.13';
+const CRM_RELEASE='2026-09-26-v2.45.14';
+const CRM_VERSION_LABEL='v2.45.14';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -264,7 +279,7 @@ function renderWorkspaceControls(){
   }
  }
  const labels=admin
-  ?{dashboard:'Centro de Dirección',now:'Prioridades y decisiones',users:'Equipo y cumplimiento',goals:'Metas y cumplimiento',opportunities:'Negociaciones y pipeline',meetings:'Agenda y reuniones',leads:'Gestión comercial',prospects:'Inteligencia de prospectos',radar:'Radar Comercial',catalog_products:'Proveedores y catálogo',institutions:'Cuentas y alianzas',contacts:'Contactos estratégicos',mail:'Correo Zoho',documents:'Repositorio comercial',cost_profiles:'Costos y márgenes',expenses:'Gastos'}
+  ?{dashboard:'Centro de Dirección',now:'Prioridades y decisiones',users:'Equipo y cumplimiento',goals:'Metas y cumplimiento',opportunities:'Negociaciones y pipeline',meetings:'Agenda y reuniones',leads:'Gestión comercial',prospects:'Inteligencia de prospectos',radar:'Radar Comercial',supplier_relationships:'Proveedores',strategic_alliances:'Alianzas estratégicas',catalog_products:'Catálogo',institutions:'Cuentas',contacts:'Contactos estratégicos',mail:'Correo Zoho',documents:'Repositorio comercial',cost_profiles:'Costos y márgenes',expenses:'Gastos'}
   :{dashboard:'Mi Dashboard',now:'Ahora',leads:'Mis casos',tasks:'Mis tareas',meetings:'Mi agenda',mail:'Correo Zoho',opportunities:'Mis oportunidades',contacts:'Mis contactos',documents:'Mi repositorio',catalog_products:'Catálogo'};
  const navButton=(key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen')+'</button>';
  const navSection=(title,keys,start)=>{const visible=keys.filter(accessible);return visible.length?'<p class="nav-section-label">'+title+'</p>'+visible.map((key,index)=>navButton(key,start+index)).join(''):'';};
@@ -272,7 +287,7 @@ function renderWorkspaceControls(){
   const command=['dashboard','now','users','goals'];
   const business=['opportunities','meetings','leads'];
   const intelligence=['prospects','radar'];
-  const relations=['catalog_products','institutions','contacts'];
+  const relations=['supplier_relationships','strategic_alliances','catalog_products','institutions','contacts'];
   const support=['mail','documents','cost_profiles','expenses'];
   const commandVisible=command.filter(accessible);
   let offset=0;
@@ -940,7 +955,8 @@ function renderDirectorResponsibilityCenter(viewData){
  const openTasks=(viewData.tasks||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status));
  const overdueTasks=openTasks.filter(row=>row.due_at&&Date.parse(row.due_at)<Date.now()).length;
  const meetings=(viewData.meetings||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&Date.parse(row.start_at)>=Date.now());
- const suppliers=new Set((viewData.catalog_products||[]).map(row=>String(row.supplier_name||'').trim()).filter(Boolean));
+ const suppliers=viewData.supplier_relationships||[];
+ const alliances=viewData.strategic_alliances||[];
  const currentGoals=(viewData.goals||[]).filter(row=>{
    const now=Date.now(),start=Date.parse(String(row.period_start||'')+'T00:00:00'),end=Date.parse(String(row.period_end||'')+'T23:59:59');
    return Number.isFinite(start)&&Number.isFinite(end)&&start<=now&&now<=end;
@@ -952,8 +968,8 @@ function renderDirectorResponsibilityCenter(viewData){
     '<button type="button" data-page="goals"><small>METAS</small><strong>'+currentGoals.length+'</strong><span>objetivo'+(currentGoals.length===1?'':'s')+' vigente'+(currentGoals.length===1?'':'s')+'</span></button>'+
     '<button type="button" data-page="opportunities"><small>NEGOCIACIONES</small><strong>'+negotiations.length+'</strong><span>'+money(negotiations.reduce((s,row)=>s+(Number(row.value)||0),0))+' en propuesta/negociación</span></button>'+
     '<button type="button" data-page="meetings"><small>REUNIONES</small><strong>'+meetings.length+'</strong><span>compromisos futuros del equipo</span></button>'+
-    '<button type="button" data-page="catalog_products"><small>PROVEEDORES</small><strong>'+suppliers.size+'</strong><span>proveedores identificados en catálogo</span></button>'+
-    '<button type="button" data-page="institutions"><small>ALIANZAS Y CUENTAS</small><strong>→</strong><span>desarrollar relaciones estratégicas e institucionales</span></button>'+
+    '<button type="button" data-page="supplier_relationships"><small>PROVEEDORES</small><strong>'+suppliers.length+'</strong><span>'+suppliers.filter(row=>row.status==='NEGOTIATING').length+' en negociación</span></button>'+
+    '<button type="button" data-page="strategic_alliances"><small>ALIANZAS</small><strong>'+alliances.filter(row=>row.status==='ACTIVE').length+'</strong><span>'+alliances.length+' relaciones registradas</span></button>'+
    '</div>'+
   '</section>';
 }
@@ -1987,6 +2003,30 @@ function directorManagementHeader(targetPage,rows){
     '<article><small>SIN OPORTUNIDAD</small><strong>'+noOpportunity+'</strong><span>potencial para relación / alianza</span></article></div>'+
    '</section>';
  }
+ if(targetPage==='supplier_relationships'){
+   const active=rows.filter(row=>row.status==='ACTIVE');
+   const negotiating=rows.filter(row=>row.status==='NEGOTIATING');
+   const strategic=rows.filter(row=>['STRATEGIC','EXCLUSIVE'].includes(row.relationship_level));
+   const due=rows.filter(row=>row.next_action_date&&Date.parse(row.next_action_date)<now).length;
+   return '<section class="director-page-command"><header><div><small>GESTIÓN DE PROVEEDORES</small><h2>Condiciones, relación y negociación con proveedores</h2><p>Dirección controla aquí la relación comercial con cada proveedor: condiciones, nivel estratégico, tiempos y próxima acción.</p></div></header>'+
+    '<div class="director-page-kpis"><article><small>ACTIVOS</small><strong>'+active.length+'</strong><span>proveedores vigentes</span></article>'+
+    '<article><small>NEGOCIANDO</small><strong>'+negotiating.length+'</strong><span>condiciones abiertas</span></article>'+
+    '<article><small>ESTRATÉGICOS</small><strong>'+strategic.length+'</strong><span>preferencia alta / exclusividad</span></article>'+
+    '<article class="'+(due?'warn':'')+'"><small>SEGUIMIENTOS VENCIDOS</small><strong>'+due+'</strong><span>requieren intervención</span></article></div>'+
+   '</section>';
+ }
+ if(targetPage==='strategic_alliances'){
+   const active=rows.filter(row=>row.status==='ACTIVE');
+   const negotiating=rows.filter(row=>row.status==='NEGOTIATING');
+   const exploring=rows.filter(row=>row.status==='EXPLORING');
+   const review=rows.filter(row=>row.renewal_date&&Date.parse(String(row.renewal_date)+'T23:59:59')<now+60*86400000).length;
+   return '<section class="director-page-command"><header><div><small>ALIANZAS ESTRATÉGICAS</small><h2>Relaciones que amplían capacidades, mercado o posicionamiento</h2><p>Una alianza se gestiona por objetivo, valor mutuo, responsable, vigencia y próxima decisión; no se confunde con una institución registrada.</p></div></header>'+
+    '<div class="director-page-kpis"><article><small>ACTIVAS</small><strong>'+active.length+'</strong><span>alianzas vigentes</span></article>'+
+    '<article><small>NEGOCIANDO</small><strong>'+negotiating.length+'</strong><span>acuerdos en curso</span></article>'+
+    '<article><small>EXPLORANDO</small><strong>'+exploring.length+'</strong><span>relaciones potenciales</span></article>'+
+    '<article class="'+(review?'warn':'')+'"><small>REVISIÓN ≤60 DÍAS</small><strong>'+review+'</strong><span>renovación o revisión próxima</span></article></div>'+
+   '</section>';
+ }
  return '';
 }
 function renderRecords(){
@@ -1996,28 +2036,28 @@ function renderRecords(){
  if(page==='radar'){renderRadarRecords();return;}
  if(page==='mail'){renderMailRecords();return;}
  if(page==='tasks'){renderTaskRecords();return;}
- const isUsers=page==='users',isGoals=page==='goals',isExpenses=page==='expenses';
+ const isUsers=page==='users',isGoals=page==='goals',isExpenses=page==='expenses',isSuppliers=page==='supplier_relationships',isAlliances=page==='strategic_alliances';
  $('recordContext').hidden=!executiveFilter&&!executiveOwner&&!sellerQuickFilter;
  const sellerFilterLabel={active:'Prospectos activos',action:'Requieren acción',mature:'Madurez alta',meeting:'Con reunión próxima'}[sellerQuickFilter];
  $('recordContextLabel').textContent=[{won:'Ganadas con cierre previsto este mes',pipeline:'Cartera abierta',risk:'Cartera en riesgo'}[executiveFilter],executiveOwner?'Vendedor: '+(data.users.find(row=>row.id===executiveOwner)?.full_name||'seleccionado'):'',sellerFilterLabel].filter(Boolean).join(' · ');
  $('importBtn').hidden=isUsers||isGoals||!writableFor(page);$('importBtn').disabled=loading||busy||!!failures[page];$('importHelp').hidden=isUsers||isGoals||!writableFor(page);
  $('sellerSummary').hidden=canViewDashboard()||!['leads','tasks'].includes(page);$('sellerSummary').innerHTML=page==='tasks'?renderTaskPrioritySummary():renderSellerWorkspaceSummary();
  const rows=filtered();const max=Math.max(1,Math.ceil(rows.length/size));pageIndex=Math.min(pageIndex,max-1);
- const directorCountLabel={users:'miembros del equipo',goals:'metas definidas',meetings:'reuniones',catalog_products:'productos de proveedores',institutions:'instituciones'}[page];
+ const directorCountLabel={users:'miembros del equipo',goals:'metas definidas',meetings:'reuniones',supplier_relationships:'proveedores',strategic_alliances:'alianzas',catalog_products:'productos de catálogo',institutions:'instituciones'}[page];
  $('recordCount').textContent=failures[page]?'Información no disponible':rows.length+' '+(directorCountLabel||'registros');
  $('exportBtn').disabled=!!failures[page]||!rows.length;
  $('pageNumber').textContent='Página '+(pageIndex+1)+' de '+max;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
  const config=modules[page],canEdit=writableFor(page);
- const secondHeader=isUsers?'Rol':isGoals?'Responsable':isExpenses?'Fecha del gasto':['tasks','meetings','deliverables','documents'].includes(page)?'Prospecto':page==='institutions'?'Ciudad':['catalog_products','cost_profiles'].includes(page)?'Origen / destino':'Institución';
- const detailHeader=isGoals?'Metas y presupuesto':isExpenses?'Importe':page==='tasks'?'Urgencia dinámica':page==='meetings'?'Fecha y modalidad':page==='documents'?'Carpeta / versión':(['leads','opportunities'].includes(page)?'Valor estimado':page==='catalog_products'?'Precio proveedor':page==='cost_profiles'?'Tipo de cambio':'Detalle');
+ const secondHeader=isUsers?'Rol':isGoals?'Responsable':isSuppliers?'País / contacto':isAlliances?'Institución':isExpenses?'Fecha del gasto':['tasks','meetings','deliverables','documents'].includes(page)?'Prospecto':page==='institutions'?'Ciudad':['catalog_products','cost_profiles'].includes(page)?'Origen / destino':'Institución';
+ const detailHeader=isGoals?'Metas y presupuesto':isSuppliers?'Condiciones / próxima acción':isAlliances?'Objetivo / próxima acción':isExpenses?'Importe':page==='tasks'?'Urgencia dinámica':page==='meetings'?'Fecha y modalidad':page==='documents'?'Carpeta / versión':(['leads','opportunities'].includes(page)?'Valor estimado':page==='catalog_products'?'Precio proveedor':page==='cost_profiles'?'Tipo de cambio':'Detalle');
  const pageRows=rows.slice(pageIndex*size,(pageIndex+1)*size);
  const rowsMarkup=pageRows.map(row=>{
-  const secondCell=isUsers?badge(row.role,page):isGoals?esc(relationName('owner_user_id',row)||'Organización'):isExpenses?esc(row.expense_date||'Sin fecha'):['tasks','meetings','deliverables','documents'].includes(page)?esc(relationName('lead_id',row)||'Sin prospecto vinculado'):page==='catalog_products'?esc(row.origin_country||'—')+' → Perú':page==='cost_profiles'?esc(row.origin_country||'—')+' → '+esc(row.destination_country||'—'):esc(page==='institutions'?row.city||'—':relatedName(row)||'Sin vincular');
-  const stateCell=isGoals?'<span class="badge success">Meta definida</span>':page==='catalog_products'?(row.active===false?'<span class="badge warn">Inactivo</span>':'<span class="badge success">Activo</span>'):badge(row[config.filter],page);
-  const detail=isGoals?'Ventas '+money(row.target_won_value)+'<small>Margen bruto '+money(row.target_margin)+'</small><small>Gastos '+(row.target_expenses===null||row.target_expenses===undefined?'Sin presupuesto':money(row.target_expenses))+'</small>':isExpenses?money(row.amount):page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='catalog_products'?catalogMoney(row.supplier_unit_price):page==='cost_profiles'?Number(row.exchange_rate||0).toFixed(2):page==='tasks'?urgencyCell(row):page==='meetings'?('<strong>'+esc(date(row.start_at))+'</strong><small>'+esc(enums.meetingMode[row.mode]||row.mode)+' · '+esc(date(row.end_at))+'</small>'):page==='documents'?('<strong>'+esc(enums.documentCategory[row.category]||row.category)+'</strong><small>Versión actual: v'+Number(row.current_version||0)+'</small>'):page==='activities'?esc(date(row.occurred_at)):esc(row.phone||'—');
+  const secondCell=isUsers?badge(row.role,page):isGoals?esc(relationName('owner_user_id',row)||'Organización'):isSuppliers?(esc(row.country||'—')+'<small>'+esc(row.contact_name||row.contact_email||'Contacto pendiente')+'</small>'):isAlliances?esc(relationName('institution_id',row)||'Sin institución vinculada'):isExpenses?esc(row.expense_date||'Sin fecha'):['tasks','meetings','deliverables','documents'].includes(page)?esc(relationName('lead_id',row)||'Sin prospecto vinculado'):page==='catalog_products'?esc(row.origin_country||'—')+' → Perú':page==='cost_profiles'?esc(row.origin_country||'—')+' → '+esc(row.destination_country||'—'):esc(page==='institutions'?row.city||'—':relatedName(row)||'Sin vincular');
+  const stateCell=isGoals?'<span class="badge success">Meta definida</span>':isSuppliers?badge(row.status,page):isAlliances?badge(row.status,page):page==='catalog_products'?(row.active===false?'<span class="badge warn">Inactivo</span>':'<span class="badge success">Activo</span>'):badge(row[config.filter],page);
+  const detail=isGoals?'Ventas '+money(row.target_won_value)+'<small>Margen bruto '+money(row.target_margin)+'</small><small>Gastos '+(row.target_expenses===null||row.target_expenses===undefined?'Sin presupuesto':money(row.target_expenses))+'</small>':isSuppliers?('<strong>'+esc(supplierLevel[row.relationship_level]||row.relationship_level)+'</strong><small>'+esc(row.payment_terms||row.terms_summary||'Condiciones por definir')+'</small><small>'+esc(row.next_action||'Sin próxima acción')+'</small>'):isAlliances?('<strong>'+esc(allianceType[row.alliance_type]||row.alliance_type)+'</strong><small>'+esc(row.strategic_objective||'Objetivo por definir')+'</small><small>'+esc(row.next_action||'Sin próxima acción')+'</small>'):isExpenses?money(row.amount):page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='catalog_products'?catalogMoney(row.supplier_unit_price):page==='cost_profiles'?Number(row.exchange_rate||0).toFixed(2):page==='tasks'?urgencyCell(row):page==='meetings'?('<strong>'+esc(date(row.start_at))+'</strong><small>'+esc(enums.meetingMode[row.mode]||row.mode)+' · '+esc(date(row.end_at))+'</small>'):page==='documents'?('<strong>'+esc(enums.documentCategory[row.category]||row.category)+'</strong><small>Versión actual: v'+Number(row.current_version||0)+'</small>'):page==='activities'?esc(date(row.occurred_at)):esc(row.phone||'—');
   const actionLabel=canEdit?'Editar':'Ver';
   const rowName=page==='catalog_products'?catalogDisplayName(row):nameOf(row)||('Meta '+row.period_start);
-  const subline=isGoals?(row.period_start+' → '+row.period_end):isExpenses?(row.currency||'PEN'):(row.email||row.next_action||row.job_title||row.category||row.notes||'');
+  const subline=isGoals?(row.period_start+' → '+row.period_end):isSuppliers?(row.website||row.contact_email||'Relación con proveedor'):isAlliances?((allianceType[row.alliance_type]||row.alliance_type)+' · '+(row.status||'')):isExpenses?(row.currency||'PEN'):(row.email||row.next_action||row.job_title||row.category||row.notes||'');
   return '<tr><td><strong>'+esc(rowName)+'</strong><small>'+esc(subline)+'</small></td><td>'+secondCell+'</td><td>'+stateCell+'</td><td>'+detail+'</td>'+(page==='leads'?'<td>'+maturityCell(row)+'</td>':'')+'<td><div class="row-actions">'+(page==='leads'?'<button class="primary" data-lead-detail="'+row.id+'">Abrir expediente comercial</button>':'')+(page==='documents'&&Number(row.current_version)>0?'<button data-open-document="'+row.id+'">Abrir archivo</button>':'')+'<button data-edit="'+row.id+'" data-table="'+page+'">'+actionLabel+'</button>'+(page==='leads'&&writable()?'<button data-activity-lead="'+row.id+'">Registrar movimiento</button>':'')+(!isUsers&&canDelete()?'<button class="danger-text" data-delete="'+row.id+'" data-table="'+page+'">Eliminar</button>':'')+'</div></td></tr>';
  }).join('');
  const leadCards=page==='leads'?renderLeadCards(pageRows):'';
