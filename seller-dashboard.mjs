@@ -45,11 +45,12 @@ function sellerWhatsappHref(value){
   const digits=String(value||'').replace(/\D/g,'');
   return digits?'https://wa.me/'+(digits.startsWith('51')?digits:'51'+digits):'';
 }
-function sellerQuickActions(row){
+function sellerQuickActions(row,{compact=false}={}){
   const contact=row.contact||null;
-  const phone=String(contact?.phone||'').trim();
-  const email=String(contact?.email||'').trim();
-  return '<div class="seller-direct-actions">'+
+  const institution=row.institution||null;
+  const phone=String(contact?.phone||institution?.phone||'').trim();
+  const email=String(contact?.email||institution?.email||'').trim();
+  return '<div class="seller-direct-actions'+(compact?' compact':'')+'">'+
     (phone?'<a class="seller-direct-action primary" href="'+esc(sellerPhoneHref(phone))+'">Llamar</a>':'')+
     (email?'<button type="button" class="seller-direct-action" data-smart-mail="'+esc(row.lead.id)+'">Correo</button>':'')+
     (phone?'<a class="seller-direct-action" href="'+esc(sellerWhatsappHref(phone))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
@@ -101,8 +102,8 @@ function leadStory(data,lead){
 }
 
 function recommendedMove(row){
-  const contact=row.contact||null, lead=row.lead;
-  const phone=contact?.phone||'', email=contact?.email||'';
+  const contact=row.contact||null, institution=row.institution||null, lead=row.lead;
+  const phone=contact?.phone||institution?.phone||'', email=contact?.email||institution?.email||'';
   const urgent=row.urgency?.label==='Alta';
   const advanced=row.maturity>=70;
   const contacted=['CONTACTED','QUALIFIED'].includes(lead.status);
@@ -175,63 +176,52 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
   const incomplete=Object.keys(failures).length>0;
   const openTasks=tasks.filter(row=>!['COMPLETED','CANCELLED'].includes(row.status));
   const overdue=openTasks.filter(row=>row.due_at&&Date.parse(row.due_at)<now.getTime()).length;
-  const upcomingMeetings=meetings.filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&Date.parse(row.start_at)>=now.getTime()).sort((a,b)=>Date.parse(a.start_at)-Date.parse(b.start_at));
-  const selected=rows[0]||null;
-  const attention=rows.filter(row=>row.urgency.label==='Alta').length;
-  const highPotential=rows.filter(row=>(row.potential??0)>=75).length;
-  const negotiation=rows.filter(row=>row.maturity>=70).length;
+  const searchedRows=String(searchQuery||'').trim()?rows.filter(row=>matchesProspectSearch(row,searchQuery)):rows;
+  const selected=searchedRows[0]||null;
+  const nextRows=searchedRows.slice(1,4);
+  const restRows=searchedRows.slice(4);
 
   const narrative=incomplete?'Hay información pendiente de carga. Actualiza antes de priorizar.':
-    !selected?'No hay prospectos activos. Registra o asigna el siguiente prospecto.':
+    !selected?(String(searchQuery||'').trim()?'No se encontraron prospectos con ese ID o nombre.':'No hay prospectos activos. Registra o asigna el siguiente prospecto.'):
     selected.urgency.label==='Alta'?'Prioridad: '+(selected.institution?.name||selected.lead.title)+'. '+selected.urgency.next+'.':
     'La cartera está bajo control. El siguiente movimiento con mayor impacto está en '+(selected.institution?.name||selected.lead.title)+'.';
+
   const todayAction=selected?'<section class="seller-today-command"><header><div><small>PRIORIDAD #1 · HACER AHORA</small><h2>'+esc(selected.institution?.name||selected.lead.title)+'</h2><p>'+esc(selected.recommended.action)+'</p></div><span class="seller-channel">'+esc(selected.recommended.channel)+'</span></header>'+sellerQuickActions(selected)+'<div class="seller-today-context"><span><b>Por qué ahora</b>'+esc(selected.recommended.reason)+'</span><span><b>Para avanzar</b>'+esc(selected.missingText)+'</span></div><button class="seller-open-detail" data-lead-detail="'+esc(selected.lead.id)+'">Ver expediente completo →</button></section>':'';
 
-  const kpi=(key,label,value,detail,tone='')=>'<button type="button" class="seller-story-kpi '+tone+'" data-seller-filter="'+key+'" aria-label="'+esc(label)+': '+esc(value)+'. Abrir cartera filtrada"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong><span>'+esc(detail)+'</span><em>Ver cartera →</em></button>';
-  const kpis=kpi('active','Prospectos activos',String(rows.length),highPotential+' con potencial alto')+
-    kpi('action','Requieren acción',String(attention),overdue+' tareas vencidas','warning')+
-    kpi('mature','Madurez alta',String(negotiation),'70% o más de madurez')+
-    kpi('meeting','Próxima reunión',upcomingMeetings[0]?compactDate(upcomingMeetings[0].start_at):'—',upcomingMeetings[0]?.title||'Sin reunión próxima');
+  const focus=nextRows.length?'<section class="seller-priority-section"><div class="seller-section-heading"><small>SIGUIENTES 3</small><strong>La cola inmediata después de tu prioridad principal</strong></div><div class="seller-priority-stack">'+nextRows.map((row,index)=>{
+    const lead=row.lead,name=row.institution?.name||lead.title;
+    return '<article class="seller-priority-prospect secondary-focus">'+
+      '<header><div><span class="seller-priority-rank">0'+(index+2)+'</span><div class="prospect-title-line"><h2>'+esc(name)+'</h2><span class="prospect-id">ID '+esc(prospectDisplayId(lead))+'</span></div></div><div class="seller-priority-status"><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></div></header>'+
+      renderProspectProgress(lead,row.maturity)+
+      '<footer class="prospect-action-footer"><div class="prospect-action-flow">'+
+        '<section class="prospect-action-col"><small>ÚLTIMA ACCIÓN</small><strong>'+esc(row.latest?.subject||row.latest?.type||'Sin acción registrada')+'</strong><span>'+esc(compactDateTime(row.latest?.occurred_at))+'</span></section>'+
+        '<span class="prospect-action-divider" aria-hidden="true"></span>'+
+        '<section class="prospect-action-col"><small>SIGUIENTE ACCIÓN</small><strong>'+esc(row.urgency.next||'Por definir')+'</strong><span>'+esc(row.urgency.date?compactDateTime(row.urgency.date):'Por definir')+'</span></section>'+
+      '</div>'+sellerQuickActions(row)+'<button class="seller-open-detail" data-lead-detail="'+esc(lead.id)+'">Ver expediente →</button></footer>'+
+    '</article>';
+  }).join('')+'</div></section>':'';
 
-  const cards=rows.length?rows.map(row=>{
+  const cards=restRows.length?restRows.map(row=>{
     const name=row.institution?.name||row.lead.title;
     const potential=row.potential===null?'Potencial pendiente':row.potential+'% potencial';
-    return '<article class="seller-candidate-card operational">'+
+    return '<article class="seller-candidate-card operational compact">'+
       '<header><div><span class="seller-candidate-kicker">PROSPECTO</span><h3>'+esc(name)+'</h3></div><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></header>'+
-      '<p class="seller-candidate-problem"><b>Problema:</b> '+esc(row.problem)+'</p>'+
-      '<div class="seller-candidate-meta"><span><b>'+row.maturity+'%</b><small>Madurez</small></span><span><b>'+esc(potential)+'</b><small>Calidad comercial</small></span></div>'+
+      '<div class="seller-candidate-meta"><span><b>'+row.maturity+'%</b><small>Madurez</small></span><span><b>'+esc(potential)+'</b><small>Potencial</small></span></div>'+
       '<p class="seller-candidate-next"><b>Siguiente:</b> '+esc(row.urgency.next)+(row.urgency.date?' · '+esc(compactDate(row.urgency.date)):'')+'</p>'+
-      sellerQuickActions(row)+
+      sellerQuickActions(row,{compact:true})+
       '<button type="button" class="seller-open-detail" data-lead-detail="'+esc(row.lead.id)+'">Ver expediente →</button>'+
     '</article>';
-  }).join(''):'<div class="seller-story-empty">No hay prospectos activos en tu cartera.</div>';
+  }).join(''):'';
 
-  const searchedRows=String(searchQuery||'').trim()?rows.filter(row=>matchesProspectSearch(row,searchQuery)):rows;
-  const priorityRows=searchedRows.slice(0,4);
-  const focus=priorityRows.length?'<section class="seller-priority-section"><div class="seller-priority-stack">'+priorityRows.map((row,index)=>{
-    const lead=row.lead,name=row.institution?.name||lead.title;
-    return '<article class="seller-priority-prospect '+(index===0?'primary-focus':'secondary-focus')+'">'+
-      '<header><div><span class="seller-priority-rank">0'+(index+1)+'</span><div class="prospect-title-line"><h2>'+esc(name)+'</h2><span class="prospect-id">ID '+esc(prospectDisplayId(lead))+'</span></div></div><div class="seller-priority-status"><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></div></header>'+
-      renderProspectProgress(lead,row.maturity)+
-
-      '<footer class="prospect-action-footer">'+
-        '<div class="prospect-action-flow">'+
-          '<section class="prospect-action-col"><small>ÚLTIMA ACCIÓN</small><strong>'+esc(row.latest?.subject||row.latest?.type||'Sin acción registrada')+'</strong><span>'+esc(compactDateTime(row.latest?.occurred_at))+'</span></section>'+
-          '<span class="prospect-action-divider" aria-hidden="true"></span>'+
-          '<section class="prospect-action-col"><small>SIGUIENTE ACCIÓN</small><strong>'+esc(row.urgency.next||'Por definir')+'</strong><span>'+esc(row.urgency.date?compactDateTime(row.urgency.date):'Por definir')+'</span></section>'+
-        '</div>'+sellerQuickActions(row)+
-        '<button class="seller-open-detail" data-lead-detail="'+esc(lead.id)+'">Ver expediente →</button>'+
-      '</footer>'+
-    '</article>';
-  }).join('')+'</div></section>':'<div class="seller-story-empty">'+(String(searchQuery||'').trim()?'No se encontraron prospectos con ese ID o nombre.':'No hay prospectos activos en tu cartera.')+'</div>';
-
-  const priorityStory='';
   const searchBox=showSearch?'<section class="commercial-search"><div class="commercial-search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg><input id="commercialSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Buscar por ID o nombre…" value="'+esc(searchQuery)+'" aria-label="Buscar prospecto por ID o nombre"></div><small>'+searchedRows.length+' resultado'+(searchedRows.length===1?'':'s')+'</small></section>':'';
+
+  const restSection=restRows.length?'<details class="seller-prospects-panel seller-prospects-panel--cards seller-secondary-list"><summary>Resto de mi cartera <span>'+restRows.length+'</span></summary><div class="seller-candidate-list">'+cards+'</div></details>':'';
+
   return '<div class="seller-story-dashboard">'+
     '<section class="seller-command-summary"><span>PRIORIDAD DIARIA</span><strong>'+esc(narrative)+'</strong></section>'+
-    todayAction+
     searchBox+
+    todayAction+
     focus+
-    '<details class="seller-prospects-panel seller-prospects-panel--cards seller-secondary-list"><summary>Ver otros prospectos de mi cartera</summary><div class="seller-candidate-list">'+cards+'</div></details>'+
+    restSection+
     '</div>';
 }
