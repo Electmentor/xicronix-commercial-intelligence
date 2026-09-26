@@ -3701,3 +3701,69 @@ dialog[data-ribbon] .dialog-header>button:focus-visible{
     grid-template-columns:1fr 1fr;
   }
 }
+
+/* Seller hierarchy v2.45.2 · 1 + 3 + rest */
+.app[data-workspace="SELLER"] .seller-section-heading{
+  display:flex;
+  align-items:baseline;
+  gap:10px;
+  padding:0 2px 6px;
+}
+.app[data-workspace="SELLER"] .seller-section-heading small{
+  font-size:.62rem;
+  letter-spacing:.1em;
+  font-weight:900;
+  color:var(--muted);
+}
+.app[data-workspace="SELLER"] .seller-section-heading strong{
+  font-size:.82rem;
+  font-weight:650;
+  color:var(--muted);
+}
+.app[data-workspace="SELLER"] .seller-secondary-list>summary{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.app[data-workspace="SELLER"] .seller-secondary-list>summary span{
+  display:inline-grid;
+  place-items:center;
+  min-width:24px;
+  height:22px;
+  padding:0 7px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  font-size:.7rem;
+}
+.app[data-workspace="SELLER"] .seller-candidate-card.operational.compact{
+  padding:12px 13px;
+  box-shadow:none;
+}
+.app[data-workspace="SELLER"] .seller-candidate-card.operational.compact .seller-candidate-problem{
+  display:none;
+}
+.app[data-workspace="SELLER"] .seller-candidate-card.operational.compact .seller-candidate-meta{
+  margin:8px 0 6px;
+}
+.app[data-workspace="SELLER"] .seller-direct-actions.compact{
+  gap:6px;
+  margin:9px 0 6px;
+}
+.app[data-workspace="SELLER"] .seller-direct-actions.compact .seller-direct-action{
+  min-height:32px;
+  padding:0 10px;
+  font-size:.72rem;
+  background:transparent;
+}
+.app[data-workspace="SELLER"] .seller-direct-actions.compact .seller-direct-action.primary{
+  background:var(--blue,#2563eb);
+}
+@media(max-width:700px){
+  .app[data-workspace="SELLER"] .seller-section-heading{
+    display:grid;
+    gap:2px;
+  }
+  .app[data-workspace="SELLER"] .seller-direct-actions.compact{
+    grid-template-columns:1fr 1fr;
+  }
+}
