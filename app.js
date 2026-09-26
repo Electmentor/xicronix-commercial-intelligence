@@ -7,7 +7,7 @@ import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executiv
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
-import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.5';
+import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.6';
 
 const $ = id => document.getElementById(id);
 const SPLASH_STARTED_AT=performance.now();
@@ -120,15 +120,15 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-26-v2.45.5';
-const CRM_VERSION_LABEL='v2.45.5';
+const CRM_RELEASE='2026-09-26-v2.45.6';
+const CRM_VERSION_LABEL='v2.45.6';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
 let entryRoute=readEntryRoute();
 const emptyData=()=>Object.fromEntries([...Object.keys(modules),'scores','document_versions'].map(k=>[k,[]]));
 const writable=()=>profile && ['ADMIN','MANAGER','SALES'].includes(profile.role);
-let workspace=SELLER, workspaceIdentity=null, workspaceEntryChosen=true, loading=false;
+let workspace=SELLER, workspaceIdentity=null, workspaceEntryChosen=false, loading=false;
 let dataSource='live', sourceIdentity=null, demoData=null, demoSeller=DEMO_SELLERS[0].id, demoSaved=true, executiveFilter='', executiveOwner='', sellerQuickFilter='', prospectDashboardFilter='';
 let noticeTimer=null;
 let analyticsPeriod='year';
@@ -297,6 +297,7 @@ function renderWorkspaceEntry(){
  if(!isAdminAccount()){
   workspaceEntryChosen=true;
   gate.hidden=true;
+  if(!dailyBriefingShownForSession)setTimeout(()=>openDailyBriefing(false),250);
   return;
  }
  gate.hidden=workspaceEntryChosen;
@@ -308,6 +309,7 @@ async function chooseWorkspaceEntry(next){
  if(next===workspace){
   renderWorkspaceControls();renderConnectionState();
   navigate('dashboard');
+  setTimeout(()=>openDailyBriefing(false),250);
   return;
  }
  await setWorkspace(next);
@@ -318,6 +320,7 @@ async function setWorkspace(next){
  if($('editor').open){notice('Guarda o cancela el formulario antes de cambiar de modo.',true);return;}
  if(next===workspace)return;
  workspace=effectiveWorkspace(profile,next);
+ dailyBriefingShownForSession=false;
  try{localStorage.setItem(workspaceIdentity,workspace);}catch(_error){}
  clearWorkspaceViews();
  navigate('dashboard');
@@ -392,7 +395,7 @@ function clearSession(){
  stopLiveIntelligence();
  stopLiveMailRealtime();
  closeLeadDetails(false);
- loadVersion++;session=null;profile=null;data=emptyData();failures={};mailWebhookConfig=null;page='dashboard';pageIndex=0;workspace=SELLER;workspaceIdentity=null;loading=false;dataSource='live';sourceIdentity=null;demoData=null;executiveFilter='';executiveOwner='';editTable=null;editId=null;editingVersion=null;
+ loadVersion++;session=null;profile=null;data=emptyData();failures={};mailWebhookConfig=null;page='dashboard';pageIndex=0;workspace=SELLER;workspaceIdentity=null;workspaceEntryChosen=false;loading=false;dataSource='live';sourceIdentity=null;demoData=null;executiveFilter='';executiveOwner='';editTable=null;editId=null;editingVersion=null;
  $('fields').replaceChildren();$('sellerSummary').replaceChildren();$('navigation').replaceChildren();$('workspaceControls').hidden=true;
  if($('editor').open)$('editor').close();$('appView').hidden=true;$('authView').hidden=false;$('dashboard').replaceChildren();$('recordList').replaceChildren();
 }
@@ -623,7 +626,7 @@ async function reload(){
  primeLiveIntelligence();startLiveIntelligence();startLiveMailRealtime();
  render();const bad=Object.keys(failures);notice(bad.length?'No se pudo cargar: '+bad.map(k=>modules[k]?.label||k).join(', ')+'. Pulsa Actualizar para reintentar.':'',!!bad.length);
  }catch(error){if(version===loadVersion){profile=null;data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice(errorText(error),true);}}
- finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;$('refreshBtn').classList.remove('is-refreshing');render();applyEntryRoute();renderWorkspaceEntry();hideAppSplash();setTimeout(()=>openDailyBriefing(false),350);}}
+ finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;$('refreshBtn').classList.remove('is-refreshing');render();applyEntryRoute();renderWorkspaceEntry();hideAppSplash();if(workspaceEntryChosen)setTimeout(()=>openDailyBriefing(false),350);}}
 }
 function applyTheme(theme,persist=false){
  const night=theme==='night';document.documentElement.dataset.theme=night?'night':'day';
