@@ -3673,3 +3673,31 @@ dialog[data-ribbon] .dialog-header>button:focus-visible{
   .seller-direct-action,.seller-open-detail{width:100%}
   .app[data-workspace="SELLER"] .prospect-action-footer .seller-open-detail{width:100%}
 }
+
+/* Seller prospect list · same operational pattern for every prospect */
+.app[data-workspace="SELLER"] .seller-candidate-card.operational{
+  display:block;
+  width:100%;
+  text-align:left;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:15px;
+  background:var(--panel);
+  box-shadow:0 6px 16px rgba(10,32,58,.04);
+}
+.app[data-workspace="SELLER"] .seller-candidate-card.operational:hover{
+  border-color:color-mix(in srgb,var(--blue,#2563eb) 24%,var(--line));
+  box-shadow:0 8px 20px rgba(10,32,58,.06);
+}
+.app[data-workspace="SELLER"] .seller-candidate-card.operational .seller-direct-actions{
+  margin:12px 0 8px;
+}
+.app[data-workspace="SELLER"] .seller-candidate-card.operational .seller-open-detail{
+  min-height:32px;
+  padding:0 8px;
+}
+@media(max-width:700px){
+  .app[data-workspace="SELLER"] .seller-candidate-card.operational .seller-direct-actions{
+    grid-template-columns:1fr 1fr;
+  }
+}
