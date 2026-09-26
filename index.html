@@ -3,21 +3,21 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#081b32"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="description" content="Xicronix: instituciones, contactos y seguimiento comercial.">
-<meta name="robots" content="noindex,nofollow"><meta name="xicronix-release" content="2026-09-26-v2.45.3">
+<meta name="robots" content="noindex,nofollow"><meta name="xicronix-release" content="2026-09-26-v2.45.4">
 <title>Xicronix V2 | Inteligencia comercial</title>
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-<link rel="stylesheet" href="executive.css?v=20260926-v2.45.3">
+<link rel="stylesheet" href="executive.css?v=20260926-v2.45.4">
 <link rel="stylesheet" href="analytics.css">
-<link rel="stylesheet" href="production.css?v=20260926-v2.45.3">
+<link rel="stylesheet" href="production.css?v=20260926-v2.45.4">
 <link rel="stylesheet" href="radar.css?v=20260922-v3">
 <link rel="stylesheet" href="mobile-now.css?v=20260923-v2.37">
-<link rel="manifest" href="/manifest.webmanifest?v=20260926-v2.45.3">
+<link rel="manifest" href="/manifest.webmanifest?v=20260926-v2.45.4">
 <link rel="icon" href="/xicronix-icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/xicronix-icon-192.png">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Xicronix">
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="this.onerror=null;this.src=&quot;https://unpkg.com/@supabase/supabase-js@2&quot;"></script>
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script type="module" src="app.js?v=20260926-v2.45.3"></script>
+<script type="module" src="app.js?v=20260926-v2.45.4"></script>
 <style data-splash-critical>
 html,body{background:#081b32}
 .app-splash{position:fixed;inset:0;z-index:99999;display:grid;place-content:center;justify-items:center;background:#081b32;color:#f2f7ff}
@@ -67,7 +67,7 @@ html,body{background:#081b32}
       <p class="workspace-entry-footnote">Puedes cambiar de perspectiva después sin cerrar sesión.</p>
     </div>
   </section>
-  <aside id="mainSidebar" class="sidebar"><div class="sidebar-brand-row"><div class="brand">XICRONIX<span>INTELIGENCIA COMERCIAL</span></div><small class="menu-version-badge" id="menuVersionBadge" aria-label="Versión de la aplicación">v2.45.3</small></div><div id="sidebarDataMode" class="sidebar-data-mode" aria-label="Fuente de datos"><small>MODO DE DATOS</small><div><button id="sidebarLiveBtn" type="button" aria-pressed="true">Datos reales</button><button id="sidebarDemoBtn" type="button" aria-pressed="false">Demostración</button></div><button id="resetDemoBtn" class="sidebar-reset-demo" type="button" hidden title="Restablece solo los casos ficticios de este navegador">Reiniciar demostración</button></div><div id="sidebarWorkspaceMode" class="sidebar-workspace-mode" aria-label="Vista de trabajo"><small>VISTA DE TRABAJO</small><div><button id="sidebarDirectionBtn" type="button" aria-pressed="false">Dirección</button><button id="sidebarSellerBtn" type="button" aria-pressed="true">Ejecutivo comercial</button></div></div><p id="workspaceLabel" class="nav-label">ESPACIO COMERCIAL</p><nav id="navigation" aria-label="Navegación principal"></nav><div class="sidebar-bottom"><small class="release-label">V2.45.3 · 26 SEP 2026</small><a id="complaintsLink" class="complaints-link" href="complaints.html" hidden>Libro de Reclamaciones</a><span id="userRole"></span><button id="logoutBtn">Cerrar sesión</button></div></aside>
+  <aside id="mainSidebar" class="sidebar"><div class="sidebar-brand-row"><div class="brand">XICRONIX<span>INTELIGENCIA COMERCIAL</span></div><small class="menu-version-badge" id="menuVersionBadge" aria-label="Versión de la aplicación">v2.45.4</small></div><div id="sidebarDataMode" class="sidebar-data-mode" aria-label="Fuente de datos"><small>MODO DE DATOS</small><div><button id="sidebarLiveBtn" type="button" aria-pressed="true">Datos reales</button><button id="sidebarDemoBtn" type="button" aria-pressed="false">Demostración</button></div><button id="resetDemoBtn" class="sidebar-reset-demo" type="button" hidden title="Restablece solo los casos ficticios de este navegador">Reiniciar demostración</button></div><div id="sidebarWorkspaceMode" class="sidebar-workspace-mode" aria-label="Vista de trabajo"><small>VISTA DE TRABAJO</small><div><button id="sidebarDirectionBtn" type="button" aria-pressed="false">Dirección</button><button id="sidebarSellerBtn" type="button" aria-pressed="true">Ejecutivo comercial</button></div></div><p id="workspaceLabel" class="nav-label">ESPACIO COMERCIAL</p><nav id="navigation" aria-label="Navegación principal"></nav><div class="sidebar-bottom"><small class="release-label">V2.45.4 · 26 SEP 2026</small><a id="complaintsLink" class="complaints-link" href="complaints.html" hidden>Libro de Reclamaciones</a><span id="userRole"></span><button id="logoutBtn">Cerrar sesión</button></div></aside>
   <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-expanded="true" aria-controls="mainSidebar" aria-label="Abrir menú" title="Abrir menú">☰</button>
   <main class="main"><header class="top"><div class="top-title-block"><p class="eyebrow">XICRONIX / <span id="dateLabel"></span></p><div class="top-title-row"><h1 id="pageTitle">Resumen comercial</h1><div class="user-presence" id="userPresence" data-state="connecting"><button id="userIdentity" class="user-identity" type="button" aria-label="Usuario" title=""><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg></button><span class="connection-led" aria-hidden="true"></span><span id="connectionLabel" class="connection-label">Conectando</span></div></div><p id="welcome" hidden></p></div>
   <section id="workspaceControls" class="workspace-controls" aria-label="Experiencia de trabajo" hidden>
