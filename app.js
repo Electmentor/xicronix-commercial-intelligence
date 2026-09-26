@@ -7,7 +7,7 @@ import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executiv
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
-import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.3';
+import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.4';
 
 const $ = id => document.getElementById(id);
 const SPLASH_STARTED_AT=performance.now();
@@ -120,8 +120,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-26-v2.45.3';
-const CRM_VERSION_LABEL='v2.45.3';
+const CRM_RELEASE='2026-09-26-v2.45.4';
+const CRM_VERSION_LABEL='v2.45.4';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -138,6 +138,7 @@ let criticalPushState='unknown';
 let mailWebhookConfig=null;
 let smartMailUploadState=null;
 let liveIntelligenceTimer=null,liveIntelligencePrimed=false,liveIntelligenceLastSync=null;
+let liveMailChannel=null,liveMailFallbackTimer=null;
 let liveIntelligenceKnownProspects=new Set();
 window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;if(page==='now')renderNow();});
 window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;if(page==='now')renderNow();});
@@ -385,6 +386,7 @@ function resetPasswordVisibility(){
 }
 function clearSession(){
  stopLiveIntelligence();
+ stopLiveMailRealtime();
  closeLeadDetails(false);
  loadVersion++;session=null;profile=null;data=emptyData();failures={};mailWebhookConfig=null;page='dashboard';pageIndex=0;workspace=SELLER;workspaceIdentity=null;loading=false;dataSource='live';sourceIdentity=null;demoData=null;executiveFilter='';executiveOwner='';editTable=null;editId=null;editingVersion=null;
  $('fields').replaceChildren();$('sellerSummary').replaceChildren();$('navigation').replaceChildren();$('workspaceControls').hidden=true;
@@ -503,6 +505,43 @@ function renderConnectionState(){
  const mobile=$('mobileConnectionPresence'),mobileLabel=$('mobileConnectionLabel');
  if(mobile&&mobileLabel){mobile.dataset.state=status.state;mobileLabel.textContent=status.label;mobile.title=title;}
 }
+function stopLiveMailRealtime(){
+ if(liveMailFallbackTimer){clearInterval(liveMailFallbackTimer);liveMailFallbackTimer=null;}
+ if(liveMailChannel&&sb){try{sb.removeChannel(liveMailChannel);}catch(_error){}liveMailChannel=null;}
+}
+async function refreshLiveMail(announce=false){
+ if(!session||!profile||dataSource!=='live'||busy||loading||recovery||document.hidden||$('editor')?.open||!accessible('mail'))return;
+ const org=profile.organization_id,userId=session.user.id;
+ try{
+   const incoming=await allRows('mail',org);
+   if(userId!==session?.user?.id||org!==profile?.organization_id||dataSource!=='live')return;
+   const previousNew=new Set((data.mail||[]).filter(row=>row.status==='NEW').map(row=>String(row.id)));
+   data.mail=incoming;
+   failures.mail=false;
+   const newlyArrived=incoming.filter(row=>row.status==='NEW'&&!previousNew.has(String(row.id)));
+   if(['dashboard','leads','mail'].includes(page))render();
+   if(announce&&newlyArrived.length){
+     const first=newlyArrived[0];
+     notice('Nuevo correo recibido'+(first.sender_name?' de '+first.sender_name:'')+'. Requiere atención.',false,12000);
+   }
+ }catch(_error){failures.mail=true;}
+}
+function startLiveMailRealtime(){
+ stopLiveMailRealtime();
+ if(!session||!profile||dataSource!=='live'||!accessible('mail')||!sb)return;
+ const org=profile.organization_id;
+ try{
+   liveMailChannel=sb.channel('commercial-mail-'+org)
+     .on('postgres_changes',{event:'*',schema:'public',table:'commercial_mail_inbox',filter:'organization_id=eq.'+org},async payload=>{
+       if(!session||!profile||profile.organization_id!==org)return;
+       const isIncoming=payload.eventType==='INSERT'&&payload.new?.status==='NEW';
+       await refreshLiveMail(isIncoming);
+     })
+     .subscribe();
+ }catch(_error){liveMailChannel=null;}
+ liveMailFallbackTimer=setInterval(()=>refreshLiveMail(false),15000);
+}
+
 function primeLiveIntelligence(){
  if(dataSource!=='live'||!profile)return;
  liveIntelligenceKnownProspects=new Set((data.prospects||[]).map(row=>String(row.id)));
@@ -520,7 +559,7 @@ async function refreshLiveIntelligence(announce=false){
  if(!session||!profile||dataSource!=='live'||busy||loading||recovery||document.hidden||$('editor')?.open)return;
  const userId=session.user.id,org=profile.organization_id;
  try{
-  const [prospectsResult,radarResult]=await Promise.allSettled([allRows('prospects',org),allRows('radar',org)]);
+  const [prospectsResult,radarResult,mailResult]=await Promise.allSettled([allRows('prospects',org),allRows('radar',org),accessible('mail')?allRows('mail',org):Promise.resolve([])]);
   if(userId!==session?.user?.id||org!==profile?.organization_id||dataSource!=='live')return;
   let newRows=[];
   if(prospectsResult.status==='fulfilled'){
@@ -534,6 +573,10 @@ async function refreshLiveIntelligence(announce=false){
     data.radar=realOnly({radar:radarResult.value}).radar||radarResult.value;
     failures.radar=false;
   }
+  if(mailResult.status==='fulfilled'&&accessible('mail')){
+    data.mail=mailResult.value||[];
+    failures.mail=false;
+  }
   liveIntelligencePrimed=true;liveIntelligenceLastSync=Date.now();renderConnectionState();
   if(['dashboard','prospects','radar','now'].includes(page))render();
   if(announce&&newRows.length){
@@ -543,7 +586,7 @@ async function refreshLiveIntelligence(announce=false){
   }
  }catch(_error){failures.prospects=true;renderConnectionState();}
 }
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshLiveIntelligence(false);});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshLiveIntelligence(false);refreshLiveMail(false);}});
 
 async function reload(){
  if(!session||recovery||busy)return;
@@ -576,7 +619,7 @@ async function reload(){
    const cfg=await sb.from('commercial_mail_webhook_config').select('organization_id,setup_token,status,limited_data,last_webhook_at,last_error').eq('organization_id',profile.organization_id).maybeSingle();
    mailWebhookConfig=cfg.error?null:cfg.data;
  }else mailWebhookConfig=null;
- primeLiveIntelligence();startLiveIntelligence();
+ primeLiveIntelligence();startLiveIntelligence();startLiveMailRealtime();
  render();const bad=Object.keys(failures);notice(bad.length?'No se pudo cargar: '+bad.map(k=>modules[k]?.label||k).join(', ')+'. Pulsa Actualizar para reintentar.':'',!!bad.length);
  }catch(error){if(version===loadVersion){profile=null;data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice(errorText(error),true);}}
  finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;$('refreshBtn').classList.remove('is-refreshing');render();applyEntryRoute();renderWorkspaceEntry();hideAppSplash();}}
