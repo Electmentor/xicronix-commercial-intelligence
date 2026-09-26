@@ -37,6 +37,26 @@ function compactDateTime(value){
   return d.toLocaleString('es-PE',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
 }
 
+function sellerPhoneHref(value){
+  const digits=String(value||'').replace(/\D/g,'');
+  return digits?'tel:+'+(digits.startsWith('51')?digits:'51'+digits):'';
+}
+function sellerWhatsappHref(value){
+  const digits=String(value||'').replace(/\D/g,'');
+  return digits?'https://wa.me/'+(digits.startsWith('51')?digits:'51'+digits):'';
+}
+function sellerQuickActions(row){
+  const contact=row.contact||null;
+  const phone=String(contact?.phone||'').trim();
+  const email=String(contact?.email||'').trim();
+  return '<div class="seller-direct-actions">'+
+    (phone?'<a class="seller-direct-action primary" href="'+esc(sellerPhoneHref(phone))+'">Llamar</a>':'')+
+    (email?'<button type="button" class="seller-direct-action" data-smart-mail="'+esc(row.lead.id)+'">Correo</button>':'')+
+    (phone?'<a class="seller-direct-action" href="'+esc(sellerWhatsappHref(phone))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
+    '<button type="button" class="seller-direct-action" data-activity-lead="'+esc(row.lead.id)+'">Registrar resultado</button>'+
+  '</div>';
+}
+
 function renderProspectProgress(lead,maturity){
   const percent=Math.max(0,Math.min(100,Number(maturity)||milestonePercent(lead.commercial_milestone)||0));
   const currentCode=lead.commercial_milestone||'';
@@ -165,7 +185,7 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
     !selected?'No hay prospectos activos. Registra o asigna el siguiente prospecto.':
     selected.urgency.label==='Alta'?'Prioridad: '+(selected.institution?.name||selected.lead.title)+'. '+selected.urgency.next+'.':
     'La cartera está bajo control. El siguiente movimiento con mayor impacto está en '+(selected.institution?.name||selected.lead.title)+'.';
-  const todayAction=selected?'<section class="seller-today-command"><header><div><small>QUÉ HACER AHORA</small><h2>'+esc(selected.institution?.name||selected.lead.title)+'</h2></div><span class="seller-channel">'+esc(selected.recommended.channel)+'</span></header><div class="seller-today-grid"><p><small>POR QUÉ</small><strong>'+esc(selected.recommended.reason)+'</strong></p><p><small>ACCIÓN</small><strong>'+esc(selected.recommended.action)+'</strong></p><p><small>FALTA PARA AVANZAR</small><strong>'+esc(selected.missingText)+'</strong></p></div><button class="primary" data-lead-detail="'+esc(selected.lead.id)+'">Abrir expediente y ejecutar →</button></section>':'';
+  const todayAction=selected?'<section class="seller-today-command"><header><div><small>PRIORIDAD #1 · HACER AHORA</small><h2>'+esc(selected.institution?.name||selected.lead.title)+'</h2><p>'+esc(selected.recommended.action)+'</p></div><span class="seller-channel">'+esc(selected.recommended.channel)+'</span></header>'+sellerQuickActions(selected)+'<div class="seller-today-context"><span><b>Por qué ahora</b>'+esc(selected.recommended.reason)+'</span><span><b>Para avanzar</b>'+esc(selected.missingText)+'</span></div><button class="seller-open-detail" data-lead-detail="'+esc(selected.lead.id)+'">Ver expediente completo →</button></section>':'';
 
   const kpi=(key,label,value,detail,tone='')=>'<button type="button" class="seller-story-kpi '+tone+'" data-seller-filter="'+key+'" aria-label="'+esc(label)+': '+esc(value)+'. Abrir cartera filtrada"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong><span>'+esc(detail)+'</span><em>Ver cartera →</em></button>';
   const kpis=kpi('active','Prospectos activos',String(rows.length),highPotential+' con potencial alto')+
@@ -199,17 +219,13 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
           '<section class="prospect-action-col"><small>ÚLTIMA ACCIÓN</small><strong>'+esc(row.latest?.subject||row.latest?.type||'Sin acción registrada')+'</strong><span>'+esc(compactDateTime(row.latest?.occurred_at))+'</span></section>'+
           '<span class="prospect-action-divider" aria-hidden="true"></span>'+
           '<section class="prospect-action-col"><small>SIGUIENTE ACCIÓN</small><strong>'+esc(row.urgency.next||'Por definir')+'</strong><span>'+esc(row.urgency.date?compactDateTime(row.urgency.date):'Por definir')+'</span></section>'+
-        '</div>'+
-        '<button class="primary" data-lead-detail="'+esc(lead.id)+'">Abrir expediente</button>'+
+        '</div>'+sellerQuickActions(row)+
+        '<button class="seller-open-detail" data-lead-detail="'+esc(lead.id)+'">Ver expediente →</button>'+
       '</footer>'+
     '</article>';
   }).join('')+'</div></section>':'<div class="seller-story-empty">'+(String(searchQuery||'').trim()?'No se encontraron prospectos con ese ID o nombre.':'No hay prospectos activos en tu cartera.')+'</div>';
 
-  const priorityStory=selected?'<div class="seller-priority-story">'+
-    '<p><small>SITUACIÓN ACTUAL</small><strong>'+esc(selected.situation)+'</strong></p>'+
-    '<p><small>QUÉ FALTA</small><strong>'+esc(selected.missingText)+'</strong></p>'+
-    '<p><small>SIGUIENTE ACCIÓN</small><strong>'+esc(selected.urgency.next)+(selected.urgency.date?' · '+esc(compactDate(selected.urgency.date)):'')+'</strong></p>'+
-    '</div>':'';
+  const priorityStory='';
   const searchBox=showSearch?'<section class="commercial-search"><div class="commercial-search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg><input id="commercialSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Buscar por ID o nombre…" value="'+esc(searchQuery)+'" aria-label="Buscar prospecto por ID o nombre"></div><small>'+searchedRows.length+' resultado'+(searchedRows.length===1?'':'s')+'</small></section>':'';
   return '<div class="seller-story-dashboard">'+
     '<section class="seller-command-summary"><span>PRIORIDAD DIARIA</span><strong>'+esc(narrative)+'</strong></section>'+
