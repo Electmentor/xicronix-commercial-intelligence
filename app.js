@@ -7,7 +7,7 @@ import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executiv
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
-import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.11';
+import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.12';
 
 const $ = id => document.getElementById(id);
 const SPLASH_STARTED_AT=performance.now();
@@ -120,8 +120,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-26-v2.45.11';
-const CRM_VERSION_LABEL='v2.45.11';
+const CRM_RELEASE='2026-09-26-v2.45.12';
+const CRM_VERSION_LABEL='v2.45.12';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -251,34 +251,36 @@ function renderWorkspaceControls(){
   mobileBottom.hidden=!profile||!workspaceEntryChosen;
   const primary=$('mobileNavPrimary'),reports=$('mobileNavReports'),nowBtn=$('mobileNavNow');
   if(primary){
-   primary.dataset.page=admin?'now':'leads';
-   const label=primary.querySelector('small');if(label)label.textContent=admin?'Prioridades':'Mi cartera';
+   primary.dataset.page=admin?'users':'leads';
+   const label=primary.querySelector('small');if(label)label.textContent=admin?'Equipo':'Mi cartera';
   }
   if(reports){
-   reports.dataset.page=admin?'opportunities':'tasks';
-   const label=reports.querySelector('small');if(label)label.textContent=admin?'Oportunidades':'Mis tareas';
+   reports.dataset.page=admin?'goals':'tasks';
+   const label=reports.querySelector('small');if(label)label.textContent=admin?'Metas':'Mis tareas';
   }
   if(nowBtn){
-   nowBtn.dataset.page=admin?'users':'meetings';
-   const label=nowBtn.querySelector('small');if(label)label.textContent=admin?'Equipo':'Mi agenda';
+   nowBtn.dataset.page=admin?'opportunities':'meetings';
+   const label=nowBtn.querySelector('small');if(label)label.textContent=admin?'Negociaciones':'Mi agenda';
   }
  }
  const labels=admin
-  ?{dashboard:'Centro de mando',now:'Prioridades',prospects:'Prospectos potenciales',radar:'Radar Comercial',leads:'Gestión Comercial',meetings:'Agenda del equipo',mail:'Correo Zoho',users:'Equipo comercial',goals:'Metas',opportunities:'Oportunidades',institutions:'Instituciones',contacts:'Contactos',documents:'Repositorio comercial',catalog_products:'Catálogo',cost_profiles:'Costos',expenses:'Gastos'}
+  ?{dashboard:'Centro de Dirección',now:'Prioridades y decisiones',users:'Equipo y cumplimiento',goals:'Metas y cumplimiento',opportunities:'Negociaciones y pipeline',meetings:'Agenda y reuniones',leads:'Gestión comercial',prospects:'Inteligencia de prospectos',radar:'Radar Comercial',catalog_products:'Proveedores y catálogo',institutions:'Cuentas y alianzas',contacts:'Contactos estratégicos',mail:'Correo Zoho',documents:'Repositorio comercial',cost_profiles:'Costos y márgenes',expenses:'Gastos'}
   :{dashboard:'Mi Dashboard',now:'Ahora',leads:'Mis casos',tasks:'Mis tareas',meetings:'Mi agenda',mail:'Correo Zoho',opportunities:'Mis oportunidades',contacts:'Mis contactos',documents:'Mi repositorio',catalog_products:'Catálogo'};
  const navButton=(key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen')+'</button>';
  const navSection=(title,keys,start)=>{const visible=keys.filter(accessible);return visible.length?'<p class="nav-section-label">'+title+'</p>'+visible.map((key,index)=>navButton(key,start+index)).join(''):'';};
  if(admin){
-  const command=['dashboard','now'];
-  const operation=['prospects','leads','opportunities','meetings','radar','mail'];
-  const control=['goals','users'];
-  const support=['institutions','contacts','documents','catalog_products','cost_profiles','expenses'];
+  const command=['dashboard','now','users','goals'];
+  const business=['opportunities','meetings','leads'];
+  const intelligence=['prospects','radar'];
+  const relations=['catalog_products','institutions','contacts'];
+  const support=['mail','documents','cost_profiles','expenses'];
   const commandVisible=command.filter(accessible);
   let offset=0;
-  let html=navSection('CENTRO DE DIRECCIÓN',command,offset);offset+=commandVisible.length;
-  html+=navSection('OPERACIÓN COMERCIAL',operation,offset);offset+=operation.filter(accessible).length;
-  html+=navSection('CONTROL Y EQUIPO',control,offset);offset+=control.filter(accessible).length;
-  html+=navSection('DATOS Y SOPORTE',support,offset);
+  let html=navSection('DIRECCIÓN Y CONTROL',command,offset);offset+=commandVisible.length;
+  html+=navSection('NEGOCIO Y EJECUCIÓN',business,offset);offset+=business.filter(accessible).length;
+  html+=navSection('INTELIGENCIA COMERCIAL',intelligence,offset);offset+=intelligence.filter(accessible).length;
+  html+=navSection('PROVEEDORES Y ALIANZAS',relations,offset);offset+=relations.filter(accessible).length;
+  html+=navSection('SOPORTE',support,offset);
   $('navigation').innerHTML=html;
  }else{
   const day=['dashboard'];
@@ -931,10 +933,35 @@ function renderTerritorialMaps(){
   }
  }
 }
+function renderDirectorResponsibilityCenter(viewData){
+ const users=(viewData.users||[]).filter(row=>row.role==='SALES'||row.role==='MANAGER');
+ const openOpps=(viewData.opportunities||[]).filter(row=>!['WON','LOST'].includes(row.stage));
+ const negotiations=openOpps.filter(row=>['PROPOSAL','NEGOTIATION'].includes(row.stage));
+ const openTasks=(viewData.tasks||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status));
+ const overdueTasks=openTasks.filter(row=>row.due_at&&Date.parse(row.due_at)<Date.now()).length;
+ const meetings=(viewData.meetings||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&Date.parse(row.start_at)>=Date.now());
+ const suppliers=new Set((viewData.catalog_products||[]).map(row=>String(row.supplier_name||'').trim()).filter(Boolean));
+ const currentGoals=(viewData.goals||[]).filter(row=>{
+   const now=Date.now(),start=Date.parse(String(row.period_start||'')+'T00:00:00'),end=Date.parse(String(row.period_end||'')+'T23:59:59');
+   return Number.isFinite(start)&&Number.isFinite(end)&&start<=now&&now<=end;
+ });
+ return '<section class="director-responsibility-center">'+
+   '<header><div><small>RESPONSABILIDAD GERENCIAL</small><h2>Qué debe conducir Dirección</h2><p>Personas, objetivos, negociaciones y relaciones estratégicas. El detalle operativo permanece en los módulos especializados.</p></div></header>'+
+   '<div class="director-responsibility-grid">'+
+    '<button type="button" data-page="users"><small>EQUIPO Y CUMPLIMIENTO</small><strong>'+users.length+'</strong><span>'+overdueTasks+' tarea'+(overdueTasks===1?'':'s')+' vencida'+(overdueTasks===1?'':'s')+' del equipo</span></button>'+
+    '<button type="button" data-page="goals"><small>METAS</small><strong>'+currentGoals.length+'</strong><span>objetivo'+(currentGoals.length===1?'':'s')+' vigente'+(currentGoals.length===1?'':'s')+'</span></button>'+
+    '<button type="button" data-page="opportunities"><small>NEGOCIACIONES</small><strong>'+negotiations.length+'</strong><span>'+money(negotiations.reduce((s,row)=>s+(Number(row.value)||0),0))+' en propuesta/negociación</span></button>'+
+    '<button type="button" data-page="meetings"><small>REUNIONES</small><strong>'+meetings.length+'</strong><span>compromisos futuros del equipo</span></button>'+
+    '<button type="button" data-page="catalog_products"><small>PROVEEDORES</small><strong>'+suppliers.size+'</strong><span>proveedores identificados en catálogo</span></button>'+
+    '<button type="button" data-page="institutions"><small>ALIANZAS Y CUENTAS</small><strong>→</strong><span>desarrollar relaciones estratégicas e institucionales</span></button>'+
+   '</div>'+
+  '</section>';
+}
 function renderDashboard(){
  const admin=canViewDashboard();
  const viewData=commercialDataView();
  $('dashboard').innerHTML=admin?renderExecutive(viewData,{demo:dataSource==='demo',failures,analyticsPeriod}):renderSellerDashboard(viewData,{demo:dataSource==='demo',failures});
+ if(admin)$('dashboard').insertAdjacentHTML('afterbegin',renderDirectorResponsibilityCenter(viewData));
  if(admin&&dataSource==='live'&&Array.isArray(data.territorialMacro)&&data.territorialMacro.length){
    const section=$('dashboard').querySelector('.territorial-intelligence');
    if(section){
