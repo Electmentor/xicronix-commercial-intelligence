@@ -7,7 +7,7 @@ import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executiv
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
-import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.10';
+import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.11';
 
 const $ = id => document.getElementById(id);
 const SPLASH_STARTED_AT=performance.now();
@@ -120,8 +120,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-26-v2.45.10';
-const CRM_VERSION_LABEL='v2.45.10';
+const CRM_RELEASE='2026-09-26-v2.45.11';
+const CRM_VERSION_LABEL='v2.45.11';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -251,16 +251,16 @@ function renderWorkspaceControls(){
   mobileBottom.hidden=!profile||!workspaceEntryChosen;
   const primary=$('mobileNavPrimary'),reports=$('mobileNavReports'),nowBtn=$('mobileNavNow');
   if(primary){
-   primary.dataset.page=admin?'opportunities':'leads';
-   const label=primary.querySelector('small');if(label)label.textContent=admin?'Oportunidades':'Mi cartera';
+   primary.dataset.page=admin?'now':'leads';
+   const label=primary.querySelector('small');if(label)label.textContent=admin?'Prioridades':'Mi cartera';
   }
   if(reports){
-   reports.dataset.page=admin?'goals':'tasks';
-   const label=reports.querySelector('small');if(label)label.textContent=admin?'Reportes':'Mis tareas';
+   reports.dataset.page=admin?'opportunities':'tasks';
+   const label=reports.querySelector('small');if(label)label.textContent=admin?'Oportunidades':'Mis tareas';
   }
   if(nowBtn){
-   nowBtn.dataset.page=admin?'now':'meetings';
-   const label=nowBtn.querySelector('small');if(label)label.textContent=admin?'Notificaciones':'Mi agenda';
+   nowBtn.dataset.page=admin?'users':'meetings';
+   const label=nowBtn.querySelector('small');if(label)label.textContent=admin?'Equipo':'Mi agenda';
   }
  }
  const labels=admin
