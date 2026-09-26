@@ -3973,7 +3973,7 @@ dialog[data-ribbon] .dialog-header>button:focus-visible{
 .seller-compensation-notice>button{flex:none}
 @media(max-width:700px){.seller-compensation-notice{align-items:stretch;flex-direction:column}.seller-compensation-notice>button{width:100%}}
 
-/* V2.45.13 · Mobile footer solidity + Director responsibility center */
+/* V2.45.14 · Mobile footer solidity + Director responsibility center */
 @media(max-width:700px){
  .mobile-app-bottom-nav:not([hidden]){
   background:#07192a!important;
@@ -4091,7 +4091,7 @@ dialog[data-ribbon] .dialog-header>button:focus-visible{
  .director-responsibility-grid{grid-template-columns:1fr}
 }
 
-/* V2.45.13 · Direction page command blocks */
+/* V2.45.14 · Direction page command blocks */
 .director-page-command{
  display:grid;
  gap:12px;
