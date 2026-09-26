@@ -3160,3 +3160,15 @@ html[data-theme="night"] .opp-card{background:#102136}
 .mobile-connection-presence[data-state="error"] .connection-led,.mobile-connection-presence[data-state="offline"] .connection-led{background:#d94841;animation:none}
 .mobile-connection-presence[data-state="connecting"] .connection-led{background:#9aa4b2;animation:xicronix-led-soft 1.4s ease-in-out infinite}
 @media(max-width:390px){.mobile-connection-presence small{display:none}}
+
+/* Action-first prospect dossier */
+.lead-action-center{border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0 16px;background:var(--panel,#fff)}
+.lead-action-primary{display:grid;gap:4px;margin-bottom:12px}.lead-action-primary small{font-weight:800;color:var(--muted);letter-spacing:.04em}.lead-action-primary strong{font-size:1.08rem}.lead-action-primary span{color:var(--muted);font-size:.92rem}
+.lead-action-buttons{display:flex;flex-wrap:wrap;gap:10px}.lead-action-button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 14px;border:1px solid var(--line);border-radius:10px;text-decoration:none;font-weight:800;background:var(--panel,#fff);color:inherit;cursor:pointer}.lead-action-button.primary{background:var(--accent,#1f6feb);border-color:var(--accent,#1f6feb);color:#fff}
+.lead-action-contact{margin:12px 0 0;color:var(--muted);font-size:.92rem;overflow-wrap:anywhere}.lead-admin-tools{margin:0 0 14px}.lead-admin-tools summary{cursor:pointer;font-weight:800;color:var(--muted)}.lead-admin-tools[open] summary{margin-bottom:10px}
+/* Dashboard quick actions */
+.lead-mobile-quick-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.lead-quick-action,.lead-open-compact{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 10px;border:1px solid var(--line);border-radius:9px;text-decoration:none;font-weight:800;background:var(--panel,#fff);color:inherit;cursor:pointer;font-size:.88rem}
+.lead-quick-action.primary{background:var(--accent,#1f6feb);border-color:var(--accent,#1f6feb);color:#fff}
+.lead-open-compact{min-width:auto;padding-inline:9px;font-size:.82rem}
+@media(max-width:700px){.lead-action-buttons{display:grid;grid-template-columns:1fr 1fr}.lead-action-button{width:100%}.lead-action-center{padding:14px}.lead-master-kpis{grid-template-columns:1fr 1fr}.deliverable-grid{grid-template-columns:1fr 1fr}.lead-mobile-quick-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.lead-quick-action,.lead-open-compact{width:100%}}
