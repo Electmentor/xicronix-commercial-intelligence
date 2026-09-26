@@ -7,7 +7,7 @@ import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executiv
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
-import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.6';
+import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.7';
 
 const $ = id => document.getElementById(id);
 const SPLASH_STARTED_AT=performance.now();
@@ -120,8 +120,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-26-v2.45.6';
-const CRM_VERSION_LABEL='v2.45.6';
+const CRM_RELEASE='2026-09-26-v2.45.7';
+const CRM_VERSION_LABEL='v2.45.7';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -699,47 +699,77 @@ function localDayKey(value=new Date()){
  return d.toLocaleDateString('en-CA');
 }
 function buildDailyBriefingActions(){
- const now=new Date(),today=localDayKey(now),rows=[];
+ const now=new Date(),today=localDayKey(now),rows=[],admin=canViewDashboard();
  const leads=scopedRows('leads').filter(row=>!['DISQUALIFIED','CONVERTED'].includes(row.status));
  const leadMap=new Map(leads.map(row=>[row.id,row]));
  const institutionName=lead=>nameOf((data.institutions||[]).find(row=>row.id===lead?.institution_id)||{})||lead?.title||'Prospecto';
- const push=(leadId,type,label,detail,rank,when=null)=>{
+ const push=(leadId,type,label,detail,rank,when=null,targetPage=null)=>{
    const lead=leadId?leadMap.get(leadId):null;
    if(leadId&&!lead)return;
-   rows.push({leadId,type,label,detail,rank,when,name:lead?institutionName(lead):label});
+   rows.push({leadId,type,label,detail,rank,when,targetPage,name:lead?institutionName(lead):label});
  };
+
+ // Shared high-value events.
  (data.mail||[]).filter(row=>row.status==='NEW'&&row.lead_id).forEach(row=>push(row.lead_id,'Correo nuevo','Responder correo',row.subject||'Correo recibido',100,row.received_at||row.created_at));
- attentionRows().forEach(row=>push(row.id,'Solicitud web','Responder solicitud','Primera respuesta pendiente',95,row.attention_due_at||row.created_at));
- (data.tasks||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&row.lead_id&&row.due_at).forEach(row=>{
-   const day=localDayKey(row.due_at);if(day===today||Date.parse(row.due_at)<now.getTime())push(row.lead_id,Date.parse(row.due_at)<now.getTime()?'Tarea vencida':'Tarea de hoy',row.title||'Completar tarea',row.priority||'',Date.parse(row.due_at)<now.getTime()?90:80,row.due_at);
- });
- leads.forEach(row=>{
-   if(!row.next_action_date)return;
-   const day=localDayKey(row.next_action_date),past=Date.parse(row.next_action_date)<now.getTime();
-   if(day===today||past)push(row.id,past?'Seguimiento vencido':'Seguimiento de hoy',row.next_action||'Realizar seguimiento','',past?88:78,row.next_action_date);
- });
- (data.meetings||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&localDayKey(row.start_at)===today).forEach(row=>{
-   if(row.lead_id)push(row.lead_id,'Reunión de hoy',row.title||'Reunión comercial',row.start_at?date(row.start_at):'',75,row.start_at);
-   else rows.push({leadId:null,type:'Reunión de hoy',label:row.title||'Reunión comercial',detail:row.start_at?date(row.start_at):'',rank:75,when:row.start_at,name:row.title||'Reunión'});
- });
+ attentionRows().forEach(row=>push(row.id,'Solicitud web','Responder solicitud','Primera respuesta pendiente',96,row.attention_due_at||row.created_at));
+
+ if(admin){
+   // Direction sees organization-wide exceptions and decisions.
+   (data.tasks||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&row.due_at&&Date.parse(row.due_at)<now.getTime()).forEach(row=>{
+     push(row.lead_id||null,'Bloqueo operativo',row.title||'Tarea vencida','Tarea vencida del equipo',92,row.due_at,row.lead_id?null:'tasks');
+   });
+   (data.opportunities||[]).filter(row=>!['WON','LOST'].includes(row.stage)).forEach(row=>{
+     const overdue=row.next_action_date&&Date.parse(row.next_action_date)<now.getTime();
+     const strategic=['PROPOSAL','NEGOTIATION'].includes(row.stage);
+     if(overdue||strategic){
+       const label=overdue?'Decisión vencida':'Oportunidad avanzada';
+       const detail=(enums.stage[row.stage]||row.stage||'Oportunidad')+(row.value?' · '+money(row.value):'');
+       rows.push({leadId:row.lead_id||null,type:'Dirección',label,name:row.name||'Oportunidad',detail,rank:overdue?94:84,when:row.next_action_date||row.expected_close_date,targetPage:'opportunities'});
+     }
+   });
+   (data.radar||[]).filter(row=>['CRITICAL','HIGH'].includes(row.classification)).slice(0,8).forEach(row=>{
+     rows.push({leadId:row.lead_id||null,type:'Radar',label:'Revisar señal '+(enums.radarClass[row.classification]||row.classification),name:row.institution_name||'Señal comercial',detail:row.signal_summary||row.next_action||'Señal prioritaria',rank:row.classification==='CRITICAL'?91:82,when:row.created_at,targetPage:'radar'});
+   });
+   (data.meetings||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&localDayKey(row.start_at)===today).forEach(row=>{
+     rows.push({leadId:row.lead_id||null,type:'Agenda ejecutiva',label:row.title||'Reunión comercial',name:row.title||'Reunión',detail:row.start_at?date(row.start_at):'',rank:76,when:row.start_at,targetPage:'meetings'});
+   });
+ }else{
+   // Seller sees only personal execution for today.
+   (data.tasks||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&row.lead_id&&row.due_at).forEach(row=>{
+     const day=localDayKey(row.due_at);if(day===today||Date.parse(row.due_at)<now.getTime())push(row.lead_id,Date.parse(row.due_at)<now.getTime()?'Tarea vencida':'Tarea de hoy',row.title||'Completar tarea',row.priority||'',Date.parse(row.due_at)<now.getTime()?90:80,row.due_at);
+   });
+   leads.forEach(row=>{
+     if(!row.next_action_date)return;
+     const day=localDayKey(row.next_action_date),past=Date.parse(row.next_action_date)<now.getTime();
+     if(day===today||past)push(row.id,past?'Seguimiento vencido':'Seguimiento de hoy',row.next_action||'Realizar seguimiento','',past?88:78,row.next_action_date);
+   });
+   (data.meetings||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&localDayKey(row.start_at)===today).forEach(row=>{
+     if(row.lead_id)push(row.lead_id,'Reunión de hoy',row.title||'Reunión comercial',row.start_at?date(row.start_at):'',75,row.start_at);
+     else rows.push({leadId:null,type:'Reunión de hoy',label:row.title||'Reunión comercial',detail:row.start_at?date(row.start_at):'',rank:75,when:row.start_at,name:row.title||'Reunión',targetPage:'meetings'});
+   });
+ }
  return rows.sort((a,b)=>b.rank-a.rank||Date.parse(a.when||0)-Date.parse(b.when||0));
 }
 function renderDailyBriefing(){
  const target=$('dailyBriefingContent');if(!target)return;
- const rows=buildDailyBriefingActions();
+ const admin=canViewDashboard(),rows=buildDailyBriefingActions();
+ const title=$('dailyBriefingTitle');
+ if(title)title.textContent=admin?'Briefing de Dirección':'Mi jornada comercial';
+ const eyebrow=$('dailyBriefingDialog')?.querySelector('.eyebrow');
+ if(eyebrow)eyebrow.textContent=admin?'DECISIONES Y EXCEPCIONES DE HOY':'ACCIONES DE HOY';
  if(!rows.length){
-   target.innerHTML='<div class="daily-briefing-empty"><strong>Sin acciones críticas pendientes.</strong><span>Tu jornada comercial no tiene tareas vencidas, correos nuevos ni seguimientos para hoy.</span></div>';
+   target.innerHTML='<div class="daily-briefing-empty"><strong>'+(admin?'Sin excepciones ejecutivas pendientes.':'Sin acciones críticas pendientes.')+'</strong><span>'+(admin?'No hay correos nuevos, bloqueos, señales críticas ni decisiones vencidas que requieran Dirección.':'Tu jornada comercial no tiene tareas vencidas, correos nuevos ni seguimientos para hoy.')+'</span></div>';
    return;
  }
  const grouped=new Map();
  rows.forEach(row=>{
-   const key=row.leadId||'agenda:'+row.name;
-   const item=grouped.get(key)||{leadId:row.leadId,name:row.name,items:[],rank:row.rank};
+   const key=row.leadId||row.targetPage+':'+row.name;
+   const item=grouped.get(key)||{leadId:row.leadId,targetPage:row.targetPage,name:row.name,items:[],rank:row.rank};
    item.items.push(row);item.rank=Math.max(item.rank,row.rank);grouped.set(key,item);
  });
  const groups=[...grouped.values()].sort((a,b)=>b.rank-a.rank);
- target.innerHTML='<div class="daily-briefing-summary"><strong>'+rows.length+' acción'+(rows.length===1?'':'es')+' para hoy</strong><span>'+groups.length+' prospecto'+(groups.length===1?'':'s')+' / asunto'+(groups.length===1?'':'s')+'</span></div><div class="daily-briefing-list">'+groups.map(group=>
-   '<article class="daily-briefing-item"><header><div><small>'+esc(group.items[0].type)+'</small><h3>'+esc(group.name)+'</h3></div><span>'+group.items.length+'</span></header><div class="daily-briefing-actions-list">'+group.items.map(item=>'<p><b>'+esc(item.label)+'</b><span>'+esc(item.detail||'')+'</span></p>').join('')+'</div><footer>'+(group.leadId?'<button type="button" class="primary" data-daily-lead="'+esc(group.leadId)+'">Ir al prospecto y actuar</button>':'<button type="button" class="primary" data-daily-page="meetings">Abrir agenda</button>')+'</footer></article>'
+ target.innerHTML='<div class="daily-briefing-summary"><strong>'+rows.length+' '+(admin?'asunto':'acción')+(rows.length===1?'':'s')+' para hoy</strong><span>'+groups.length+' '+(admin?'frente':'prospecto / asunto')+(groups.length===1?'':'s')+'</span></div><div class="daily-briefing-list">'+groups.map(group=>
+   '<article class="daily-briefing-item"><header><div><small>'+esc(group.items[0].type)+'</small><h3>'+esc(group.name)+'</h3></div><span>'+group.items.length+'</span></header><div class="daily-briefing-actions-list">'+group.items.map(item=>'<p><b>'+esc(item.label)+'</b><span>'+esc(item.detail||'')+'</span></p>').join('')+'</div><footer>'+(group.leadId?'<button type="button" class="primary" data-daily-lead="'+esc(group.leadId)+'">Ir al prospecto y actuar</button>':'<button type="button" class="primary" data-daily-page="'+esc(group.targetPage||'meetings')+'">'+(admin?'Abrir frente':'Abrir agenda')+'</button>')+'</footer></article>'
  ).join('')+'</div>';
 }
 function openDailyBriefing(force=false){
