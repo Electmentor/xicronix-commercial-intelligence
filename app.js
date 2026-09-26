@@ -7,7 +7,7 @@ import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executiv
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
-import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.9';
+import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.10';
 
 const $ = id => document.getElementById(id);
 const SPLASH_STARTED_AT=performance.now();
@@ -120,8 +120,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-26-v2.45.9';
-const CRM_VERSION_LABEL='v2.45.9';
+const CRM_RELEASE='2026-09-26-v2.45.10';
+const CRM_VERSION_LABEL='v2.45.10';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -714,6 +714,10 @@ function buildDailyBriefingActions(){
  attentionRows().forEach(row=>push(row.id,'Solicitud web','Responder solicitud','Primera respuesta pendiente',96,row.attention_due_at||row.created_at));
 
  if(admin){
+   const compensationTask=compensationSetupPending();
+   if(compensationTask){
+     rows.push({leadId:null,type:'Configuración crítica',label:'Definir contrato, sueldo y bono comercial',name:'Compensación del Ejecutivo Comercial',detail:'Debe quedar aprobada antes de calcular pagos variables o mostrar bonos en el dashboard.',rank:110,when:compensationTask.due_at||compensationTask.created_at,targetPage:'tasks'});
+   }
    // Direction sees organization-wide exceptions and decisions.
    (data.tasks||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&row.due_at&&Date.parse(row.due_at)<now.getTime()).forEach(row=>{
      push(row.lead_id||null,'Bloqueo operativo',row.title||'Tarea vencida','Tarea vencida del equipo',92,row.due_at,row.lead_id?null:'tasks');
@@ -807,9 +811,22 @@ function renderSellerManagement(){
     });
   }
 }
+function compensationSetupPending(){
+ const task=(data.tasks||[]).find(row=>row.automation_key==='admin.define_seller_compensation.v1'&&!['COMPLETED','CANCELLED'].includes(row.status));
+ return task||null;
+}
+function renderSellerCompensationNotice(){
+ const node=$('sellerCompensationNotice');if(!node)return;
+ const admin=canViewDashboard(),task=compensationSetupPending();
+ if(admin){node.hidden=true;node.replaceChildren();return;}
+ node.hidden=false;
+ node.innerHTML='<div><small>COMPENSACIÓN PENDIENTE</small><strong>Dirección debe definir tu contrato, sueldo y bono comercial.</strong><span>Tus ventas y desempeño ya se registran. El cálculo de sueldo, comisión o bono se activará únicamente cuando exista una regla contractual formal y aprobada.</span></div>'+
+   '<button type="button" data-page="dashboard">Ver mi rendimiento</button>';
+}
 function render(){
  renderWorkspaceControls();
  renderAttentionButton();
+ renderSellerCompensationNotice();
  if(!accessible(page)){page='dashboard';pageIndex=0;$('search').value='';$('filter').value='';}
  if($('filter').dataset.page!==page){
   $('filter').dataset.page=page;
