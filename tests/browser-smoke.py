@@ -34,6 +34,7 @@ with sync_playwright() as p:
   fn();checks.append(name)
  try:
   context,page=newpage();expect(page.locator('#workspaceControls')).to_be_visible()
+  page.locator('#entryDirectionBtn').click();expect(page.locator('#workspaceEntry')).to_be_hidden()
   check('actual data is default',lambda:expect(page.locator('#sidebarLiveBtn')).to_have_attribute('aria-pressed','true'))
   check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-26-v2.45.14'))
   page.screenshot(path=str(out/'desktop-v2-fixture.png'),full_page=True)
