@@ -3390,3 +3390,107 @@ dialog[data-ribbon] .dialog-header>button:focus-visible{
   .executive-snapshot{grid-template-columns:repeat(2,minmax(0,1fr))}
   .executive-next{grid-template-columns:1fr}
 }
+
+/* v2.44.4 executive refinements */
+#smartMailDialog[data-ribbon] .dialog-header{
+  min-height:24px;
+  margin:0 -18px 8px;
+  padding:8px 18px 3px;
+  box-shadow:0 2px 6px rgba(0,0,0,.08)
+}
+#smartMailDialog[data-ribbon] .dialog-header::before{
+  top:1px;
+  font-size:.50rem;
+  letter-spacing:.09em
+}
+#smartMailDialog[data-ribbon] .dialog-header h2{
+  font-size:.84rem;
+  line-height:1;
+  margin:0
+}
+#smartMailDialog[data-ribbon] .dialog-header>button{
+  width:24px;
+  min-width:24px;
+  height:21px;
+  border-radius:5px
+}
+#smartMailDialog[data-ribbon] .dialog-header>button::before{
+  font-size:1rem
+}
+
+.smart-attachment-tray{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  margin:8px 0 10px
+}
+.smart-attachment-tray span{
+  display:inline-flex;
+  align-items:center;
+  min-height:28px;
+  padding:0 9px;
+  border:1px solid color-mix(in srgb,var(--accent,#1f6feb) 45%,var(--line));
+  border-radius:999px;
+  background:color-mix(in srgb,var(--accent,#1f6feb) 8%,transparent);
+  font-size:.75rem;
+  font-weight:800
+}
+.smart-material-option.upload span::before{content:"＋ ";font-weight:900}
+.smart-material-option:not(.upload) span::before{content:"📎 ";font-weight:900}
+.smart-material-option.selected{
+  background:color-mix(in srgb,var(--accent,#1f6feb) 7%,var(--panel,#fff))
+}
+.smart-material-option.selected::after{
+  content:"Adjunto";
+}
+
+.executive-mini-progress{
+  display:grid;
+  grid-template-columns:minmax(150px,auto) minmax(180px,1fr);
+  gap:14px;
+  align-items:center;
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:9px 12px;
+  background:var(--panel,#fff)
+}
+.executive-mini-progress>div:first-child{
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  min-width:0
+}
+.executive-mini-progress small{
+  color:var(--muted);
+  font-size:.62rem;
+  font-weight:850;
+  letter-spacing:.08em
+}
+.executive-mini-progress strong{
+  font-size:1rem
+}
+.executive-mini-progress span{
+  color:var(--muted);
+  font-size:.75rem;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.executive-mini-progress .prospect-progress-track{
+  margin:0;
+  height:5px
+}
+.executive-indicators{margin:0}
+.executive-indicators .executive-detail-body{padding-top:10px}
+.executive-indicators .executive-snapshot{margin:0}
+@media(max-width:700px){
+  #smartMailDialog[data-ribbon] .dialog-header{
+    margin-left:-12px;
+    margin-right:-12px;
+    padding:7px 12px 3px
+  }
+  .executive-mini-progress{
+    grid-template-columns:1fr;
+    gap:8px
+  }
+}
