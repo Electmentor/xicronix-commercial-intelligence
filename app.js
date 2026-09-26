@@ -3,11 +3,11 @@ import {escapeHTML as esc, filterRecords, money, metrics, priorities, taskUrgenc
 import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWriteModule, assignedUserId, scopeWorkspaceData} from './workspace.mjs';
 
 import {DEMO_VERSION, DEMO_SELLERS, createDemoData, upgradeDemoData, mutateDemo, realOnly, localDay} from './demo.mjs?v=20260924-v2.41.16';
-import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260925-v2.43.2';
+import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260925-v2.44.0';
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
-import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260925-v2.43.2';
+import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260925-v2.44.0';
 
 const $ = id => document.getElementById(id);
 const SPLASH_STARTED_AT=performance.now();
@@ -109,8 +109,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-25-v2.43.2';
-const CRM_VERSION_LABEL='v2.43.2';
+const CRM_RELEASE='2026-09-25-v2.44.0';
+const CRM_VERSION_LABEL='v2.44.0';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -390,20 +390,98 @@ async function allRows(table,org){
  if(error)throw error;rows.push(...batch);if(batch.length<500)return rows;
  }
 }
+function intelligenceFreshness(){
+ const latest=(rows,fields)=>Math.max(0,...(rows||[]).map(row=>fields.map(key=>Date.parse(row?.[key])).find(Number.isFinite)||0));
+ const snapshotLatest=latest(data.prospects,['snapshot_at']);
+ const radarLatest=latest(data.radar,['last_verified_at','updated_at','created_at']);
+ const now=Date.now(),snapshotAge=snapshotLatest?now-snapshotLatest:Infinity,radarAge=radarLatest?now-radarLatest:Infinity;
+ return {
+  snapshotLatest,radarLatest,snapshotAge,radarAge,
+  snapshotFresh:snapshotAge<=24*3600000,
+  radarFresh:radarAge<=6*3600000
+ };
+}
+function liveProspectRows(){
+ const snapshot=(data.prospects||[]).map(row=>({...row,source_kind:'SNAPSHOT'}));
+ const byName=new Map(snapshot.map(row=>[normalize(row.name||''),row]).filter(([key])=>key));
+ for(const signal of (data.radar||[])){
+  if(signal.classification==='DISCARD'||signal.lead_id)continue;
+  if(!signal.actionable&&!['CRITICAL','HIGH','POTENTIAL'].includes(signal.classification))continue;
+  const key=normalize(signal.institution_name||'');
+  const existing=key?byName.get(key):null;
+  if(existing){
+    existing.source_kind='SNAPSHOT+RADAR';
+    existing.radar_signal_id=signal.id;
+    existing.radar_score=Number(signal.weighted_score)||0;
+    existing.radar_verified_at=signal.last_verified_at||signal.updated_at||signal.created_at||null;
+    existing.radar_actionable=!!signal.actionable;
+    existing.radar_evidence_score=signal.evidence_score;
+    existing.radar_fit_score=signal.fit_score;
+    existing.radar_budget_score=signal.budget_score;
+    if(signal.actionable)existing.operating_bucket='ACTION_NOW';
+    if(signal.next_action)existing.next_action=signal.next_action;
+    continue;
+  }
+  const mapped={
+    id:'radar:'+signal.id,
+    organization_id:signal.organization_id,
+    name:signal.institution_name,
+    city:signal.city,
+    district:signal.city,
+    department:signal.region,
+    operating_bucket:signal.actionable?'ACTION_NOW':['CRITICAL','HIGH'].includes(signal.classification)?'RESEARCH_FIRST':'MONITOR',
+    operating_recommendation:signal.next_action||signal.signal_summary||'Revisar evidencia Radar.',
+    next_action:signal.next_action,
+    source_kind:'RADAR_LIVE',
+    radar_signal_id:signal.id,
+    radar_score:Number(signal.weighted_score)||0,
+    radar_verified_at:signal.last_verified_at||signal.updated_at||signal.created_at||null,
+    radar_actionable:!!signal.actionable,
+    radar_evidence_score:signal.evidence_score,
+    radar_fit_score:signal.fit_score,
+    radar_budget_score:signal.budget_score,
+    procurement_model:null,
+    network_campus_count:1,
+    network_department_count:1
+  };
+  snapshot.push(mapped);if(key)byName.set(key,mapped);
+ }
+ return snapshot;
+}
+const isCommercialTask=row=>!String(row?.automation_key||'').startsWith('cx:readiness:');
+const commercialDataView=()=>({...data,tasks:(data.tasks||[]).filter(isCommercialTask),prospects:liveProspectRows()});
+async function promoteRadarSignal(signalId){
+ if(!signalId||busy||loading||dataSource!=='live')return;
+ const signal=(data.radar||[]).find(row=>row.id===signalId);
+ if(!signal)return;
+ if(signal.lead_id){openLeadDetails(signal.lead_id);return;}
+ if(!signal.actionable){notice('Esta señal todavía no está marcada como accionable.',true);return;}
+ busy=true;render();notice('Promoviendo señal al CRM…');
+ try{
+  const {data:result,error}=await sb.rpc('crm_promote_radar_signal',{p_signal_id:signalId});
+  if(error)throw error;
+  busy=false;await reload();
+  const promoted=Array.isArray(result)?result[0]:result;
+  notice('Prospecto promovido al CRM con trazabilidad Radar.',false,5000);
+  if(promoted?.lead_id)openLeadDetails(promoted.lead_id);
+ }catch(error){notice(errorText(error),true);}
+ finally{busy=false;render();}
+}
+
 function connectionState(){
  if(!session||!profile||dataSource!=='live')return {state:'offline',label:'Sin conexión'};
  if(failures.prospects||failures.radar)return {state:'error',label:'Error'};
  if(!liveIntelligenceLastSync)return {state:'connecting',label:'Conectando'};
- const age=Date.now()-liveIntelligenceLastSync;
- if(age<=90000)return {state:'online',label:'Conectado'};
- if(age<=180000)return {state:'stale',label:'Actualizando'};
- return {state:'error',label:'Sin sincronizar'};
+ const freshness=intelligenceFreshness();
+ if(freshness.snapshotFresh&&freshness.radarFresh)return {state:'online',label:'Conectado'};
+ if(freshness.radarFresh)return {state:'stale',label:'Inteligencia parcial'};
+ return {state:'error',label:'Inteligencia desactualizada'};
 }
 function renderConnectionState(){
  const presence=$('userPresence'),label=$('connectionLabel');if(!presence||!label)return;
  const status=connectionState();presence.dataset.state=status.state;label.textContent=status.label;
  const sync=liveIntelligenceLastSync?new Date(liveIntelligenceLastSync).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}):'pendiente';
- presence.title=status.label+' · última sincronización '+sync;
+ const fresh=intelligenceFreshness();const snap=fresh.snapshotLatest?new Date(fresh.snapshotLatest).toLocaleString('es-PE',{dateStyle:'short',timeStyle:'short'}):'sin snapshot';const radar=fresh.radarLatest?new Date(fresh.radarLatest).toLocaleString('es-PE',{dateStyle:'short',timeStyle:'short'}):'sin Radar';presence.title=status.label+' · consulta '+sync+' · Prospect Intelligence '+snap+' · Radar '+radar;
 }
 function primeLiveIntelligence(){
  if(dataSource!=='live'||!profile)return;
@@ -564,7 +642,7 @@ function openAttention(){
  if(loading||busy||!profile)return;renderAttentionCenter();$('attentionDialog').showModal();
 }
 function renderSellerManagement(){
-  $('dashboard').innerHTML=renderSellerDashboard(data,{demo:dataSource==='demo',failures,searchQuery:sellerManagementSearch,showSearch:true});
+  $('dashboard').innerHTML=renderSellerDashboard(commercialDataView(),{demo:dataSource==='demo',failures,searchQuery:sellerManagementSearch,showSearch:true});
   const input=$('commercialSearch');
   if(input){
     input.addEventListener('input',event=>{
@@ -685,7 +763,8 @@ function renderTerritorialMaps(){
 }
 function renderDashboard(){
  const admin=canViewDashboard();
- $('dashboard').innerHTML=admin?renderExecutive(data,{demo:dataSource==='demo',failures,analyticsPeriod}):renderSellerDashboard(data,{demo:dataSource==='demo',failures});
+ const viewData=commercialDataView();
+ $('dashboard').innerHTML=admin?renderExecutive(viewData,{demo:dataSource==='demo',failures,analyticsPeriod}):renderSellerDashboard(viewData,{demo:dataSource==='demo',failures});
  if(admin&&dataSource==='live'&&Array.isArray(data.territorialMacro)&&data.territorialMacro.length){
    const section=$('dashboard').querySelector('.territorial-intelligence');
    if(section){
@@ -720,7 +799,8 @@ function exportAnalytics(){
 }
 function scopedRows(table){
  if(!accessible(table)&&table!=='scores')return [];
- return scopeWorkspaceData(data,profile,currentActor(),workspace)[table]||[];
+ const rows=scopeWorkspaceData(data,profile,currentActor(),workspace)[table]||[];
+ return table==='tasks'?rows.filter(isCommercialTask):rows;
 }
 function renderTaskPrioritySummary(){
  if(canViewDashboard()||page!=='tasks')return '';
@@ -958,7 +1038,7 @@ function renderRadarRecords(){
     (row.contact_phone?'<a class="radar-action-button primary" href="'+esc(radarPhoneHref(row.contact_phone))+'">Llamar</a>':'')+
     (row.contact_email?'<a class="radar-action-button" href="'+esc(radarMailHref(row))+'">Correo Zoho</a>':'')+
     (row.contact_whatsapp?'<a class="radar-action-button" href="'+esc(radarWhatsappHref(row.contact_whatsapp))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
-    '<button type="button" class="radar-action-button" data-radar-lead="'+row.id+'">'+(row.lead_id?'Abrir prospecto':'Crear prospecto')+'</button>'+
+    (row.lead_id?'<button type="button" class="radar-action-button" data-radar-lead="'+row.id+'">Abrir prospecto</button>':row.actionable?'<button type="button" class="radar-action-button primary" data-radar-promote="'+row.id+'">Promover a CRM</button>':'<button type="button" class="radar-action-button" data-radar-lead="'+row.id+'">Preparar prospecto</button>')+
     (row.lead_id&&writableFor('activities')?'<button type="button" class="radar-action-button" data-radar-activity="'+row.lead_id+'">Registrar acción</button>':'')+
    '</div>'+
    '<div class="radar-action"><p><b>Siguiente acción:</b> '+esc(row.next_action||'Continuar investigación remota')+'</p><p><b>Riesgo:</b> '+esc(row.principal_risk||'Sin riesgo principal registrado')+'</p></div>'+
@@ -1037,7 +1117,7 @@ function renderNow(){
  $('recordContext').hidden=true;$('sellerSummary').hidden=true;$('importBtn').hidden=true;$('importHelp').hidden=true;$('exportBtn').disabled=true;
  const radar=(data.radar||[]).slice().sort((a,b)=>Number(a.classification_priority||99)-Number(b.classification_priority||99)||Number(b.weighted_score||0)-Number(a.weighted_score||0));
  const critical=radar.filter(row=>row.classification==='CRITICAL'),high=radar.filter(row=>row.classification==='HIGH'),potential=radar.filter(row=>row.classification==='POTENTIAL');
- const openTasks=(data.tasks||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status));
+ const openTasks=(data.tasks||[]).filter(isCommercialTask).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status));
  const newMail=(data.mail||[]).filter(row=>row.status==='NEW').sort((a,b)=>String(b.received_at||b.created_at||'').localeCompare(String(a.received_at||a.created_at||'')));
  const now=Date.now(),todayEnd=new Date();todayEnd.setHours(23,59,59,999);
  const dueToday=openTasks.filter(row=>row.due_at&&Date.parse(row.due_at)<=todayEnd.getTime()).length;
@@ -1246,7 +1326,8 @@ function prospectEconomicLabel(row){
 }
 function renderPotentialProspects(){
  $('recordContext').hidden=true;$('sellerSummary').hidden=true;$('importBtn').hidden=true;$('importHelp').hidden=true;
- const all=data.prospects||[];
+ const all=liveProspectRows();
+ const freshness=intelligenceFreshness();
  const search=normalize($('search').value),filter=$('filter').value;
  const dashboardMatch=row=>prospectDashboardFilter==='ACTION_NOW'?row.operating_bucket==='ACTION_NOW':prospectDashboardFilter==='REVIEW'?['RESEARCH_FIRST','REVALIDATE'].includes(row.operating_bucket):true;
  const rows=all.filter(row=>dashboardMatch(row)&&(!filter||row.operating_bucket===filter)&&(!search||normalize([row.name,row.ruc,row.city,row.district,row.department,row.market_segment_proxy,row.procurement_model].filter(Boolean).join(' ')).includes(search)))
@@ -1255,7 +1336,7 @@ function renderPotentialProspects(){
      return (rank[b.operating_bucket]||0)-(rank[a.operating_bucket]||0)||Number(b.xwin_score||0)-Number(a.xwin_score||0)||Number(b.xpps_score||0)-Number(a.xpps_score||0);
    });
  const counts=Object.fromEntries(['ACTION_NOW','RESEARCH_FIRST','STRATEGIC_WATCH','MONITOR','REVALIDATE'].map(key=>[key,all.filter(r=>r.operating_bucket===key).length]));
- $('recordCount').innerHTML='<section class="prospect-command-center"><div class="prospect-command-head"><div><small>PROSPECT INTELLIGENCE · SNAPSHOT CONSOLIDADO</small><h3>Qué merece atención y por qué</h3><p>Candidatos procesados por Prospect Intelligence. La interfaz se sincroniza automáticamente mientras está abierta; convertir un candidato en lead sigue siendo una acción comercial trazable.</p></div><div class="prospect-sync-actions"><span>'+all.length+' candidatos · '+(liveIntelligenceLastSync?'sync '+new Date(liveIntelligenceLastSync).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}):'sincronizando')+'</span><button type="button" id="refreshIntelligenceBtn">↻ Actualizar inteligencia</button></div></div><div class="prospect-bucket-grid">'+[
+ $('recordCount').innerHTML='<section class="prospect-command-center"><div class="prospect-command-head"><div><small>PROSPECT INTELLIGENCE · SNAPSHOT CONSOLIDADO</small><h3>Qué merece atención y por qué</h3><p>'+(freshness.snapshotFresh?'Prospect Intelligence vigente.':'Snapshot PI desactualizado; se complementa con señales Radar verificadas sin inventar XWIN.')+' Convertir un candidato en lead sigue siendo una acción trazable.</p></div><div class="prospect-sync-actions"><span>'+all.length+' candidatos · '+(freshness.snapshotLatest?'PI '+new Date(freshness.snapshotLatest).toLocaleDateString('es-PE',{day:'2-digit',month:'short'}):'PI sin fecha')+' · '+(liveIntelligenceLastSync?'sync '+new Date(liveIntelligenceLastSync).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}):'sincronizando')+'</span><button type="button" id="refreshIntelligenceBtn">↻ Actualizar inteligencia</button></div></div><div class="prospect-bucket-grid">'+[
   ['ACTION_NOW','Acción ahora','Listo para revisión humana'],
   ['RESEARCH_FIRST','Investigar primero','Aún falta cerrar incertidumbre'],
   ['STRATEGIC_WATCH','Vigilancia','Escala relevante, esperar trigger'],
@@ -1269,11 +1350,13 @@ function renderPotentialProspects(){
  const pageRows=rows.slice(pageIndex*size,(pageIndex+1)*size);
  const cards='<div class="pi-modern-grid">'+pageRows.map(row=>{
    const b=prospectBucketMeta(row);
-   return '<article class="pi-modern-card"><header><div><span class="badge '+b.cls+'">'+esc(b.label)+'</span><h3>'+esc(row.name||'Institución')+'</h3><small>'+esc([row.district,row.department,row.ruc&&('RUC '+row.ruc)].filter(Boolean).join(' · '))+'</small></div><strong>XWIN '+(row.xwin_score??'—')+'</strong></header>'+
-   '<div class="pi-score-strip"><span><b>'+(row.xpps_score??'—')+'</b><small>XPPS</small></span><span><b>'+(row.xwin_confidence??'—')+'%</b><small>Confianza XWIN</small></span><span><b>'+(row.procurement_readiness_score??'—')+'</b><small>Readiness</small></span><span><b>'+(row.rollout_potential_score??'—')+'</b><small>Rollout</small></span></div>'+
+   const liveRadar=row.source_kind==='RADAR_LIVE';
+   const scoreLabel=liveRadar?'RADAR '+(row.radar_score??'—'):'XWIN '+(row.xwin_score??'—');
+   return '<article class="pi-modern-card '+(liveRadar?'pi-live-radar':'')+'"><header><div><span class="badge '+b.cls+'">'+esc(b.label)+'</span><h3>'+esc(row.name||'Institución')+'</h3><small>'+esc([row.district,row.department,row.ruc&&('RUC '+row.ruc)].filter(Boolean).join(' · '))+(row.source_kind!=='SNAPSHOT'?'<br>Radar verificado '+esc(row.radar_verified_at?new Date(row.radar_verified_at).toLocaleString('es-PE',{dateStyle:'short',timeStyle:'short'}):'recientemente'):'')+'</small></div><strong>'+esc(scoreLabel)+'</strong></header>'+
+   (liveRadar?'<div class="pi-score-strip"><span><b>'+(row.radar_score??'—')+'</b><small>Radar</small></span><span><b>'+(row.radar_evidence_score??'—')+'</b><small>Evidencia</small></span><span><b>'+(row.radar_fit_score??'—')+'</b><small>Fit</small></span><span><b>'+(row.radar_budget_score??'—')+'</b><small>Presupuesto</small></span></div>':'<div class="pi-score-strip"><span><b>'+(row.xpps_score??'—')+'</b><small>XPPS</small></span><span><b>'+(row.xwin_confidence??'—')+'%</b><small>Confianza XWIN</small></span><span><b>'+(row.procurement_readiness_score??'—')+'</b><small>Readiness</small></span><span><b>'+(row.rollout_potential_score??'—')+'</b><small>Rollout</small></span></div>')+
    '<div class="pi-story"><p><b>Economía</b>'+esc(prospectEconomicLabel(row))+(row.market_segment_proxy?'<small>'+esc(row.market_segment_proxy)+' · conf. '+(row.economic_profile_confidence??'—')+'%</small>':'')+'</p>'+
    '<p><b>Escala</b>'+Number(row.network_campus_count||1)+' sede(s) · '+Number(row.network_department_count||1)+' departamento(s)<small>'+esc(row.procurement_model||'Modelo de compra no confirmado')+'</small></p>'+
-   '<p><b>Siguiente lectura</b>'+esc(row.next_action||row.operating_recommendation||'Monitorear nueva evidencia.')+'</p></div></article>';
+   '<p><b>Siguiente lectura</b>'+esc(row.next_action||row.operating_recommendation||'Monitorear nueva evidencia.')+'</p></div>'+(row.radar_signal_id&&row.radar_actionable?'<button type="button" class="primary pi-promote" data-radar-promote="'+esc(row.radar_signal_id)+'">Promover a CRM →</button>':'')+'</article>';
  }).join('')+'</div>';
  $('recordList').innerHTML=cards;
  document.querySelectorAll('[data-prospect-bucket]').forEach(button=>button.addEventListener('click',()=>{prospectDashboardFilter='';$('filter').value=button.dataset.prospectBucket||'';pageIndex=0;renderPotentialProspects();}));
@@ -1873,7 +1956,7 @@ function init(){
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  $('sidebarToggle').onclick=event=>{event.stopPropagation();applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);};
  document.addEventListener('click',event=>{if(!mobileNavMode())return;const sidebar=$('mainSidebar');if(!sidebar||$('appView').classList.contains('sidebar-collapsed'))return;if(sidebar.contains(event.target)||event.target===$('sidebarToggle'))return;applySidebar(true);});
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.id==='refreshIntelligenceBtn'){b.disabled=true;b.classList.add('is-refreshing');refreshLiveIntelligence(true).finally(()=>{const next=$('refreshIntelligenceBtn');if(next){next.disabled=false;next.classList.remove('is-refreshing');}});return;}if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='brandThemeToggle'){applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.sellerFilter){navigate('leads');sellerQuickFilter=b.dataset.sellerFilter;renderRecords();return;}if(b.dataset.prospectKpi){navigate('prospects');prospectDashboardFilter=b.dataset.prospectKpi==='ALL'?'':b.dataset.prospectKpi;$('filter').value='';pageIndex=0;renderRecords();return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){if(openEditor('leads',b.dataset.editLead))closeLeadDetails(false);return;}if(b.dataset.editActivity){if(openEditor('activities',b.dataset.editActivity))closeLeadDetails(false);return;}if(b.dataset.activityLead){if(openActivityForLead(b.dataset.activityLead)!==false)closeLeadDetails(false);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.radarLead){openLeadFromRadar(b.dataset.radarLead);return;}if(b.dataset.radarActivity){openActivityForLead(b.dataset.radarActivity);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.radarPromote){promoteRadarSignal(b.dataset.radarPromote);return;}if(b.id==='refreshIntelligenceBtn'){b.disabled=true;b.classList.add('is-refreshing');refreshLiveIntelligence(true).finally(()=>{const next=$('refreshIntelligenceBtn');if(next){next.disabled=false;next.classList.remove('is-refreshing');}});return;}if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='brandThemeToggle'){applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.sellerFilter){navigate('leads');sellerQuickFilter=b.dataset.sellerFilter;renderRecords();return;}if(b.dataset.prospectKpi){navigate('prospects');prospectDashboardFilter=b.dataset.prospectKpi==='ALL'?'':b.dataset.prospectKpi;$('filter').value='';pageIndex=0;renderRecords();return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){if(openEditor('leads',b.dataset.editLead))closeLeadDetails(false);return;}if(b.dataset.editActivity){if(openEditor('activities',b.dataset.editActivity))closeLeadDetails(false);return;}if(b.dataset.activityLead){if(openActivityForLead(b.dataset.activityLead)!==false)closeLeadDetails(false);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.radarLead){openLeadFromRadar(b.dataset.radarLead);return;}if(b.dataset.radarActivity){openActivityForLead(b.dataset.radarActivity);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
