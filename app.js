@@ -478,10 +478,16 @@ function connectionState(){
  return {state:'error',label:'Inteligencia desactualizada'};
 }
 function renderConnectionState(){
- const presence=$('userPresence'),label=$('connectionLabel');if(!presence||!label)return;
- const status=connectionState();presence.dataset.state=status.state;label.textContent=status.label;
+ const status=connectionState();
  const sync=liveIntelligenceLastSync?new Date(liveIntelligenceLastSync).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}):'pendiente';
- const fresh=intelligenceFreshness();const snap=fresh.snapshotLatest?new Date(fresh.snapshotLatest).toLocaleString('es-PE',{dateStyle:'short',timeStyle:'short'}):'sin snapshot';const radar=fresh.radarLatest?new Date(fresh.radarLatest).toLocaleString('es-PE',{dateStyle:'short',timeStyle:'short'}):'sin Radar';presence.title=status.label+' · consulta '+sync+' · Prospect Intelligence '+snap+' · Radar '+radar;
+ const fresh=intelligenceFreshness();
+ const snap=fresh.snapshotLatest?new Date(fresh.snapshotLatest).toLocaleString('es-PE',{dateStyle:'short',timeStyle:'short'}):'sin snapshot';
+ const radar=fresh.radarLatest?new Date(fresh.radarLatest).toLocaleString('es-PE',{dateStyle:'short',timeStyle:'short'}):'sin Radar';
+ const title=status.label+' · consulta '+sync+' · Prospect Intelligence '+snap+' · Radar '+radar;
+ const presence=$('userPresence'),label=$('connectionLabel');
+ if(presence&&label){presence.dataset.state=status.state;label.textContent=status.label;presence.title=title;}
+ const mobile=$('mobileConnectionPresence'),mobileLabel=$('mobileConnectionLabel');
+ if(mobile&&mobileLabel){mobile.dataset.state=status.state;mobileLabel.textContent=status.label;mobile.title=title;}
 }
 function primeLiveIntelligence(){
  if(dataSource!=='live'||!profile)return;
@@ -784,6 +790,7 @@ function renderDashboard(){
      ].map((t,i)=>'<p><b>0'+(i+1)+'</b><span>'+esc(t)+'</span></p>').join('');
    }
  }
+ renderConnectionState();
  if(admin)requestAnimationFrame(renderTerritorialMaps);
 }
 function setAnalyticsPeriod(period){
