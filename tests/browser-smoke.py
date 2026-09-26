@@ -34,10 +34,10 @@ with sync_playwright() as p:
   fn();checks.append(name)
  try:
   context,page=newpage();expect(page.locator('#workspaceControls')).to_be_visible()
-  check('actual data is default',lambda:expect(page.locator('#sourceBadge')).to_have_text('DATOS REALES'))
-  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-24-v2.40.80'))
+  check('actual data is default',lambda:expect(page.locator('#sidebarLiveBtn')).to_have_attribute('aria-pressed','true'))
+  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-26-v2.45.14'))
   page.screenshot(path=str(out/'desktop-v2-fixture.png'),full_page=True)
-  pages=['now','radar','institutions','contacts','leads','opportunities','tasks','meetings','deliverables','documents','activities','catalog_products','cost_profiles','expenses','goals','users','dashboard']
+  pages=['now','radar','institutions','contacts','leads','opportunities','tasks','meetings','deliverables','documents','activities','catalog_products','supplier_relationships','strategic_alliances','cost_profiles','expenses','goals','users','dashboard']
   for target in pages:
    page.locator('#navigation [data-page="'+target+'"]').click()
    check('navigation '+target,lambda t=target:expect(page.locator('#appView')).to_have_attribute('data-page',t))
@@ -59,7 +59,7 @@ with sync_playwright() as p:
   check('Radar register action visible',lambda:expect(page.locator('[data-radar-activity]')).to_be_visible())
   page.locator('#navigation [data-page="leads"]').click()
   check('real lead visible',lambda:expect(page.locator('#recordList')).to_contain_text('Institución de validación · Diagnóstico'))
-  page.get_by_role('button',name='Abrir expediente comercial').first.click();check('commercial dossier opens',lambda:expect(page.locator('#leadDetailTitle')).to_contain_text('Expediente Comercial'));check('situation and action visible',lambda:expect(page.locator('#leadDetailContent')).to_contain_text('SITUACIÓN'));check('deliverables radiography visible',lambda:expect(page.locator('#leadDetailContent')).to_contain_text('Entregables'));check('documents section visible',lambda:expect(page.locator('#leadDetailContent')).to_contain_text('Documentos del expediente'));page.locator('#closeLeadDetail').click()
+  page.get_by_role('button',name='Abrir expediente comercial').first.click();check('commercial dossier opens',lambda:expect(page.locator('.lead-detail-kicker')).to_have_text('EXPEDIENTE COMERCIAL'));check('situation and action visible',lambda:expect(page.locator('#leadDetailContent')).to_contain_text('SITUACIÓN'));check('deliverables radiography visible',lambda:expect(page.locator('#leadDetailContent')).to_contain_text('Entregables'));check('documents section visible',lambda:expect(page.locator('#leadDetailContent')).to_contain_text('Documentos del expediente'));page.locator('#closeLeadDetail').click()
   check('attention counter shows pending first response',lambda:expect(page.locator('#attentionCount')).to_have_text('1'))
   page.locator('#attentionBtn').click();check('attention center opens',lambda:expect(page.locator('#attentionDialog')).to_be_visible());check('attention center lists pending prospect',lambda:expect(page.locator('#attentionContent')).to_contain_text('Institución de validación'));page.locator('#closeAttention').click()
   check('historical simulated records excluded',lambda:expect(page.locator('#recordList')).not_to_contain_text('[SIMULADO]'))
@@ -83,8 +83,8 @@ with sync_playwright() as p:
   page.set_viewport_size({'width':390,'height':900})
   assert page.evaluate("getComputedStyle(document.querySelector('.sidebar-toggle')).position")=='absolute';checks.append('mobile sidebar toggle is not fixed over content')
 
-  page.locator('#sourceToggle').click();check('explicit demo',lambda:expect(page.locator('#sourceBadge')).to_contain_text('DEMOSTRACIÓN'))
-  page.locator('#sourceToggle').click();check('return to real',lambda:expect(page.locator('#sourceBadge')).to_have_text('DATOS REALES'))
+  page.locator('#sidebarDemoBtn').click();check('explicit demo',lambda:expect(page.locator('#sidebarDemoBtn')).to_have_attribute('aria-pressed','true'))
+  page.locator('#sidebarLiveBtn').click();check('return to real',lambda:expect(page.locator('#sidebarLiveBtn')).to_have_attribute('aria-pressed','true'))
   assert page.evaluate('window.__testWrites.length')==0;checks.append('no business writes in browsing')
   page.locator('#navigation [data-page="dashboard"]').click()
   for width in [320,390,768,1024,1440]:
@@ -105,9 +105,9 @@ with sync_playwright() as p:
    context,page=newpage({'role':role});expect(page.locator('#appView')).to_be_visible()
    check(role+' cannot select administrator mode',lambda:expect(page.locator('#adminModeBtn')).to_be_hidden())
    check(role+' cannot open admin routes',lambda:expect(page.locator('#navigation [data-page="users"]')).to_have_count(0))
-   check(role+' has seller dashboard',lambda:expect(page.locator('#dashboard')).to_contain_text('Qué está pasando y qué hacer ahora'))
-   check(role+' sees prospect progress',lambda:expect(page.locator('#dashboard')).to_contain_text('Institución de validación'))
+   check(role+' has seller dashboard',lambda:expect(page.locator('#dashboard')).to_contain_text('Tu negocio, en una sola vista'))
    page.locator('#navigation [data-page="leads"]').click()
+   check(role+' sees prospect progress',lambda:expect(page.locator('#dashboard')).to_contain_text('Institución de validación'))
    check(role+' sees only assigned leads',lambda:expect(page.locator('#recordList')).not_to_contain_text('Prospecto de otro vendedor'))
    if role=='VIEWER':check('viewer has no write control',lambda:expect(page.locator('#newBtn')).to_be_hidden())
    context.close()
