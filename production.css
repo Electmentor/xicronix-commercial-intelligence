@@ -3172,3 +3172,17 @@ html[data-theme="night"] .opp-card{background:#102136}
 .lead-quick-action.primary{background:var(--accent,#1f6feb);border-color:var(--accent,#1f6feb);color:#fff}
 .lead-open-compact{min-width:auto;padding-inline:9px;font-size:.82rem}
 @media(max-width:700px){.lead-action-buttons{display:grid;grid-template-columns:1fr 1fr}.lead-action-button{width:100%}.lead-action-center{padding:14px}.lead-master-kpis{grid-template-columns:1fr 1fr}.deliverable-grid{grid-template-columns:1fr 1fr}.lead-mobile-quick-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.lead-quick-action,.lead-open-compact{width:100%}}
+
+/* Smart commercial mail */
+#smartMailDialog{width:min(900px,calc(100% - 24px));max-height:90vh}
+#smartMailContent{display:grid;gap:16px}
+.smart-mail-summary{display:grid;grid-template-columns:1fr 2fr 1fr;gap:10px}
+.smart-mail-summary>div,.smart-mail-body,.smart-mail-assets{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--panel,#fff)}
+.smart-mail-summary small,.smart-mail-body small,.smart-mail-assets small{display:block;color:var(--muted);font-weight:800;letter-spacing:.04em}
+.smart-mail-summary strong{display:block;margin-top:5px;overflow-wrap:anywhere}
+.smart-mail-body header,.smart-mail-assets header{display:flex;justify-content:space-between;gap:12px;align-items:start;margin-bottom:10px}
+.smart-mail-body h3,.smart-mail-assets h3{margin:3px 0 0}
+.smart-mail-body textarea{width:100%;resize:vertical;min-height:280px;border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--bg,#fff);color:inherit;font:inherit;line-height:1.5}
+.smart-mail-assets ul{margin:8px 0 10px;padding-left:20px}.smart-mail-assets li{margin:8px 0}.smart-mail-assets li span{display:block;color:var(--muted);font-size:.9rem}.smart-mail-assets p{margin:8px 0 0;color:var(--muted)}
+.smart-mail-actions{display:flex;justify-content:flex-end;gap:10px;position:sticky;bottom:0;padding-top:8px;background:var(--panel,#fff)}
+@media(max-width:700px){.smart-mail-summary{grid-template-columns:1fr}.smart-mail-actions{display:grid;grid-template-columns:1fr}.smart-mail-actions button{width:100%}}
