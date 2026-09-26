@@ -59,7 +59,18 @@ const enums = {
  meetingMode:{ONLINE:'Virtual',ONSITE:'Presencial',PHONE:'Llamada'},
  deliverableDirection:{XICRONIX_TO_CLIENT:'Xicronix → cliente',CLIENT_TO_XICRONIX:'Cliente → Xicronix'},
  deliverableStatus:{PENDING:'Pendiente',DELIVERED:'Entregado',RECEIVED:'Recibido',CANCELLED:'Cancelado'},
- documentCategory:{REQUEST_DIAGNOSIS:'Solicitud y diagnóstico',PROPOSALS_QUOTES:'Propuestas y cotizaciones',CONTRACTS_AUTHORIZATIONS:'Contratos y autorizaciones',BILLING_PAYMENTS:'Facturación y pagos',IMPLEMENTATION_DELIVERY:'Implementación y entrega',MANUALS_POSTSALE:'Manuales y postventa'},
+ documentCategory:{
+ INSTITUTIONAL_BROCHURES:'01 · Institucional y brochures',
+ SOLUTIONS_TECHNICAL:'02 · Soluciones y fichas técnicas',
+ REQUEST_DIAGNOSIS:'03 · Diagnósticos',
+ PRESENTATIONS:'04 · Presentaciones',
+ PROPOSALS_QUOTES:'05 · Cotizaciones y proformas',
+ COMMERCIAL_PROPOSALS:'06 · Propuestas comerciales',
+ CONTRACTS_AUTHORIZATIONS:'07 · Contratos y autorizaciones',
+ IMPLEMENTATION_DELIVERY:'08 · Implementación y entrega',
+ MANUALS_POSTSALE:'09 · Manuales y postventa',
+ BILLING_PAYMENTS:'10 · Facturación y pagos'
+},
  documentStatus:{DRAFT:'Borrador',CURRENT:'Vigente',SENT:'Enviado',SIGNED:'Firmado',REPLACED:'Reemplazado'},
  priority:{LOW:'Baja',MEDIUM:'Media',HIGH:'Alta',CRITICAL:'Crítica'},
  role:{ADMIN:'Administrador',MANAGER:'Responsable',SALES:'Comercial',VIEWER:'Solo lectura'},
@@ -1020,51 +1031,58 @@ function smartMailDraftForLead(lead){
    paragraphs.push('Gracias por su comunicación con Xicronix. Hemos revisado el estado actual de su solicitud relacionada con '+need+'.');
  }
  let recommendation='Brochure institucional / presentación de capacidades';
+ let recommendedCategories=['INSTITUTIONAL_BROCHURES','SOLUTIONS_TECHNICAL'];
  if(maturity<30){
    paragraphs.push('Para avanzar de manera adecuada, proponemos una breve conversación de diagnóstico que nos permita precisar necesidades, alcance y prioridades antes de plantear una solución.');
    paragraphs.push('Quedamos atentos para coordinar el horario que le resulte más conveniente.');
    recommendation='Brochure institucional o ficha de solución, solo si aporta contexto';
+   recommendedCategories=['INSTITUTIONAL_BROCHURES','SOLUTIONS_TECHNICAL','PRESENTATIONS'];
  }else if(maturity<60){
    paragraphs.push('De acuerdo con lo conversado hasta el momento, el siguiente paso es consolidar los requerimientos técnicos y comerciales para preparar una propuesta alineada a sus necesidades.');
    paragraphs.push('Si está de acuerdo, podemos confirmar los puntos pendientes y avanzar con la siguiente etapa.');
-   recommendation='Ficha técnica, resumen de diagnóstico o presentación de solución';
+   recommendation='Ficha técnica, diagnóstico o presentación de solución';
+   recommendedCategories=['SOLUTIONS_TECHNICAL','REQUEST_DIAGNOSIS','PRESENTATIONS'];
  }else if(maturity<80){
    paragraphs.push('Con la información ya validada, estamos en condiciones de avanzar con la propuesta comercial correspondiente.');
    paragraphs.push('Adjuntaremos o actualizaremos la documentación necesaria para que pueda revisarla y continuar con la evaluación interna.');
    recommendation='Propuesta, cotización o proforma vigente';
+   recommendedCategories=['COMMERCIAL_PROPOSALS','PROPOSALS_QUOTES','SOLUTIONS_TECHNICAL'];
  }else{
    paragraphs.push('Estamos en la etapa final del proceso y queremos dejar claramente establecidos los próximos pasos para el cierre y la implementación.');
    paragraphs.push('Quedamos atentos a su confirmación para completar la documentación pendiente y coordinar la ejecución.');
-   recommendation='Proforma final, propuesta aprobada, orden/contrato o documentación de implementación';
+   recommendation='Proforma final, propuesta aprobada, contrato o documentación de implementación';
+   recommendedCategories=['PROPOSALS_QUOTES','COMMERCIAL_PROPOSALS','CONTRACTS_AUTHORIZATIONS','IMPLEMENTATION_DELIVERY'];
  }
  const signature='Atentamente,\nEquipo Xicronix\n\nXICRONIX — Ciencia, tecnología y educación\ninfo@xicronix.com\nwww.xicronix.com\nLima, Perú';
  const body=[greeting,'',...paragraphs,'',signature].join('\n');
  const docs=(data.documents||[]).filter(row=>row.lead_id===lead?.id&&['CURRENT','SENT','SIGNED'].includes(row.status)).sort((a,b)=>String(b.updated_at||'').localeCompare(String(a.updated_at||'')));
+ const suggestedDocs=docs.filter(row=>recommendedCategories.includes(row.category));
  const thread=relatedMail.find(row=>zohoMailMessageHref(row))||null;
- return {lead,contact,institution,email,subject,body,recommendation,docs,thread,latest};
+ return {lead,contact,institution,email,subject,body,recommendation,recommendedCategories,docs,suggestedDocs,thread,latest};
 }
 function openSmartMailDraft(leadId){
  const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
  const draft=smartMailDraftForLead(lead);
  if(!draft.email){notice('Este prospecto todavía no tiene un correo registrado.',true);return;}
- const docsHtml=draft.docs.length
-  ?draft.docs.slice(0,5).map(row=>'<li><strong>'+esc(row.title||'Documento')+'</strong><span>'+esc(enums.documentCategory[row.category]||row.category||'Documento')+' · '+esc(enums.documentStatus[row.status]||row.status)+'</span></li>').join('')
-  :'<li><strong>No hay adjuntos vigentes vinculados al expediente.</strong><span>Sugerencia: '+esc(draft.recommendation)+'</span></li>';
+ const folderLabels=(draft.recommendedCategories||[]).map(key=>enums.documentCategory[key]||key);
+ const matching=draft.suggestedDocs||[];
+ const docsHtml=matching.length
+  ?matching.slice(0,6).map(row=>'<li><strong>'+esc(row.title||'Documento')+'</strong><span>'+esc(enums.documentCategory[row.category]||row.category||'Documento')+' · '+esc(enums.documentStatus[row.status]||row.status)+'</span></li>').join('')
+  :'<li><strong>No hay material vigente en las carpetas recomendadas.</strong><span>Carpetas: '+esc(folderLabels.join(' · '))+'</span></li>';
  $('smartMailTitle').textContent='Correo · '+(draft.institution?.name||draft.lead.title||'Prospecto');
  $('smartMailContent').innerHTML=
-  '<section class="smart-mail-summary"><div><div class="smart-mail-field-head"><small>PARA</small><button type="button" class="smart-mail-edit" data-edit-smart-contact="'+esc(draft.contact?.id||'')+'" data-edit-smart-institution="'+esc(draft.institution?.id||'')+'">Editar</button></div><strong>'+esc(draft.email)+'</strong>'+(draft.contact?.phone?'<span>'+esc(draft.contact.phone)+'</span>':'')+'</div><div><small>ASUNTO</small><strong>'+esc(draft.subject)+'</strong></div><div><small>ESTADO</small><strong>'+(draft.thread?'Continuar conversación existente':'Nuevo correo')+'</strong></div></section>'+
+  '<section class="smart-mail-summary"><label><small>PARA</small><input id="smartMailTo" type="email" value="'+esc(draft.email)+'" autocomplete="off"></label><label><small>ASUNTO</small><input id="smartMailSubject" type="text" value="'+esc(draft.subject)+'" autocomplete="off"></label><div><small>ESTADO</small><strong>'+(draft.thread?'Continuar conversación existente':'Nuevo correo')+'</strong>'+(draft.contact?.phone?'<span>'+esc(draft.contact.phone)+'</span>':'')+'</div></section>'+
   '<section class="smart-mail-body"><header><div><small>RESPUESTA SUGERIDA</small><h3>Revisa antes de enviar</h3></div><button type="button" data-copy-smart-mail="body">Copiar texto</button></header><textarea id="smartMailBody" rows="14">'+esc(draft.body)+'</textarea></section>'+
-  '<section class="smart-mail-assets"><header><div><small>MATERIAL COMERCIAL</small><h3>Adjuntos sugeridos según el avance</h3></div></header><ul>'+docsHtml+'</ul><p>'+esc(draft.recommendation)+'</p></section>'+
+  '<section class="smart-mail-assets"><header><div><small>REPOSITORIO COMERCIAL</small><h3>Material sugerido según la etapa</h3></div></header><div class="smart-mail-folders">'+folderLabels.map(label=>'<span>'+esc(label)+'</span>').join('')+'</div><ul>'+docsHtml+'</ul><p>'+esc(draft.recommendation)+'</p></section>'+
   '<footer class="smart-mail-actions"><button type="button" data-copy-smart-mail="all">Copiar borrador</button><button type="button" class="primary" data-open-smart-zoho="'+esc(lead.id)+'">'+(draft.thread?'Revisar y responder en Zoho':'Revisar y enviar en Zoho')+'</button></footer>';
  $('smartMailDialog').showModal();
 }
 async function copySmartMailDraft(mode='all'){
  const body=$('smartMailBody')?.value||'';
  const title=$('smartMailTitle')?.textContent||'';
- const summary=$('smartMailContent')?.querySelector('.smart-mail-summary');
- const values=summary?Array.from(summary.querySelectorAll('strong')).map(n=>n.textContent||''):[];
- const [to,subject]=values;
- const text=mode==='body'?body:['Para: '+(to||''),'Asunto: '+(subject||''),'',body].join('\n');
+ const to=$('smartMailTo')?.value?.trim()||'';
+ const subject=$('smartMailSubject')?.value?.trim()||'';
+ const text=mode==='body'?body:['Para: '+to,'Asunto: '+subject,'',body].join('\n');
  try{await navigator.clipboard.writeText(text);notice(mode==='body'?'Texto del correo copiado.':'Borrador copiado.');}
  catch(_error){notice('No se pudo copiar automáticamente.',true);}
 }
@@ -1072,8 +1090,11 @@ async function openSmartMailInZoho(leadId){
  const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
  const draft=smartMailDraftForLead(lead);
  const body=$('smartMailBody')?.value||draft.body;
- try{await navigator.clipboard.writeText(body);}catch(_error){}
- const href=draft.thread?zohoMailMessageHref(draft.thread):zohoMailComposeHref({contact_email:draft.email,institution_name:draft.institution?.name||lead.title});
+ const to=$('smartMailTo')?.value?.trim()||draft.email;
+ const subject=$('smartMailSubject')?.value?.trim()||draft.subject;
+ const packageText=['Para: '+to,'Asunto: '+subject,'',body].join('\n');
+ try{await navigator.clipboard.writeText(packageText);}catch(_error){}
+ const href=draft.thread?zohoMailMessageHref(draft.thread):zohoMailComposeHref({contact_email:to,institution_name:draft.institution?.name||lead.title});
  window.open(href,'_blank','noopener');
  notice(draft.thread?'Conversación abierta en Zoho. El texto sugerido quedó copiado para pegar y revisar.':'Correo nuevo abierto en Zoho. El texto sugerido quedó copiado para pegar y revisar.',false,7000);
 }
