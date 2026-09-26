@@ -196,14 +196,14 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
   const cards=rows.length?rows.map(row=>{
     const name=row.institution?.name||row.lead.title;
     const potential=row.potential===null?'Potencial pendiente':row.potential+'% potencial';
-    return '<button class="seller-candidate-card" data-lead-detail="'+esc(row.lead.id)+'" aria-label="Abrir expediente comercial de '+esc(name)+'">'+
+    return '<article class="seller-candidate-card operational">'+
       '<header><div><span class="seller-candidate-kicker">PROSPECTO</span><h3>'+esc(name)+'</h3></div><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></header>'+
       '<p class="seller-candidate-problem"><b>Problema:</b> '+esc(row.problem)+'</p>'+
       '<div class="seller-candidate-meta"><span><b>'+row.maturity+'%</b><small>Madurez</small></span><span><b>'+esc(potential)+'</b><small>Calidad comercial</small></span></div>'+
       '<p class="seller-candidate-next"><b>Siguiente:</b> '+esc(row.urgency.next)+(row.urgency.date?' · '+esc(compactDate(row.urgency.date)):'')+'</p>'+
-      '<p class="seller-candidate-next"><b>Canal recomendado:</b> '+esc(row.recommended.channel)+'</p>'+
-      '<small class="seller-candidate-evidence">'+esc(row.evidence)+'</small>'+
-    '</button>';
+      sellerQuickActions(row)+
+      '<button type="button" class="seller-open-detail" data-lead-detail="'+esc(row.lead.id)+'">Ver expediente →</button>'+
+    '</article>';
   }).join(''):'<div class="seller-story-empty">No hay prospectos activos en tu cartera.</div>';
 
   const searchedRows=String(searchQuery||'').trim()?rows.filter(row=>matchesProspectSearch(row,searchQuery)):rows;
