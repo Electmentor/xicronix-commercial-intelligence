@@ -101,9 +101,22 @@ function leadStory(data,lead){
   return {activities,latest,contact,problem,evidence,decision,missingText,situation};
 }
 
+function newestInboundMailForLead(data,lead){
+  return (data.mail||[])
+    .filter(row=>row.lead_id===lead.id&&row.status==='NEW')
+    .sort((a,b)=>String(b.received_at||b.created_at||'').localeCompare(String(a.received_at||a.created_at||'')))[0]||null;
+}
+
 function recommendedMove(row){
   const contact=row.contact||null, institution=row.institution||null, lead=row.lead;
   const phone=contact?.phone||institution?.phone||'', email=contact?.email||institution?.email||'';
+  if(row.newMail){
+    return {
+      channel:'Correo',
+      reason:'Acaba de ingresar un correo del prospecto. Una respuesta entrante tiene prioridad temporal sobre el seguimiento planificado.',
+      action:'Leer y responder: '+(row.newMail.subject||'correo recibido')
+    };
+  }
   const urgent=row.urgency?.label==='Alta';
   const advanced=row.maturity>=70;
   const contacted=['CONTACTED','QUALIFIED'].includes(lead.status);
@@ -144,9 +157,10 @@ function prospectRows(data,now){
     const maturity=safePct(lead.maturity_percent);
     const potential=potentialForLead(lead,scores);
     const story=leadStory(data,lead);
-    const base={lead,institution,urgency,maturity,potential,...story};
+    const newMail=newestInboundMailForLead(data,lead);
+    const base={lead,institution,urgency,maturity,potential,newMail,...story};
     return {...base,recommended:recommendedMove(base)};
-  }).sort((a,b)=>b.urgency.rank-a.urgency.rank||(b.potential??-1)-(a.potential??-1)||b.maturity-a.maturity);
+  }).sort((a,b)=>Number(!!b.newMail)-Number(!!a.newMail)||b.urgency.rank-a.urgency.rank||(b.potential??-1)-(a.potential??-1)||b.maturity-a.maturity);
 }
 
 function prospectDisplayId(lead){return String(lead?.id||'').slice(0,8).toUpperCase();}
@@ -183,10 +197,11 @@ export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={
 
   const narrative=incomplete?'Hay información pendiente de carga. Actualiza antes de priorizar.':
     !selected?(String(searchQuery||'').trim()?'No se encontraron prospectos con ese ID o nombre.':'No hay prospectos activos. Registra o asigna el siguiente prospecto.'):
+    selected.newMail?'Correo nuevo: '+(selected.institution?.name||selected.lead.title)+'. '+(selected.newMail.subject||'Requiere respuesta')+'.':
     selected.urgency.label==='Alta'?'Prioridad: '+(selected.institution?.name||selected.lead.title)+'. '+selected.urgency.next+'.':
     'La cartera está bajo control. El siguiente movimiento con mayor impacto está en '+(selected.institution?.name||selected.lead.title)+'.';
 
-  const todayAction=selected?'<section class="seller-today-command"><header><div><small>PRIORIDAD #1 · HACER AHORA</small><h2>'+esc(selected.institution?.name||selected.lead.title)+'</h2><p>'+esc(selected.recommended.action)+'</p></div><span class="seller-channel">'+esc(selected.recommended.channel)+'</span></header>'+sellerQuickActions(selected)+'<div class="seller-today-context"><span><b>Por qué ahora</b>'+esc(selected.recommended.reason)+'</span><span><b>Para avanzar</b>'+esc(selected.missingText)+'</span></div><button class="seller-open-detail" data-lead-detail="'+esc(selected.lead.id)+'">Ver expediente completo →</button></section>':'';
+  const todayAction=selected?'<section class="seller-today-command'+(selected.newMail?' inbound-mail':'')+'"><header><div><small>'+(selected.newMail?'CORREO NUEVO · HACER AHORA':'PRIORIDAD #1 · HACER AHORA')+'</small><h2>'+esc(selected.institution?.name||selected.lead.title)+'</h2><p>'+esc(selected.recommended.action)+'</p></div><span class="seller-channel">'+esc(selected.recommended.channel)+'</span></header>'+sellerQuickActions(selected)+'<div class="seller-today-context"><span><b>Por qué ahora</b>'+esc(selected.recommended.reason)+'</span><span><b>'+(selected.newMail?'Recibido':'Para avanzar')+'</b>'+esc(selected.newMail?compactDateTime(selected.newMail.received_at||selected.newMail.created_at):selected.missingText)+'</span></div><button class="seller-open-detail" data-lead-detail="'+esc(selected.lead.id)+'">Ver expediente completo →</button></section>':'';
 
   const focus=nextRows.length?'<section class="seller-priority-section"><div class="seller-section-heading"><small>SIGUIENTES 3</small><strong>La cola inmediata después de tu prioridad principal</strong></div><div class="seller-priority-stack">'+nextRows.map((row,index)=>{
     const lead=row.lead,name=row.institution?.name||lead.title;
