@@ -980,7 +980,23 @@ function zohoMailComposeHref(row){
  const subject='Xicronix | '+String(row?.institution_name||'Contacto comercial');
  return 'https://mail.zoho.com/zm/#compose?to='+encodeURIComponent(email)+'&subject='+encodeURIComponent(subject);
 }
-function radarMailHref(row){return zohoMailComposeHref(row);}
+function zohoMailMessageHref(row){
+ const folder=String(row?.provider_folder_id||'').trim();
+ const message=String(row?.provider_message_id||'').trim();
+ if(!folder||!message)return '';
+ return 'https://mail.zoho.com/zm/#mail/folder/'+encodeURIComponent(folder)+'/p/'+encodeURIComponent(message);
+}
+function leadZohoHref(lead,contact,institution){
+ const email=String(contact?.email||institution?.email||'').trim().toLowerCase();
+ const related=(data.mail||[]).filter(row=>
+   row.lead_id===lead?.id||
+   (contact?.id&&row.contact_id===contact.id)||
+   (email&&String(row.from_address||'').trim().toLowerCase()===email)
+ ).sort((a,b)=>String(b.received_at||b.created_at||'').localeCompare(String(a.received_at||a.created_at||'')));
+ const direct=related.find(row=>zohoMailMessageHref(row));
+ if(direct)return zohoMailMessageHref(direct);
+ return zohoMailComposeHref({contact_email:email,institution_name:institution?.name||lead?.title||'Prospecto'});
+}function radarMailHref(row){return zohoMailComposeHref(row);}
 function openLeadFromRadar(signalId){
  const row=(data.radar||[]).find(item=>item.id===signalId);
  if(!row)return;
@@ -1280,7 +1296,7 @@ function renderMailRecords(){
    :'<div class="mail-setup panel"><p class="eyebrow">CONEXIÓN PENDIENTE</p><h2>Conecta Zoho Mail una sola vez</h2><p>En Zoho Mail: Configuración → Integraciones → Developer Space → Outgoing Webhooks → Mail. Usa “Limited Data List” para compartir solo asunto, remitente, destinatario y hora.</p>'+(hook?'<div class="mail-webhook-url">'+esc(hook)+'</div><button type="button" class="primary" data-copy-zoho-webhook>Copiar URL del webhook</button>':'')+'</div>';
  const cards=rows.length?'<section class="mail-list">'+rows.map(row=>{
    const linked=row.lead_id?'<button type="button" class="primary" data-mail-lead="'+row.lead_id+'">Abrir prospecto</button>':'';
-   const reply=row.from_address?'<a class="task-link-button" href="mailto:'+esc(row.from_address)+'?subject='+encodeURIComponent('Re: '+(row.subject||''))+'">Responder</a>':'';
+   const reply=row.from_address?'<a class="task-link-button" href="'+esc(zohoMailMessageHref(row)||zohoMailComposeHref({contact_email:row.from_address,institution_name:row.subject||'Contacto comercial'}))+'" target="_blank" rel="noopener">Leer / responder en Zoho</a>':'';
    const reviewed=row.status==='NEW'?'<button type="button" data-mail-reviewed="'+row.id+'">Marcar revisado</button>':'';
    return '<article class="mail-card '+(row.status==='NEW'?'new':'')+'"><header><div><span class="mail-from">'+esc(row.sender_name||row.from_address||'Remitente desconocido')+'</span><h3>'+esc(row.subject||'(Sin asunto)')+'</h3></div><span class="badge '+(row.priority==='HIGH'||row.priority==='CRITICAL'?'warn':'')+'">'+esc(enums.mailPriority[row.priority]||row.priority)+'</span></header><p class="mail-meta">'+esc(row.from_address||'')+' · '+esc(date(row.received_at||row.created_at))+'</p>'+(row.summary?'<p class="mail-summary">'+esc(row.summary)+'</p>':'')+'<div class="mail-actions">'+linked+reply+reviewed+'</div></article>';
  }).join('')+'</section>':'<div class="panel empty">Todavía no hay correos recibidos desde Zoho Mail.</div>';
@@ -1310,7 +1326,7 @@ function renderLeadCards(rows){
    '<p class="lead-mobile-next"><b>Siguiente:</b> '+esc(next)+(row.next_action_date?' · '+esc(date(row.next_action_date)):'')+'</p>'+
    '<div class="lead-mobile-actions lead-mobile-quick-actions">'+
     (phone?'<a class="lead-quick-action primary" href="'+esc(radarPhoneHref(phone))+'">Llamar</a>':'')+
-    (email?'<a class="lead-quick-action" href="'+esc(zohoMailComposeHref(mailRow))+'">Correo Zoho</a>':'')+
+    (email?'<a class="lead-quick-action" href="'+esc(leadZohoHref(row,contact,institution))+'">Correo Zoho</a>':'')+
     (phone?'<a class="lead-quick-action" href="'+esc(radarWhatsappHref(phone))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
     '<button type="button" class="lead-open-compact" data-lead-detail="'+row.id+'">Abrir expediente</button>'+
    '</div>'+
@@ -1939,7 +1955,7 @@ function openLeadDetails(id){
  const directRow={contact_email:directEmail,institution_name:institution?.name||lead.title||'Prospecto'};
  const quickActions='<section class="lead-action-center"><div class="lead-action-primary"><small>ACCIÓN RECOMENDADA</small><strong>'+esc(action)+'</strong><span>'+(nextDate?'Antes de '+esc(date(nextDate)):'Sin fecha comprometida')+'</span></div><div class="lead-action-buttons">'+
   (directPhone?'<a class="lead-action-button primary" href="'+esc(radarPhoneHref(directPhone))+'">Llamar ahora</a>':'')+
-  (directEmail?'<a class="lead-action-button" href="'+esc(zohoMailComposeHref(directRow))+'">Correo Zoho</a>':'')+
+  (directEmail?'<a class="lead-action-button" href="'+esc(leadZohoHref(lead,contact,institution))+'">Correo Zoho</a>':'')+
   (directPhone?'<a class="lead-action-button" href="'+esc(radarWhatsappHref(directPhone))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
   (writableFor('activities')?'<button type="button" class="lead-action-button" data-activity-lead="'+lead.id+'">Registrar resultado</button>':'')+
  '</div><p class="lead-action-contact">'+esc(contact?nameOf(contact):'Contacto decisor pendiente')+(contact?.job_title?' · '+esc(contact.job_title):'')+(directPhone?' · '+esc(directPhone):'')+(directEmail?' · '+esc(directEmail):'')+'</p></section>';
