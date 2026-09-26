@@ -977,8 +977,7 @@ function radarWhatsappHref(value){
 function zohoMailComposeHref(row){
  const email=String(row?.contact_email||'').trim();
  if(!email)return '';
- const subject='Xicronix | '+String(row?.institution_name||'Contacto comercial');
- return 'https://mail.zoho.com/zm/#compose?to='+encodeURIComponent(email)+'&subject='+encodeURIComponent(subject);
+ return 'https://mail.zoho.com/zm/#compose';
 }
 function zohoMailMessageHref(row){
  const folder=String(row?.provider_folder_id||'').trim();
