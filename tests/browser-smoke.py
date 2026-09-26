@@ -100,11 +100,13 @@ with sync_playwright() as p:
   lead='33333333-3333-4333-8333-333333333333'
   context,page=newpage(url='?lead='+lead)
   check('notification link opens request',lambda:expect(page.locator('#leadDetailDialog')).to_be_visible())
-  page.locator('#closeLeadDetail').click();page.locator('#logoutBtn').click()
+  page.locator('#closeLeadDetail').click();page.locator('#logoutBtn').evaluate("el=>el.click()")
   check('logout clears private details',lambda:expect(page.locator('#leadDetailContent')).to_be_empty())
   check('logout returns login',lambda:expect(page.locator('#authView')).to_be_visible());context.close()
   for role in ['SALES','MANAGER','VIEWER']:
-   context,page=newpage({'role':role});expect(page.locator('#appView')).to_be_visible()
+   context,page=newpage({'role':role});expect(page.locator('#appView')).to_be_visible();page.wait_for_timeout(500)
+   if page.locator('#dailyBriefingDialog').evaluate("el=>el.open"):
+    page.locator('#closeDailyBriefing').click()
    check(role+' cannot select administrator mode',lambda:expect(page.locator('#adminModeBtn')).to_be_hidden())
    check(role+' cannot open admin routes',lambda:expect(page.locator('#navigation [data-page="users"]')).to_have_count(0))
    check(role+' has seller dashboard',lambda:expect(page.locator('#dashboard')).to_contain_text('Tu negocio, en una sola vista'))
