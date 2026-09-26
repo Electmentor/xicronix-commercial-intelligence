@@ -3828,3 +3828,89 @@ dialog[data-ribbon] .dialog-header>button:focus-visible{
   .daily-briefing-actions-list p{grid-template-columns:1fr}
   .daily-briefing-item footer button{width:100%}
 }
+
+/* Commercial dossier · single integrated header */
+#leadDetailDialog{
+  padding-top:0;
+}
+#leadDetailDialog .lead-detail-header{
+  position:sticky;
+  top:0;
+  z-index:40;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  margin:0 -18px 14px;
+  padding:14px 18px 12px;
+  background:var(--panel,#0f2238);
+  border-bottom:1px solid var(--line);
+  box-shadow:0 6px 14px rgba(0,0,0,.12);
+}
+#leadDetailDialog .lead-detail-header>div{
+  min-width:0;
+}
+#leadDetailDialog .lead-detail-kicker{
+  display:block;
+  margin-bottom:4px;
+  color:var(--muted);
+  font-size:.62rem;
+  font-weight:850;
+  letter-spacing:.10em;
+}
+#leadDetailDialog #leadDetailTitle{
+  margin:0;
+  padding:0;
+  font-size:1.15rem;
+  line-height:1.18;
+  overflow-wrap:anywhere;
+}
+#leadDetailDialog .lead-detail-subtitle{
+  margin:5px 0 0;
+  color:var(--muted);
+  font-size:.82rem;
+  line-height:1.35;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#leadDetailDialog .lead-detail-header>button{
+  width:34px;
+  min-width:34px;
+  height:30px;
+  padding:0;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  font-size:0;
+  position:relative;
+  flex:none;
+}
+#leadDetailDialog .lead-detail-header>button::before{
+  content:"×";
+  font-size:1.35rem;
+  line-height:1;
+  font-weight:500;
+}
+#leadDetailDialog .lead-detail-header>button:hover{
+  background:#c42b1c;
+  color:#fff;
+}
+#leadDetailDialog .lead-action-center{
+  margin-top:0;
+}
+@media(max-width:700px){
+  #leadDetailDialog{
+    padding:0 12px 12px;
+  }
+  #leadDetailDialog .lead-detail-header{
+    margin:0 -12px 12px;
+    padding:12px;
+  }
+  #leadDetailDialog #leadDetailTitle{
+    font-size:1rem;
+  }
+  #leadDetailDialog .lead-detail-subtitle{
+    font-size:.76rem;
+  }
+}
