@@ -3238,3 +3238,11 @@ dialog[data-ribbon] .dialog-header>button:active{
 dialog[data-ribbon] .dialog-header>button:focus-visible{
   outline:2px solid #ff7a70;outline-offset:2px
 }
+
+.smart-mail-field-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.smart-mail-edit{
+  min-height:26px;padding:0 9px;border:1px solid var(--line);border-radius:999px;
+  background:transparent;color:inherit;font-size:.76rem;font-weight:800;cursor:pointer
+}
+.smart-mail-edit:hover{background:rgba(127,127,127,.12)}
+.smart-mail-summary span{display:block;margin-top:4px;color:var(--muted);font-size:.86rem}
