@@ -979,10 +979,7 @@ function zohoMailComposeHref(row){
  if(!email)return '';
  const subject='Xicronix | '+String(row?.institution_name||'Contacto comercial');
  const mailto='mailto:'+email+'?subject='+encodeURIComponent(subject);
- const isAndroid=/Android/i.test(navigator.userAgent||'');
- if(!isAndroid)return mailto;
- const fallback='https://play.google.com/store/apps/details?id=com.zoho.mail';
- return 'intent:'+mailto+'#Intent;package=com.zoho.mail;S.browser_fallback_url='+encodeURIComponent(fallback)+';end';
+ return 'https://mail.zoho.com/mail/compose.do?extsrc=mailto&mode=compose&tp=zb&ct='+encodeURIComponent(mailto);
 }
 
 function radarMailHref(row){return zohoMailComposeHref(row);}
