@@ -3146,3 +3146,17 @@ html[data-theme="night"] .opp-card{background:#102136}
 .pi-live-radar{border-color:color-mix(in srgb,var(--success) 45%,var(--line));background:color-mix(in srgb,var(--panel) 94%,var(--success) 6%)}
 .pi-promote{width:100%;margin-top:10px;min-height:42px}
 .user-presence[data-state="stale"] .connection-label{color:#9a6700}
+
+
+/* Mobile greeting connection status */
+.director-greeting-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.director-greeting-row h2{margin:0}
+.mobile-connection-presence{display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid var(--line);border-radius:999px;background:color-mix(in srgb,var(--panel) 94%,transparent)}
+.mobile-connection-presence small{font-size:.64rem;font-weight:800;color:var(--muted)}
+.mobile-connection-presence[data-state="online"] .connection-led{background:#20b26b;box-shadow:0 0 0 0 rgba(32,178,107,.45);animation:xicronix-led-pulse 1.7s ease-out infinite}
+.mobile-connection-presence[data-state="online"] small{color:#16834f}
+.mobile-connection-presence[data-state="stale"] .connection-led{background:#d99a1b}
+.mobile-connection-presence[data-state="stale"] small{color:#9a6700}
+.mobile-connection-presence[data-state="error"] .connection-led,.mobile-connection-presence[data-state="offline"] .connection-led{background:#d94841;animation:none}
+.mobile-connection-presence[data-state="connecting"] .connection-led{background:#9aa4b2;animation:xicronix-led-soft 1.4s ease-in-out infinite}
+@media(max-width:390px){.mobile-connection-presence small{display:none}}
