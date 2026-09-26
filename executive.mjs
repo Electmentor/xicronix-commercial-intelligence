@@ -172,7 +172,7 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  const iconRisk='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.7 20h18.6L12 3Z"/><path d="M12 9v5M12 17.3v.1"/></svg>';
  const iconForecast='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16M6 16l4-5 3 2 5-7M16 6h2v2"/></svg>';
  const mobileClone='<section class="director-mobile-dashboard director-mobile-clone" aria-label="Dashboard de dirección móvil">'+
-  '<header class="director-mobile-head director-mobile-head--clone"><div><small>DIRECCIÓN</small><h2>Hola, Toshi</h2><p>'+esc(headline)+'</p></div></header>'+
+  '<header class="director-mobile-head director-mobile-head--clone"><div><small>DIRECCIÓN</small><div class="director-greeting-row"><h2>Hola, Toshi</h2><span id="mobileConnectionPresence" class="mobile-connection-presence" data-state="connecting" title="Estado de conexión"><i class="connection-led" aria-hidden="true"></i><small id="mobileConnectionLabel">Conectando</small></span></div><p>'+esc(headline)+'</p></div></header>'+
   '<section class="director-mobile-kpis director-mobile-kpis--clone">'+
    '<article class="director-mobile-kpi sales"><span class="director-kpi-icon">'+iconSales+'</span><div><small>Ventas mes</small><strong>'+compactMoney(m.revenue)+'</strong><span>'+progress+'</span></div></article>'+
    '<article class="director-mobile-kpi pipeline"><span class="director-kpi-icon">'+iconPipeline+'</span><div><small>Pipeline</small><strong>'+compactMoney(m.pipeline)+'</strong><span>'+m.openCount+' oportunidades</span></div></article>'+
