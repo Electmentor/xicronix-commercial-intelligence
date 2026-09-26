@@ -1,5 +1,5 @@
-const CACHE='xicronix-v2-45-1';
-const ASSETS=['/','/index.html','/styles.css','/executive.css?v=20260926-v2.45.1','/analytics.css','/production.css?v=20260926-v2.45.1','/radar.css?v=20260922-v3','/mobile-now.css?v=20260923-v2.37','/app.js?v=20260926-v2.45.1','/workspace.mjs','/manifest.webmanifest?v=20260926-v2.45.1','/xicronix-icon.svg','/xicronix-icon-192.png','/xicronix-icon-512.png','/xicronix-splash-maskable.svg?v=20260926-v2.45.1'];
+const CACHE='xicronix-v2-45-2';
+const ASSETS=['/','/index.html','/styles.css','/executive.css?v=20260926-v2.45.2','/analytics.css','/production.css?v=20260926-v2.45.2','/radar.css?v=20260922-v3','/mobile-now.css?v=20260923-v2.37','/app.js?v=20260926-v2.45.2','/workspace.mjs','/manifest.webmanifest?v=20260926-v2.45.2','/xicronix-icon.svg','/xicronix-icon-192.png','/xicronix-icon-512.png','/xicronix-splash-maskable.svg?v=20260926-v2.45.2'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).catch(()=>{})));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key))))));
 self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;event.respondWith(fetch(event.request).then(response=>{const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy)).catch(()=>{});return response;}).catch(()=>caches.match(event.request)));});
