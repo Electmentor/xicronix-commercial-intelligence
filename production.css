@@ -3117,3 +3117,11 @@ html[data-theme="night"] .opp-card{background:#102136}
 .director-mobile-prospect-feed small{font-size:.62rem;color:var(--muted)}
 @media(max-width:900px){.director-prospect-feed{grid-template-columns:1fr}.director-prospect-metrics{order:2}.director-prospect-feed>button{order:3;width:100%}}
 @media(max-width:430px){.director-mobile-prospect-feed{grid-template-columns:1fr 1fr}.director-mobile-prospect-feed .clone-chevron{display:none}}
+
+
+/* V2.43.1 · Manual intelligence refresh */
+.prospect-sync-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.prospect-sync-actions>span{font-size:.72rem;color:var(--muted);white-space:nowrap}
+#refreshIntelligenceBtn{min-height:38px;padding:8px 12px;font-weight:800}
+#refreshIntelligenceBtn.is-refreshing{opacity:.7;cursor:progress}
+@media(max-width:700px){.prospect-sync-actions{width:100%;justify-content:stretch}.prospect-sync-actions>span{width:100%}#refreshIntelligenceBtn{width:100%}}
