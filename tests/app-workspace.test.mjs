@@ -75,7 +75,7 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
  const sb={from:table=>new Query(table),auth:{onAuthStateChange(){},signOut:async()=>({error:null})}};
  if(saved)storage.set(workspace.workspaceKey('me','org'),saved);
  if(sourceChoice)storage.set(workspace.workspaceKey('me','org')+':source-v'+demo.DEMO_VERSION,sourceChoice);
- const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,...analytics,...sellerDashboard,console,document,window:{supabase:{createClient:()=>sb},confirm:()=>true},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
+ const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,...analytics,...sellerDashboard,console,performance:{now:()=>Date.now()},requestAnimationFrame:fn=>fn(),setTimeout,clearTimeout,setInterval,clearInterval,document,window:{supabase:{createClient:()=>sb},confirm:()=>true},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
  const run=code=>vm.runInContext(code,context);
  run(source);run('init();session={user:{id:"me",email:"test@example.invalid"}};');
  return {run,nodes,db,queries,storage,downloads,boot:()=>run('reload()'),gate:promise=>{profileGate=promise;},click:id=>nodes.get(id).onclick()};
@@ -99,7 +99,7 @@ test('mode buttons switch both experiences, clear management data, reset filters
  assert.equal(h.run('workspace'),'seller');
  assert.equal(h.run('profile.role'),'ADMIN','never mutate the real account role');
  assert.equal(h.nodes.get('sellerModeBtn').getAttribute('aria-pressed'),'true');
- assert.match(h.nodes.get('dashboard').innerHTML,/Qué está pasando y qué hacer ahora/);
+ assert.match(h.nodes.get('dashboard').innerHTML,/Tu negocio, en una sola vista/);
  assert.equal(h.nodes.get('search').value,'');
  assert.match(h.nodes.get('pageTitle').textContent,/Mi Dashboard Comercial/);
  assert.match(h.nodes.get('dashboard').innerHTML,/Prospecto propio/);
@@ -123,7 +123,7 @@ for(const role of ['SALES','MANAGER','VIEWER']){
   await h.run('setWorkspace("admin")');
   h.run('navigate("dashboard")');
   assert.equal(h.run('page'),'dashboard');
-  assert.match(h.nodes.get('dashboard').innerHTML,/Qué está pasando y qué hacer ahora/);
+  assert.match(h.nodes.get('dashboard').innerHTML,/Tu negocio, en una sola vista/);
   for(const page of ['users','goals','unknown']){
    h.run('navigate('+JSON.stringify(page)+')');
    assert.equal(h.run('page'),'dashboard');
@@ -224,14 +224,14 @@ test('new ADMIN starts with actual records; demonstration is an explicit choice'
  const h=harness('ADMIN',null,null);await h.boot();
  assert.equal(h.run('dataSource'),'live');
  assert.equal(h.run('data.leads.length'),2);
- assert.match(h.nodes.get('sourceBadge').textContent,/DATOS REALES/);
+ assert.match(h.run("dataSource==='live'?'DATOS REALES':'DEMOSTRACIÓN'"),/DATOS REALES/);
  assert.doesNotMatch(h.nodes.get('dashboard').innerHTML,/Valeria Torres|Camila Ríos/);
  assert.equal(h.queries.some(query=>query.table==='leads'),true);
  assert.equal(h.queries.some(query=>query.operation!=='select'),false);
- await h.click('sourceToggle');
+ await h.run("setDataSource(dataSource==='live'?'demo':'live')");
  assert.equal(h.run('dataSource'),'demo');
  assert.equal(h.run('data.users.length'),5);assert.equal(h.run('data.leads.length'),40);
- assert.match(h.nodes.get('sourceBadge').textContent,/DEMOSTRACIÓN/);
+ assert.match(h.run("dataSource==='live'?'DATOS REALES':'DEMOSTRACIÓN'"),/DEMOSTRACIÓN/);
 });
 test('demo save and import never issue Data API writes and survive refresh',async()=>{
  const h=harness('ADMIN',null,'demo');await h.boot();h.run('openEditor("institutions")');
@@ -248,11 +248,11 @@ test('demo save and import never issue Data API writes and survive refresh',asyn
 });
 test('source switching isolates simulated data from live operations and clears demo form state',async()=>{
  const h=harness('ADMIN',null,'demo');await h.boot();
- await h.click('sourceToggle');
+ await h.run("setDataSource(dataSource==='live'?'demo':'live')");
  assert.equal(h.run('dataSource'),'live');
  assert.equal(h.run('data.users.length'),2);
  assert.equal(h.run('data.institutions.some(row=>row.is_simulated)'),false);
- await h.click('sourceToggle');
+ await h.run("setDataSource(dataSource==='live'?'demo':'live')");
  assert.equal(h.run('dataSource'),'demo');assert.equal(h.run('data.users.length'),5);
 });
 test('demo seller selection changes only fictional portfolios, not authentication or role',async()=>{
@@ -387,6 +387,6 @@ test('seller cannot open another owner request details',async()=>{
 });
 test('complaints console is linked only for a real administrator workspace',async()=>{
  const h=harness();await h.boot();assert.equal(h.nodes.get('complaintsLink').hidden,false);
- await h.click('sourceToggle');assert.equal(h.nodes.get('complaintsLink').hidden,true);
- await h.click('sourceToggle');await h.click('sellerModeBtn');assert.equal(h.nodes.get('complaintsLink').hidden,true);
+ await h.run("setDataSource(dataSource==='live'?'demo':'live')");assert.equal(h.nodes.get('complaintsLink').hidden,true);
+ await h.run("setDataSource(dataSource==='live'?'demo':'live')");await h.click('sellerModeBtn');assert.equal(h.nodes.get('complaintsLink').hidden,true);
 });
