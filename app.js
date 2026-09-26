@@ -995,7 +995,89 @@ function leadZohoHref(lead,contact,institution){
  const direct=related.find(row=>zohoMailMessageHref(row));
  if(direct)return zohoMailMessageHref(direct);
  return zohoMailComposeHref({contact_email:email,institution_name:institution?.name||lead?.title||'Prospecto'});
-}function radarMailHref(row){return zohoMailComposeHref(row);}
+}
+function smartMailDraftForLead(lead){
+ const contact=(data.contacts||[]).find(row=>row.id===lead?.contact_id);
+ const institution=(data.institutions||[]).find(row=>row.id===lead?.institution_id);
+ const activities=(data.activities||[]).filter(row=>row.lead_id===lead?.id).sort((a,b)=>String(b.occurred_at||'').localeCompare(String(a.occurred_at||'')));
+ const latest=activities[0]||null;
+ const email=String(contact?.email||institution?.email||'').trim();
+ const firstName=String(contact?.first_name||'').trim();
+ const name=firstName||'';
+ const institutionName=institution?.name||lead?.title||'su institución';
+ const relatedMail=(data.mail||[]).filter(row=>row.lead_id===lead?.id||(contact?.id&&row.contact_id===contact.id)||(email&&String(row.from_address||'').trim().toLowerCase()===email.toLowerCase())).sort((a,b)=>String(b.received_at||b.created_at||'').localeCompare(String(a.received_at||a.created_at||'')));
+ const inbound=relatedMail[0]||null;
+ const maturity=Math.max(0,Math.min(100,Number(lead?.maturity_percent)||0));
+ const need=activities.find(row=>row.need_summary)?.need_summary||lead?.next_action||'su solicitud';
+ const greeting=name?'Estimada '+name+',':'Estimada/o,';
+ let subject=inbound?.subject?('Re: '+String(inbound.subject).replace(/^Re:\s*/i,'')):'Xicronix | '+institutionName;
+ let paragraphs=[];
+ if(inbound){
+   paragraphs.push('Gracias por su mensaje. Hemos revisado la información compartida y el estado actual de su solicitud con Xicronix.');
+ }else if(lead?.source==='WEBSITE'){
+   paragraphs.push('Gracias por ponerse en contacto con Xicronix a través de nuestro formulario web. Hemos revisado su solicitud relacionada con '+need+'.');
+ }else{
+   paragraphs.push('Gracias por su comunicación con Xicronix. Hemos revisado el estado actual de su solicitud relacionada con '+need+'.');
+ }
+ let recommendation='Brochure institucional / presentación de capacidades';
+ if(maturity<30){
+   paragraphs.push('Para avanzar de manera adecuada, proponemos una breve conversación de diagnóstico que nos permita precisar necesidades, alcance y prioridades antes de plantear una solución.');
+   paragraphs.push('Quedamos atentos para coordinar el horario que le resulte más conveniente.');
+   recommendation='Brochure institucional o ficha de solución, solo si aporta contexto';
+ }else if(maturity<60){
+   paragraphs.push('De acuerdo con lo conversado hasta el momento, el siguiente paso es consolidar los requerimientos técnicos y comerciales para preparar una propuesta alineada a sus necesidades.');
+   paragraphs.push('Si está de acuerdo, podemos confirmar los puntos pendientes y avanzar con la siguiente etapa.');
+   recommendation='Ficha técnica, resumen de diagnóstico o presentación de solución';
+ }else if(maturity<80){
+   paragraphs.push('Con la información ya validada, estamos en condiciones de avanzar con la propuesta comercial correspondiente.');
+   paragraphs.push('Adjuntaremos o actualizaremos la documentación necesaria para que pueda revisarla y continuar con la evaluación interna.');
+   recommendation='Propuesta, cotización o proforma vigente';
+ }else{
+   paragraphs.push('Estamos en la etapa final del proceso y queremos dejar claramente establecidos los próximos pasos para el cierre y la implementación.');
+   paragraphs.push('Quedamos atentos a su confirmación para completar la documentación pendiente y coordinar la ejecución.');
+   recommendation='Proforma final, propuesta aprobada, orden/contrato o documentación de implementación';
+ }
+ const signature='Atentamente,\nEquipo Xicronix\n\nXICRONIX — Ciencia, tecnología y educación\ninfo@xicronix.com\nwww.xicronix.com\nLima, Perú';
+ const body=[greeting,'',...paragraphs,'',signature].join('\n');
+ const docs=(data.documents||[]).filter(row=>row.lead_id===lead?.id&&['CURRENT','SENT','SIGNED'].includes(row.status)).sort((a,b)=>String(b.updated_at||'').localeCompare(String(a.updated_at||'')));
+ const thread=relatedMail.find(row=>zohoMailMessageHref(row))||null;
+ return {lead,contact,institution,email,subject,body,recommendation,docs,thread,latest};
+}
+function openSmartMailDraft(leadId){
+ const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
+ const draft=smartMailDraftForLead(lead);
+ if(!draft.email){notice('Este prospecto todavía no tiene un correo registrado.',true);return;}
+ const docsHtml=draft.docs.length
+  ?draft.docs.slice(0,5).map(row=>'<li><strong>'+esc(row.title||'Documento')+'</strong><span>'+esc(enums.documentCategory[row.category]||row.category||'Documento')+' · '+esc(enums.documentStatus[row.status]||row.status)+'</span></li>').join('')
+  :'<li><strong>No hay adjuntos vigentes vinculados al expediente.</strong><span>Sugerencia: '+esc(draft.recommendation)+'</span></li>';
+ $('smartMailTitle').textContent='Correo · '+(draft.institution?.name||draft.lead.title||'Prospecto');
+ $('smartMailContent').innerHTML=
+  '<section class="smart-mail-summary"><div><small>PARA</small><strong>'+esc(draft.email)+'</strong></div><div><small>ASUNTO</small><strong>'+esc(draft.subject)+'</strong></div><div><small>ESTADO</small><strong>'+(draft.thread?'Continuar conversación existente':'Nuevo correo')+'</strong></div></section>'+
+  '<section class="smart-mail-body"><header><div><small>RESPUESTA SUGERIDA</small><h3>Revisa antes de enviar</h3></div><button type="button" data-copy-smart-mail="body">Copiar texto</button></header><textarea id="smartMailBody" rows="14">'+esc(draft.body)+'</textarea></section>'+
+  '<section class="smart-mail-assets"><header><div><small>MATERIAL COMERCIAL</small><h3>Adjuntos sugeridos según el avance</h3></div></header><ul>'+docsHtml+'</ul><p>'+esc(draft.recommendation)+'</p></section>'+
+  '<footer class="smart-mail-actions"><button type="button" data-copy-smart-mail="all">Copiar borrador</button><button type="button" class="primary" data-open-smart-zoho="'+esc(lead.id)+'">'+(draft.thread?'Abrir conversación en Zoho':'Abrir correo nuevo en Zoho')+'</button></footer>';
+ $('smartMailDialog').showModal();
+}
+async function copySmartMailDraft(mode='all'){
+ const body=$('smartMailBody')?.value||'';
+ const title=$('smartMailTitle')?.textContent||'';
+ const summary=$('smartMailContent')?.querySelector('.smart-mail-summary');
+ const values=summary?Array.from(summary.querySelectorAll('strong')).map(n=>n.textContent||''):[];
+ const [to,subject]=values;
+ const text=mode==='body'?body:['Para: '+(to||''),'Asunto: '+(subject||''),'',body].join('\n');
+ try{await navigator.clipboard.writeText(text);notice(mode==='body'?'Texto del correo copiado.':'Borrador copiado.');}
+ catch(_error){notice('No se pudo copiar automáticamente.',true);}
+}
+async function openSmartMailInZoho(leadId){
+ const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
+ const draft=smartMailDraftForLead(lead);
+ const body=$('smartMailBody')?.value||draft.body;
+ try{await navigator.clipboard.writeText(body);}catch(_error){}
+ const href=draft.thread?zohoMailMessageHref(draft.thread):zohoMailComposeHref({contact_email:draft.email,institution_name:draft.institution?.name||lead.title});
+ window.open(href,'_blank','noopener');
+ notice(draft.thread?'Conversación abierta en Zoho. El texto sugerido quedó copiado para pegar y revisar.':'Correo nuevo abierto en Zoho. El texto sugerido quedó copiado para pegar y revisar.',false,7000);
+}
+function radarMailHref(row){return zohoMailComposeHref(row);}
 function openLeadFromRadar(signalId){
  const row=(data.radar||[]).find(item=>item.id===signalId);
  if(!row)return;
@@ -1325,7 +1407,7 @@ function renderLeadCards(rows){
    '<p class="lead-mobile-next"><b>Siguiente:</b> '+esc(next)+(row.next_action_date?' · '+esc(date(row.next_action_date)):'')+'</p>'+
    '<div class="lead-mobile-actions lead-mobile-quick-actions">'+
     (phone?'<a class="lead-quick-action primary" href="'+esc(radarPhoneHref(phone))+'">Llamar</a>':'')+
-    (email?'<a class="lead-quick-action" href="'+esc(leadZohoHref(row,contact,institution))+'">Correo Zoho</a>':'')+
+    (email?'<button type="button" class="lead-quick-action" data-smart-mail="'+row.id+'">Correo Zoho</button>':'')+
     (phone?'<a class="lead-quick-action" href="'+esc(radarWhatsappHref(phone))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
     '<button type="button" class="lead-open-compact" data-lead-detail="'+row.id+'">Abrir expediente</button>'+
    '</div>'+
@@ -1954,7 +2036,7 @@ function openLeadDetails(id){
  const directRow={contact_email:directEmail,institution_name:institution?.name||lead.title||'Prospecto'};
  const quickActions='<section class="lead-action-center"><div class="lead-action-primary"><small>ACCIÓN RECOMENDADA</small><strong>'+esc(action)+'</strong><span>'+(nextDate?'Antes de '+esc(date(nextDate)):'Sin fecha comprometida')+'</span></div><div class="lead-action-buttons">'+
   (directPhone?'<a class="lead-action-button primary" href="'+esc(radarPhoneHref(directPhone))+'">Llamar ahora</a>':'')+
-  (directEmail?'<a class="lead-action-button" href="'+esc(leadZohoHref(lead,contact,institution))+'">Correo Zoho</a>':'')+
+  (directEmail?'<button type="button" class="lead-action-button" data-smart-mail="'+lead.id+'">Correo Zoho</button>':'')+
   (directPhone?'<a class="lead-action-button" href="'+esc(radarWhatsappHref(directPhone))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
   (writableFor('activities')?'<button type="button" class="lead-action-button" data-activity-lead="'+lead.id+'">Registrar resultado</button>':'')+
  '</div><p class="lead-action-contact">'+esc(contact?nameOf(contact):'Contacto decisor pendiente')+(contact?.job_title?' · '+esc(contact.job_title):'')+(directPhone?' · '+esc(directPhone):'')+(directEmail?' · '+esc(directEmail):'')+'</p></section>';
@@ -1975,7 +2057,7 @@ function init(){
  restoreRememberedEmail();
  try{recovery=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery'||sessionStorage.getItem(RECOVERY_KEY)==='1';}catch(_error){}
  $('rememberEmail').onchange=()=>{if(!$('rememberEmail').checked){try{localStorage.removeItem(REMEMBER_EMAIL_KEY);}catch(_error){}}};
- $('closeLeadDetail').onclick=()=>closeLeadDetails();$('closeAttention').onclick=()=>{if($('attentionDialog').open)$('attentionDialog').close();};
+ $('closeLeadDetail').onclick=()=>closeLeadDetails();$('closeAttention').onclick=()=>{if($('attentionDialog').open)$('attentionDialog').close();};$('closeSmartMail').onclick=()=>{if($('smartMailDialog').open)$('smartMailDialog').close();};
  $('leadDetailDialog').addEventListener('close',()=>{$('leadDetailContent').replaceChildren();rememberPage();});$('attentionDialog').addEventListener('close',()=>{$('attentionContent').replaceChildren();});
  initTheme();
  initSidebar();
@@ -1990,7 +2072,7 @@ function init(){
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  $('sidebarToggle').onclick=event=>{event.stopPropagation();applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);};
  document.addEventListener('click',event=>{if(!mobileNavMode())return;const sidebar=$('mainSidebar');if(!sidebar||$('appView').classList.contains('sidebar-collapsed'))return;if(sidebar.contains(event.target)||event.target===$('sidebarToggle'))return;applySidebar(true);});
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.radarPromote){promoteRadarSignal(b.dataset.radarPromote);return;}if(b.id==='refreshIntelligenceBtn'){b.disabled=true;b.classList.add('is-refreshing');refreshLiveIntelligence(true).finally(()=>{const next=$('refreshIntelligenceBtn');if(next){next.disabled=false;next.classList.remove('is-refreshing');}});return;}if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='brandThemeToggle'){applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.sellerFilter){navigate('leads');sellerQuickFilter=b.dataset.sellerFilter;renderRecords();return;}if(b.dataset.prospectKpi){navigate('prospects');prospectDashboardFilter=b.dataset.prospectKpi==='ALL'?'':b.dataset.prospectKpi;$('filter').value='';pageIndex=0;renderRecords();return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){if(openEditor('leads',b.dataset.editLead))closeLeadDetails(false);return;}if(b.dataset.editActivity){if(openEditor('activities',b.dataset.editActivity))closeLeadDetails(false);return;}if(b.dataset.activityLead){if(openActivityForLead(b.dataset.activityLead)!==false)closeLeadDetails(false);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.radarLead){openLeadFromRadar(b.dataset.radarLead);return;}if(b.dataset.radarActivity){openActivityForLead(b.dataset.radarActivity);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.radarPromote){promoteRadarSignal(b.dataset.radarPromote);return;}if(b.id==='refreshIntelligenceBtn'){b.disabled=true;b.classList.add('is-refreshing');refreshLiveIntelligence(true).finally(()=>{const next=$('refreshIntelligenceBtn');if(next){next.disabled=false;next.classList.remove('is-refreshing');}});return;}if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='brandThemeToggle'){applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.sellerFilter){navigate('leads');sellerQuickFilter=b.dataset.sellerFilter;renderRecords();return;}if(b.dataset.prospectKpi){navigate('prospects');prospectDashboardFilter=b.dataset.prospectKpi==='ALL'?'':b.dataset.prospectKpi;$('filter').value='';pageIndex=0;renderRecords();return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){if(openEditor('leads',b.dataset.editLead))closeLeadDetails(false);return;}if(b.dataset.editActivity){if(openEditor('activities',b.dataset.editActivity))closeLeadDetails(false);return;}if(b.dataset.activityLead){if(openActivityForLead(b.dataset.activityLead)!==false)closeLeadDetails(false);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.radarLead){openLeadFromRadar(b.dataset.radarLead);return;}if(b.dataset.radarActivity){openActivityForLead(b.dataset.radarActivity);return;}if(b.dataset.smartMail){openSmartMailDraft(b.dataset.smartMail);return;}if(b.dataset.copySmartMail){copySmartMailDraft(b.dataset.copySmartMail);return;}if(b.dataset.openSmartZoho){openSmartMailInZoho(b.dataset.openSmartZoho);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
