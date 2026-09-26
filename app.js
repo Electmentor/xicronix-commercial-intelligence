@@ -7,7 +7,7 @@ import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executiv
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
-import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.2';
+import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.3';
 
 const $ = id => document.getElementById(id);
 const SPLASH_STARTED_AT=performance.now();
@@ -120,8 +120,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-26-v2.45.2';
-const CRM_VERSION_LABEL='v2.45.2';
+const CRM_RELEASE='2026-09-26-v2.45.3';
+const CRM_VERSION_LABEL='v2.45.3';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -136,6 +136,7 @@ let sellerManagementSearch='';
 let deferredInstallPrompt=null;
 let criticalPushState='unknown';
 let mailWebhookConfig=null;
+let smartMailUploadState=null;
 let liveIntelligenceTimer=null,liveIntelligencePrimed=false,liveIntelligenceLastSync=null;
 let liveIntelligenceKnownProspects=new Set();
 window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;if(page==='now')renderNow();});
@@ -1096,16 +1097,81 @@ function toggleSmartMaterial(id){
  }
 }
 function uploadSmartMaterial(leadId,category){
- const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
- if($('smartMailDialog')?.open)$('smartMailDialog').close();
- openEditor('documents',null,{
-   lead_id:lead.id,
-   institution_id:lead.institution_id||'',
-   contact_id:lead.contact_id||'',
-   title:'',
-   category:category||'INSTITUTIONAL_BROCHURES',
-   status:'DRAFT'
+ const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead||busy||loading)return;
+ const to=$('smartMailTo')?.value||'';
+ const subject=$('smartMailSubject')?.value||'';
+ const body=$('smartMailBody')?.value||'';
+ const selected=Array.from(document.querySelectorAll('.smart-material-option.selected')).map(node=>node.dataset.smartMaterial).filter(Boolean);
+ smartMailUploadState={leadId,category:category||'INSTITUTIONAL_BROCHURES',to,subject,body,selected};
+ const input=document.createElement('input');
+ input.type='file';
+ input.accept='.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+ input.addEventListener('change',async()=>{
+   const file=input.files?.[0];if(!file){smartMailUploadState=null;return;}
+   await uploadSmartMaterialFile(lead,file,smartMailUploadState.category);
  });
+ input.click();
+}
+
+async function uploadSmartMaterialFile(lead,file,category){
+ if(!lead||!file||!profile?.organization_id||!session?.user?.id)return;
+ if(file.size>26214400){notice('El archivo supera el límite de 25 MB.',true);return;}
+ const org=profile.organization_id,userId=session.user.id;
+ busy=true;render();notice('Cargando material al repositorio…');
+ let createdId=null,uploadedPath=null;
+ try{
+   const title=String(file.name||'Material comercial').replace(/\.[^.]+$/,'').trim()||'Material comercial';
+   const payload={
+     organization_id:org,
+     lead_id:lead.id,
+     institution_id:lead.institution_id||null,
+     contact_id:lead.contact_id||null,
+     title,
+     category:category||'INSTITUTIONAL_BROCHURES',
+     status:'CURRENT',
+     document_date:new Date().toISOString().slice(0,10),
+     notes:'Cargado desde correo asistido',
+     created_by:userId
+   };
+   const inserted=await sb.from('documents').insert(payload).select('*').single();
+   if(inserted.error)throw inserted.error;
+   createdId=inserted.data.id;
+   const fileName=safeStorageFileName(file.name);
+   uploadedPath=org+'/'+lead.id+'/'+createdId+'/v1/'+Date.now()+'-'+fileName;
+   const uploaded=await sb.storage.from('crm-documents').upload(uploadedPath,file,{contentType:file.type||undefined,upsert:false});
+   if(uploaded.error)throw uploaded.error;
+   const registered=await sb.rpc('crm_register_document_version',{
+     p_document_id:createdId,
+     p_storage_path:uploadedPath,
+     p_file_name:file.name,
+     p_mime_type:file.type||null,
+     p_size_bytes:file.size,
+     p_status:'CURRENT',
+     p_notes:'Cargado desde correo asistido'
+   });
+   if(registered.error)throw registered.error;
+   busy=false;
+   await reload();
+   const state=smartMailUploadState;
+   smartMailUploadState=null;
+   if(state){
+     openSmartMailDraft(state.leadId);
+     requestAnimationFrame(()=>{
+       if($('smartMailTo'))$('smartMailTo').value=state.to;
+       if($('smartMailSubject'))$('smartMailSubject').value=state.subject;
+       if($('smartMailBody'))$('smartMailBody').value=state.body;
+       [...state.selected,createdId].forEach(id=>{
+         const button=document.querySelector('[data-smart-material="'+CSS.escape(String(id))+'"]');
+         if(button&&!button.classList.contains('selected'))toggleSmartMaterial(String(id));
+       });
+     });
+   }
+   notice('Material cargado y adjuntado al correo.',false,3000);
+ }catch(error){
+   if(uploadedPath){try{await sb.storage.from('crm-documents').remove([uploadedPath]);}catch(_cleanup){}}
+   if(createdId){try{await sb.from('documents').delete().eq('id',createdId).eq('organization_id',org);}catch(_cleanup){}}
+   busy=false;smartMailUploadState=null;render();notice(errorText(error),true);
+ }
 }
 
 async function rememberSmartMailHandoff(lead,draft,to,subject,body,selectedDocs){
