@@ -7,7 +7,7 @@ import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executiv
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
-import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.12';
+import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.13';
 
 const $ = id => document.getElementById(id);
 const SPLASH_STARTED_AT=performance.now();
@@ -120,8 +120,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-26-v2.45.12';
-const CRM_VERSION_LABEL='v2.45.12';
+const CRM_RELEASE='2026-09-26-v2.45.13';
+const CRM_VERSION_LABEL='v2.45.13';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -1914,6 +1914,81 @@ function renderOpportunityBoard(){
  });
 }
 
+
+function directorManagementHeader(targetPage,rows){
+ if(!canViewDashboard())return '';
+ const now=Date.now();
+ if(targetPage==='users'){
+   const sellers=rows.filter(row=>['SALES','MANAGER'].includes(row.role));
+   const openTasks=(data.tasks||[]).filter(row=>!['COMPLETED','CANCELLED'].includes(row.status));
+   const overdue=openTasks.filter(row=>row.due_at&&Date.parse(row.due_at)<now);
+   const openOpps=(data.opportunities||[]).filter(row=>!['WON','LOST'].includes(row.stage));
+   const ownedOpps=openOpps.filter(row=>row.owner_user_id);
+   const orphanOpps=openOpps.length-ownedOpps.length;
+   return '<section class="director-page-command"><header><div><small>EQUIPO Y CUMPLIMIENTO</small><h2>¿El equipo está ejecutando y tiene carga correctamente asignada?</h2><p>Supervisa responsables, tareas vencidas, cartera y cobertura de metas antes de intervenir.</p></div></header>'+
+    '<div class="director-page-kpis"><article><small>EJECUTIVOS</small><strong>'+sellers.length+'</strong><span>usuarios comerciales / manager</span></article>'+
+    '<article class="'+(overdue.length?'warn':'')+'"><small>TAREAS VENCIDAS</small><strong>'+overdue.length+'</strong><span>requieren seguimiento</span></article>'+
+    '<article><small>OPORTUNIDADES ASIGNADAS</small><strong>'+ownedOpps.length+'</strong><span>con responsable</span></article>'+
+    '<article class="'+(orphanOpps?'warn':'')+'"><small>SIN RESPONSABLE</small><strong>'+orphanOpps+'</strong><span>oportunidades abiertas</span></article></div>'+
+   '</section>';
+ }
+ if(targetPage==='goals'){
+   const goals=rows;
+   const openGoals=goals.filter(row=>{
+     const start=Date.parse(String(row.period_start||'')+'T00:00:00'),end=Date.parse(String(row.period_end||'')+'T23:59:59');
+     return Number.isFinite(start)&&Number.isFinite(end)&&start<=now&&now<=end;
+   });
+   const won=(data.opportunities||[]).filter(row=>row.stage==='WON');
+   const targetTotal=openGoals.reduce((s,row)=>s+(Number(row.target_won_value)||0),0);
+   const ownerSet=new Set(openGoals.map(row=>row.owner_user_id).filter(Boolean));
+   const wonCurrent=won.filter(row=>!ownerSet.size||ownerSet.has(row.owner_user_id)).reduce((s,row)=>s+(Number(row.value)||0),0);
+   const attainment=targetTotal>0?Math.round(wonCurrent/targetTotal*100):null;
+   return '<section class="director-page-command"><header><div><small>METAS Y CUMPLIMIENTO</small><h2>Objetivos que Dirección debe hacer cumplir</h2><p>La meta no es solo registrar un número: debe tener responsable, período y seguimiento contra ventas ganadas.</p></div></header>'+
+    '<div class="director-page-kpis"><article><small>METAS VIGENTES</small><strong>'+openGoals.length+'</strong><span>en período actual</span></article>'+
+    '<article><small>OBJETIVO VIGENTE</small><strong>'+money(targetTotal)+'</strong><span>ventas ganadas</span></article>'+
+    '<article><small>VENTAS GANADAS</small><strong>'+money(wonCurrent)+'</strong><span>según datos actuales</span></article>'+
+    '<article class="'+(attainment!==null&&attainment<70?'warn':'')+'"><small>CUMPLIMIENTO</small><strong>'+(attainment===null?'—':attainment+'%')+'</strong><span>contra objetivo vigente</span></article></div>'+
+   '</section>';
+ }
+ if(targetPage==='meetings'){
+   const future=rows.filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&Date.parse(row.start_at)>=now);
+   const next7=future.filter(row=>Date.parse(row.start_at)<=now+7*86400000);
+   const unconfirmed=future.filter(row=>!['ACCEPTED'].includes(row.attendee_status)).length;
+   const unowned=future.filter(row=>!row.owner_user_id).length;
+   return '<section class="director-page-command"><header><div><small>AGENDA Y REUNIONES</small><h2>Coordina los compromisos del equipo y evita reuniones sin dueño</h2><p>Dirección puede crear reuniones, asignar responsable, revisar confirmación del cliente y detectar sobrecarga.</p></div><button type="button" class="primary" data-new-director-meeting="1">+ Asignar reunión</button></header>'+
+    '<div class="director-page-kpis"><article><small>PRÓXIMAS 7 DÍAS</small><strong>'+next7.length+'</strong><span>reuniones activas</span></article>'+
+    '<article class="'+(unconfirmed?'warn':'')+'"><small>SIN CONFIRMACIÓN</small><strong>'+unconfirmed+'</strong><span>del cliente</span></article>'+
+    '<article class="'+(unowned?'warn':'')+'"><small>SIN RESPONSABLE</small><strong>'+unowned+'</strong><span>requieren asignación</span></article>'+
+    '<article><small>FUTURAS</small><strong>'+future.length+'</strong><span>compromisos abiertos</span></article></div>'+
+   '</section>';
+ }
+ if(targetPage==='catalog_products'){
+   const active=rows.filter(row=>row.active!==false);
+   const supplierNames=[...new Set(rows.map(row=>String(row.supplier_name||'').trim()).filter(Boolean))];
+   const countries=[...new Set(rows.map(row=>String(row.origin_country||'').trim()).filter(Boolean))];
+   const expiring=active.filter(row=>row.price_valid_until&&Date.parse(String(row.price_valid_until)+'T23:59:59')<now+30*86400000).length;
+   return '<section class="director-page-command"><header><div><small>PROVEEDORES Y NEGOCIACIÓN</small><h2>Qué proveedores sostienen nuestra oferta y dónde negociar</h2><p>Revisa concentración, vigencia de precios y origen antes de comprometer una propuesta al cliente.</p></div></header>'+
+    '<div class="director-page-kpis"><article><small>PROVEEDORES</small><strong>'+supplierNames.length+'</strong><span>identificados en catálogo</span></article>'+
+    '<article><small>PRODUCTOS ACTIVOS</small><strong>'+active.length+'</strong><span>oferta disponible</span></article>'+
+    '<article><small>PAÍSES DE ORIGEN</small><strong>'+countries.length+'</strong><span>dependencia de suministro</span></article>'+
+    '<article class="'+(expiring?'warn':'')+'"><small>PRECIOS A REVISAR</small><strong>'+expiring+'</strong><span>vencidos o próximos a vencer</span></article></div>'+
+   '</section>';
+ }
+ if(targetPage==='institutions'){
+   const opps=data.opportunities||[];
+   const activeAccounts=new Set(opps.filter(row=>!['LOST'].includes(row.stage)).map(row=>row.institution_id).filter(Boolean));
+   const withContact=new Set((data.contacts||[]).map(row=>row.institution_id).filter(Boolean));
+   const noContact=rows.filter(row=>!withContact.has(row.id)).length;
+   const noOpportunity=rows.filter(row=>!activeAccounts.has(row.id)).length;
+   return '<section class="director-page-command"><header><div><small>CUENTAS Y ALIANZAS</small><h2>Relaciones institucionales que Dirección debe desarrollar</h2><p>Esta vista distingue instituciones registradas de relaciones comerciales activas. Una institución no equivale todavía a una alianza formal.</p></div></header>'+
+    '<div class="director-page-kpis"><article><small>INSTITUCIONES</small><strong>'+rows.length+'</strong><span>cuentas registradas</span></article>'+
+    '<article><small>CON ACTIVIDAD COMERCIAL</small><strong>'+activeAccounts.size+'</strong><span>con oportunidad asociada</span></article>'+
+    '<article class="'+(noContact?'warn':'')+'"><small>SIN CONTACTO</small><strong>'+noContact+'</strong><span>requieren decisor</span></article>'+
+    '<article><small>SIN OPORTUNIDAD</small><strong>'+noOpportunity+'</strong><span>potencial para relación / alianza</span></article></div>'+
+   '</section>';
+ }
+ return '';
+}
 function renderRecords(){
  if(page==='prospects'){renderPotentialProspects();return;}
  if(page==='opportunities'){renderOpportunityBoard();return;}
@@ -1928,7 +2003,8 @@ function renderRecords(){
  $('importBtn').hidden=isUsers||isGoals||!writableFor(page);$('importBtn').disabled=loading||busy||!!failures[page];$('importHelp').hidden=isUsers||isGoals||!writableFor(page);
  $('sellerSummary').hidden=canViewDashboard()||!['leads','tasks'].includes(page);$('sellerSummary').innerHTML=page==='tasks'?renderTaskPrioritySummary():renderSellerWorkspaceSummary();
  const rows=filtered();const max=Math.max(1,Math.ceil(rows.length/size));pageIndex=Math.min(pageIndex,max-1);
- $('recordCount').textContent=failures[page]?'Información no disponible':rows.length+' registros';
+ const directorCountLabel={users:'miembros del equipo',goals:'metas definidas',meetings:'reuniones',catalog_products:'productos de proveedores',institutions:'instituciones'}[page];
+ $('recordCount').textContent=failures[page]?'Información no disponible':rows.length+' '+(directorCountLabel||'registros');
  $('exportBtn').disabled=!!failures[page]||!rows.length;
  $('pageNumber').textContent='Página '+(pageIndex+1)+' de '+max;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
  const config=modules[page],canEdit=writableFor(page);
@@ -1945,7 +2021,10 @@ function renderRecords(){
   return '<tr><td><strong>'+esc(rowName)+'</strong><small>'+esc(subline)+'</small></td><td>'+secondCell+'</td><td>'+stateCell+'</td><td>'+detail+'</td>'+(page==='leads'?'<td>'+maturityCell(row)+'</td>':'')+'<td><div class="row-actions">'+(page==='leads'?'<button class="primary" data-lead-detail="'+row.id+'">Abrir expediente comercial</button>':'')+(page==='documents'&&Number(row.current_version)>0?'<button data-open-document="'+row.id+'">Abrir archivo</button>':'')+'<button data-edit="'+row.id+'" data-table="'+page+'">'+actionLabel+'</button>'+(page==='leads'&&writable()?'<button data-activity-lead="'+row.id+'">Registrar movimiento</button>':'')+(!isUsers&&canDelete()?'<button class="danger-text" data-delete="'+row.id+'" data-table="'+page+'">Eliminar</button>':'')+'</div></td></tr>';
  }).join('');
  const leadCards=page==='leads'?renderLeadCards(pageRows):'';
- $('recordList').innerHTML=failures[page]?'<div class="panel empty">No pudimos cargar estos registros. Pulsa Actualizar.</div>':!rows.length?`<div class="panel empty">${$('search').value||$('filter').value?'No hay coincidencias. Cambia la búsqueda o el filtro.':'Aún no hay registros. Crea el primero con el botón superior.'}</div>`:`${leadCards}<div class="table-wrap ${page==='leads'?'lead-desktop-table':''}"><table><thead><tr><th>Nombre</th><th>${secondHeader}</th><th>Estado / tipo</th><th>${detailHeader}</th>${page==='leads'?'<th>Madurez / potencial</th>':''}<th>Acción</th></tr></thead><tbody>${rowsMarkup}</tbody></table></div>`;
+ const managerHeader=directorManagementHeader(page,rows);
+ const baseContent=failures[page]?'<div class="panel empty">No pudimos cargar estos registros. Pulsa Actualizar.</div>':!rows.length?`<div class="panel empty">${$('search').value||$('filter').value?'No hay coincidencias. Cambia la búsqueda o el filtro.':'Aún no hay registros. Crea el primero con el botón superior.'}</div>`:`${leadCards}<div class="table-wrap ${page==='leads'?'lead-desktop-table':''}"><table><thead><tr><th>Nombre</th><th>${secondHeader}</th><th>Estado / tipo</th><th>${detailHeader}</th>${page==='leads'?'<th>Madurez / potencial</th>':''}<th>Acción</th></tr></thead><tbody>${rowsMarkup}</tbody></table></div>`;
+ $('recordList').innerHTML=managerHeader+baseContent;
+ const meetingBtn=document.querySelector('[data-new-director-meeting]');if(meetingBtn)meetingBtn.onclick=()=>openEditor('meetings');
 }
 function localDateTime(value){if(!value)return '';const d=new Date(value);if(!Number.isFinite(d.getTime()))return '';return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);}
 function importValue(source,field){
