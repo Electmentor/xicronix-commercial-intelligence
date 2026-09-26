@@ -237,6 +237,7 @@ function renderWorkspaceControls(){
  $('adminModeBtn').disabled=$('sellerModeBtn').disabled=loading||busy;
  $('workspaceHint').textContent='';$('workspaceHint').hidden=true;
  $('workspaceLabel').textContent=admin?'DIRECCIÓN':'EJECUTIVO COMERCIAL';
+ const newBtnLabel=$('newBtn');if(newBtnLabel)newBtnLabel.textContent=admin?'+ Nueva institución':'+ Nuevo prospecto';
  const identity=$('userIdentity');if(identity){const userLabel=profile?.full_name||session?.user?.email||'Usuario';identity.title=userLabel;identity.setAttribute('aria-label','Usuario: '+userLabel);}
  $('appView').dataset.workspace=admin?ADMIN:SELLER;
  const mobileBottom=$('mobileAppBottomNav');
@@ -245,15 +246,15 @@ function renderWorkspaceControls(){
   const primary=$('mobileNavPrimary'),reports=$('mobileNavReports'),nowBtn=$('mobileNavNow');
   if(primary){
    primary.dataset.page=admin?'opportunities':'leads';
-   const label=primary.querySelector('small');if(label)label.textContent=admin?'Oportunidades':'Mis casos';
+   const label=primary.querySelector('small');if(label)label.textContent=admin?'Oportunidades':'Mi cartera';
   }
   if(reports){
-   reports.dataset.page=admin?'goals':'meetings';
-   const label=reports.querySelector('small');if(label)label.textContent=admin?'Reportes':'Mi agenda';
+   reports.dataset.page=admin?'goals':'tasks';
+   const label=reports.querySelector('small');if(label)label.textContent=admin?'Reportes':'Mis tareas';
   }
   if(nowBtn){
-   nowBtn.dataset.page='now';
-   const label=nowBtn.querySelector('small');if(label)label.textContent=admin?'Notificaciones':'Ahora';
+   nowBtn.dataset.page=admin?'now':'meetings';
+   const label=nowBtn.querySelector('small');if(label)label.textContent=admin?'Notificaciones':'Mi agenda';
   }
  }
  const labels=admin
@@ -274,13 +275,13 @@ function renderWorkspaceControls(){
   html+=navSection('DATOS Y SOPORTE',support,offset);
   $('navigation').innerHTML=html;
  }else{
-  const day=['dashboard','now'];
-  const portfolio=['leads','tasks','meetings','mail','opportunities'];
-  const support=['contacts','documents','catalog_products'];
+  const day=['dashboard'];
+  const portfolio=['leads','tasks','meetings'];
+  const support=['mail','documents','contacts','catalog_products'];
   let offset=0;
-  let html=navSection('MI JORNADA',day,offset);offset+=day.filter(accessible).length;
-  html+=navSection('MI CARTERA',portfolio,offset);offset+=portfolio.filter(accessible).length;
-  html+=navSection('APOYO COMERCIAL',support,offset);
+  let html=navSection('HOY',day,offset);offset+=day.filter(accessible).length;
+  html+=navSection('MI TRABAJO',portfolio,offset);offset+=portfolio.filter(accessible).length;
+  html+=navSection('HERRAMIENTAS',support,offset);
   $('navigation').innerHTML=html;
  }
 }
@@ -2151,7 +2152,7 @@ function init(){
  document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.radarPromote){promoteRadarSignal(b.dataset.radarPromote);return;}if(b.id==='refreshIntelligenceBtn'){b.disabled=true;b.classList.add('is-refreshing');refreshLiveIntelligence(true).finally(()=>{const next=$('refreshIntelligenceBtn');if(next){next.disabled=false;next.classList.remove('is-refreshing');}});return;}if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='brandThemeToggle'){applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.sellerFilter){navigate('leads');sellerQuickFilter=b.dataset.sellerFilter;renderRecords();return;}if(b.dataset.prospectKpi){navigate('prospects');prospectDashboardFilter=b.dataset.prospectKpi==='ALL'?'':b.dataset.prospectKpi;$('filter').value='';pageIndex=0;renderRecords();return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){if(openEditor('leads',b.dataset.editLead))closeLeadDetails(false);return;}if(b.dataset.editActivity){if(openEditor('activities',b.dataset.editActivity))closeLeadDetails(false);return;}if(b.dataset.activityLead){if(openActivityForLead(b.dataset.activityLead)!==false)closeLeadDetails(false);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.radarLead){openLeadFromRadar(b.dataset.radarLead);return;}if(b.dataset.radarActivity){openActivityForLead(b.dataset.radarActivity);return;}if(b.dataset.editSmartContact!==undefined){const contactId=b.dataset.editSmartContact||'';const institutionId=b.dataset.editSmartInstitution||'';if($('smartMailDialog').open)$('smartMailDialog').close();if(contactId){openEditor('contacts',contactId);}else if(institutionId){openEditor('institutions',institutionId);}return;}if(b.dataset.smartUploadCategory){uploadSmartMaterial(b.dataset.smartUploadLead,b.dataset.smartUploadCategory);return;}if(b.dataset.smartMaterial){toggleSmartMaterial(b.dataset.smartMaterial);return;}if(b.dataset.smartMail){openSmartMailDraft(b.dataset.smartMail);return;}if(b.dataset.copySmartMail){copySmartMailDraft(b.dataset.copySmartMail);return;}if(b.dataset.openSmartZoho){openSmartMailInZoho(b.dataset.openSmartZoho);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
- $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
+ $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>{if(canViewDashboard())openEditor(page==='dashboard'?'institutions':page);else openEditor('leads');};
  $('search').oninput=$('filter').onchange=()=>{pageIndex=0;renderRecords();};
  $('previous').onclick=()=>{pageIndex--;renderRecords();};$('next').onclick=()=>{pageIndex++;renderRecords();};$('mobileBackDashboard').onclick=()=>navigate('dashboard');
  const close=()=>{if(!busy)$('editor').close();};$('closeEditor').onclick=$('cancelEditor').onclick=close;$('editor').addEventListener('cancel',e=>{if(busy)e.preventDefault();});
