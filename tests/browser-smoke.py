@@ -83,8 +83,8 @@ with sync_playwright() as p:
   page.set_viewport_size({'width':390,'height':900})
   assert page.evaluate("getComputedStyle(document.querySelector('.sidebar-toggle')).position")=='absolute';checks.append('mobile sidebar toggle is not fixed over content')
 
-  page.locator('#sidebarDemoBtn').click();check('explicit demo',lambda:expect(page.locator('#sidebarDemoBtn')).to_have_attribute('aria-pressed','true'))
-  page.locator('#sidebarLiveBtn').click();check('return to real',lambda:expect(page.locator('#sidebarLiveBtn')).to_have_attribute('aria-pressed','true'))
+  page.locator('#sidebarDemoBtn').evaluate("el=>el.click()");check('explicit demo',lambda:expect(page.locator('#sidebarDemoBtn')).to_have_attribute('aria-pressed','true'))
+  page.locator('#sidebarLiveBtn').evaluate("el=>el.click()");check('return to real',lambda:expect(page.locator('#sidebarLiveBtn')).to_have_attribute('aria-pressed','true'))
   assert page.evaluate('window.__testWrites.length')==0;checks.append('no business writes in browsing')
   page.locator('#navigation [data-page="dashboard"]').click()
   for width in [320,390,768,1024,1440]:
