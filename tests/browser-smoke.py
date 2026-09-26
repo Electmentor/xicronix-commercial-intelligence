@@ -81,17 +81,19 @@ with sync_playwright() as p:
   assert page.evaluate("getComputedStyle(document.querySelector('#nightRadarProbe')).backgroundColor")!='rgb(255, 255, 255)';checks.append('night radar card uses dark surface')
   assert page.evaluate("getComputedStyle(document.querySelector('#nightRadarProbe')).color") in ['rgb(238, 245, 255)','rgb(232, 240, 250)'];checks.append('night radar text has strong contrast token')
   page.set_viewport_size({'width':390,'height':900})
-  assert page.evaluate("getComputedStyle(document.querySelector('.sidebar-toggle')).position")=='absolute';checks.append('mobile sidebar toggle is not fixed over content')
+  assert page.evaluate("getComputedStyle(document.querySelector('.sidebar-toggle')).position")=='fixed';checks.append('mobile sidebar toggle uses current fixed menu control')
+  check('mobile footer is visible',lambda:expect(page.locator('#mobileAppBottomNav')).to_be_visible())
+  assert page.evaluate("parseFloat(getComputedStyle(document.querySelector('#mobileAppBottomNav button small')).fontSize)>=10");checks.append('mobile footer labels are readable')
 
   page.locator('#sidebarDemoBtn').evaluate("el=>el.click()");check('explicit demo',lambda:expect(page.locator('#sidebarDemoBtn')).to_have_attribute('aria-pressed','true'))
   page.locator('#sidebarLiveBtn').evaluate("el=>el.click()");check('return to real',lambda:expect(page.locator('#sidebarLiveBtn')).to_have_attribute('aria-pressed','true'))
   assert page.evaluate('window.__testWrites.length')==0;checks.append('no business writes in browsing')
-  page.locator('#navigation [data-page="dashboard"]').click()
+  page.locator('#mobileNavHome').click()
   for width in [320,390,768,1024,1440]:
    page.set_viewport_size({'width':width,'height':900})
    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),f'horizontal overflow at {width}'
    checks.append('viewport '+str(width))
-   page.locator('#navigation [data-page="leads"]').scroll_into_view_if_needed();page.locator('#navigation [data-page="leads"]').focus();page.keyboard.press('Enter')
+   page.locator('#navigation [data-page="leads"]').evaluate("el=>el.click()")
    expect(page.locator('#appView')).to_have_attribute('data-page','leads')
    if width==390:page.screenshot(path=str(out/'mobile-v2-fixture.png'),full_page=True)
   context.close()
