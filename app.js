@@ -1067,8 +1067,8 @@ function openSmartMailDraft(leadId){
  const folderLabels=(draft.recommendedCategories||[]).map(key=>enums.documentCategory[key]||key);
  const matching=draft.suggestedDocs||[];
  const materialButtons=matching.length
-  ?matching.slice(0,8).map(row=>'<button type="button" class="smart-material-option" data-smart-material="'+esc(row.id)+'"><span>'+esc(row.title||'Documento')+'</span><small>'+esc(enums.documentCategory[row.category]||row.category||'Documento')+'</small></button>').join('')
-  :folderLabels.map((label,index)=>'<button type="button" class="smart-material-option empty" disabled><span>'+esc(label)+'</span><small>Sin archivo vigente</small></button>').join('');
+  ?matching.slice(0,8).map(row=>'<button type="button" class="smart-material-option" data-smart-material="'+esc(row.id)+'"><span>Adjuntar · '+esc(row.title||'Documento')+'</span><small>'+esc(enums.documentCategory[row.category]||row.category||'Documento')+'</small></button>').join('')
+  :(draft.recommendedCategories||[]).map(key=>'<button type="button" class="smart-material-option upload" data-smart-upload-category="'+esc(key)+'" data-smart-upload-lead="'+esc(lead.id)+'"><span>Subir material</span><small>'+esc(enums.documentCategory[key]||key)+'</small></button>').join('');
  $('smartMailTitle').textContent='Correo · '+(draft.institution?.name||draft.lead.title||'Prospecto');
  $('smartMailContent').innerHTML=
   '<section class="smart-mail-recipient">'+
@@ -1076,15 +1076,57 @@ function openSmartMailDraft(leadId){
     '<label><span>Asunto</span><input id="smartMailSubject" type="text" value="'+esc(draft.subject)+'" autocomplete="off"></label>'+
   '</section>'+
   '<section class="smart-mail-body"><header><div><small>RESPUESTA SUGERIDA</small><h3>Mensaje</h3></div><span class="smart-mail-status">'+(draft.thread?'Continuación de conversación':'Nuevo correo')+'</span></header><textarea id="smartMailBody" rows="14">'+esc(draft.body)+'</textarea></section>'+
-  '<section class="smart-mail-assets"><header><div><small>REPOSITORIO COMERCIAL</small><h3>Material sugerido</h3></div><span id="smartMaterialCount">0 seleccionados</span></header><div class="smart-material-grid">'+materialButtons+'</div><p>'+esc(draft.recommendation)+'</p></section>'+
+  '<section class="smart-mail-assets"><header><div><small>REPOSITORIO COMERCIAL</small><h3>Material sugerido</h3></div><span id="smartMaterialCount">0 adjuntos</span></header><div id="smartAttachmentTray" class="smart-attachment-tray" hidden></div><div class="smart-material-grid">'+materialButtons+'</div><p>'+esc(draft.recommendation)+'</p></section>'+
   '<footer class="smart-mail-actions"><button type="button" class="primary" data-open-smart-zoho="'+esc(lead.id)+'">'+(draft.thread?'Revisar y responder en Zoho':'Revisar y enviar en Zoho')+'</button></footer>';
  $('smartMailDialog').showModal();
 }
 function toggleSmartMaterial(id){
  const button=document.querySelector('[data-smart-material="'+CSS.escape(id)+'"]');if(!button)return;
  button.classList.toggle('selected');
- const count=document.querySelectorAll('.smart-material-option.selected').length;
- const label=$('smartMaterialCount');if(label)label.textContent=count+' seleccionado'+(count===1?'':'s');
+ const selected=Array.from(document.querySelectorAll('.smart-material-option.selected')).map(node=>node.dataset.smartMaterial).filter(Boolean);
+ const docs=(data.documents||[]).filter(row=>selected.includes(String(row.id)));
+ const count=docs.length;
+ const label=$('smartMaterialCount');if(label)label.textContent=count+' adjunto'+(count===1?'':'s');
+ const tray=$('smartAttachmentTray');
+ if(tray){
+   tray.hidden=!count;
+   tray.innerHTML=count?docs.map(row=>'<span>📎 '+esc(row.title||'Documento')+'</span>').join(''):'';
+ }
+}
+function uploadSmartMaterial(leadId,category){
+ const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
+ if($('smartMailDialog')?.open)$('smartMailDialog').close();
+ openEditor('documents',null,{
+   lead_id:lead.id,
+   institution_id:lead.institution_id||'',
+   contact_id:lead.contact_id||'',
+   title:'',
+   category:category||'INSTITUTIONAL_BROCHURES',
+   status:'DRAFT'
+ });
+}
+
+async function rememberSmartMailHandoff(lead,draft,to,subject,body,selectedDocs){
+ if(dataSource!=='live'||!profile?.organization_id||!session?.user?.id)return;
+ const notes=[
+   body,
+   selectedDocs.length?'Material preparado: '+selectedDocs.map(row=>row.title||'Documento').join(', '):'Sin material adjunto seleccionado.',
+   'Handoff a Zoho para revisión/envío. El envío final todavía no está confirmado por Xicronix.'
+ ].join('\n\n');
+ const payload={
+   organization_id:profile.organization_id,
+   institution_id:lead.institution_id||null,
+   contact_id:lead.contact_id||null,
+   lead_id:lead.id,
+   type:'EMAIL',
+   subject:'Correo preparado · '+subject,
+   notes,
+   occurred_at:new Date().toISOString(),
+   created_by:session.user.id,
+   evidence_note:'Correo preparado en Xicronix y entregado a Zoho para revisión/envío. Sin confirmación automática de envío.'
+ };
+ const {data:saved,error}=await sb.from('activities').insert(payload).select('*').single();
+ if(!error&&saved){data.activities=data.activities||[];data.activities.unshift(saved);}
 }
 async function openSmartMailInZoho(leadId){
  const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
@@ -1096,6 +1138,7 @@ async function openSmartMailInZoho(leadId){
  const selectedDocs=(data.documents||[]).filter(row=>selected.includes(String(row.id)));
  const packageText=['Para: '+to,'Asunto: '+subject,'',body,selectedDocs.length?'\nMaterial seleccionado:\n'+selectedDocs.map(row=>'- '+(row.title||'Documento')).join('\n'):''].join('\n');
  try{await navigator.clipboard.writeText(packageText);}catch(_error){}
+ await rememberSmartMailHandoff(lead,draft,to,subject,body,selectedDocs);
  const href=draft.thread?zohoMailMessageHref(draft.thread):zohoMailComposeHref({contact_email:to,institution_name:draft.institution?.name||lead.title});
  window.open(href,'_blank','noopener');
  notice(selectedDocs.length?'Zoho abierto. Hay '+selectedDocs.length+' material(es) seleccionado(s) en Xicronix para este envío.':'Zoho abierto para revisar y enviar.',false,7000);
@@ -2076,8 +2119,8 @@ function openLeadDetails(id){
  $('leadDetailTitle').textContent='Expediente Comercial · '+(institution?.name||lead.title||'Prospecto');
  $('leadDetailContent').innerHTML='<section class="lead-master commercial-dossier executive-dossier">'+
   quickActions+
-  '<section class="executive-snapshot"><article><small>ESTADO</small><strong>'+health.label+'</strong></article><article><small>URGENCIA</small><strong>'+urgency.label+'</strong></article><article><small>POTENCIAL</small><strong>'+potentialState.label+(potentialState.value!==undefined?' · '+potentialState.value+'%':'')+'</strong></article><article><small>VALOR</small><strong>'+esc(budget)+'</strong></article></section>'+
-  '<section class="executive-progress"><div><small>AVANCE COMERCIAL</small><strong>'+maturity+'% · '+esc(milestoneLabel(lead.commercial_milestone))+'</strong></div><div class="dossier-progress"><i style="width:'+maturity+'%"></i></div><p>'+esc(evidence)+'</p></section>'+
+  '<section class="executive-mini-progress"><div><small>AVANCE</small><strong>'+maturity+'%</strong><span>'+esc(milestoneLabel(lead.commercial_milestone))+'</span></div><div class="prospect-progress-track"><i style="width:'+maturity+'%"></i></div></section>'+
+  '<details class="executive-detail executive-indicators"><summary>Indicadores comerciales</summary><div class="executive-detail-body"><section class="executive-snapshot"><article><small>ESTADO</small><strong>'+health.label+'</strong></article><article><small>URGENCIA</small><strong>'+urgency.label+'</strong></article><article><small>POTENCIAL</small><strong>'+potentialState.label+(potentialState.value!==undefined?' · '+potentialState.value+'%':'')+'</strong></article><article><small>VALOR</small><strong>'+esc(budget)+'</strong></article></section><p class="muted">'+esc(evidence)+'</p></div></details>'+
   '<section class="executive-next"><div><small>PRÓXIMO PASO</small><strong>'+esc(action)+'</strong><span>'+(nextDate?esc(date(nextDate)):'Sin fecha definida')+'</span></div><div><small>CONTEXTO DE DECISIÓN</small><strong>'+esc(decisionContext)+'</strong></div></section>'+
   '<section class="executive-folders">'+profileDetails+historyDetails+documentDetails+planningDetails+management+'</section>'+
  '</section>';
@@ -2105,7 +2148,7 @@ function init(){
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  $('sidebarToggle').onclick=event=>{event.stopPropagation();applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);};
  document.addEventListener('click',event=>{if(!mobileNavMode())return;const sidebar=$('mainSidebar');if(!sidebar||$('appView').classList.contains('sidebar-collapsed'))return;if(sidebar.contains(event.target)||event.target===$('sidebarToggle'))return;applySidebar(true);});
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.radarPromote){promoteRadarSignal(b.dataset.radarPromote);return;}if(b.id==='refreshIntelligenceBtn'){b.disabled=true;b.classList.add('is-refreshing');refreshLiveIntelligence(true).finally(()=>{const next=$('refreshIntelligenceBtn');if(next){next.disabled=false;next.classList.remove('is-refreshing');}});return;}if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='brandThemeToggle'){applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.sellerFilter){navigate('leads');sellerQuickFilter=b.dataset.sellerFilter;renderRecords();return;}if(b.dataset.prospectKpi){navigate('prospects');prospectDashboardFilter=b.dataset.prospectKpi==='ALL'?'':b.dataset.prospectKpi;$('filter').value='';pageIndex=0;renderRecords();return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){if(openEditor('leads',b.dataset.editLead))closeLeadDetails(false);return;}if(b.dataset.editActivity){if(openEditor('activities',b.dataset.editActivity))closeLeadDetails(false);return;}if(b.dataset.activityLead){if(openActivityForLead(b.dataset.activityLead)!==false)closeLeadDetails(false);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.radarLead){openLeadFromRadar(b.dataset.radarLead);return;}if(b.dataset.radarActivity){openActivityForLead(b.dataset.radarActivity);return;}if(b.dataset.editSmartContact!==undefined){const contactId=b.dataset.editSmartContact||'';const institutionId=b.dataset.editSmartInstitution||'';if($('smartMailDialog').open)$('smartMailDialog').close();if(contactId){openEditor('contacts',contactId);}else if(institutionId){openEditor('institutions',institutionId);}return;}if(b.dataset.smartMaterial){toggleSmartMaterial(b.dataset.smartMaterial);return;}if(b.dataset.smartMail){openSmartMailDraft(b.dataset.smartMail);return;}if(b.dataset.copySmartMail){copySmartMailDraft(b.dataset.copySmartMail);return;}if(b.dataset.openSmartZoho){openSmartMailInZoho(b.dataset.openSmartZoho);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.radarPromote){promoteRadarSignal(b.dataset.radarPromote);return;}if(b.id==='refreshIntelligenceBtn'){b.disabled=true;b.classList.add('is-refreshing');refreshLiveIntelligence(true).finally(()=>{const next=$('refreshIntelligenceBtn');if(next){next.disabled=false;next.classList.remove('is-refreshing');}});return;}if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='brandThemeToggle'){applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.sellerFilter){navigate('leads');sellerQuickFilter=b.dataset.sellerFilter;renderRecords();return;}if(b.dataset.prospectKpi){navigate('prospects');prospectDashboardFilter=b.dataset.prospectKpi==='ALL'?'':b.dataset.prospectKpi;$('filter').value='';pageIndex=0;renderRecords();return;}if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){if(openEditor('leads',b.dataset.editLead))closeLeadDetails(false);return;}if(b.dataset.editActivity){if(openEditor('activities',b.dataset.editActivity))closeLeadDetails(false);return;}if(b.dataset.activityLead){if(openActivityForLead(b.dataset.activityLead)!==false)closeLeadDetails(false);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.radarLead){openLeadFromRadar(b.dataset.radarLead);return;}if(b.dataset.radarActivity){openActivityForLead(b.dataset.radarActivity);return;}if(b.dataset.editSmartContact!==undefined){const contactId=b.dataset.editSmartContact||'';const institutionId=b.dataset.editSmartInstitution||'';if($('smartMailDialog').open)$('smartMailDialog').close();if(contactId){openEditor('contacts',contactId);}else if(institutionId){openEditor('institutions',institutionId);}return;}if(b.dataset.smartUploadCategory){uploadSmartMaterial(b.dataset.smartUploadLead,b.dataset.smartUploadCategory);return;}if(b.dataset.smartMaterial){toggleSmartMaterial(b.dataset.smartMaterial);return;}if(b.dataset.smartMail){openSmartMailDraft(b.dataset.smartMail);return;}if(b.dataset.copySmartMail){copySmartMailDraft(b.dataset.copySmartMail);return;}if(b.dataset.openSmartZoho){openSmartMailInZoho(b.dataset.openSmartZoho);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>openEditor(page==='dashboard'?'institutions':page);
