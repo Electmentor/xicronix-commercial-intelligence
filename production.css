@@ -3186,3 +3186,36 @@ html[data-theme="night"] .opp-card{background:#102136}
 .smart-mail-assets ul{margin:8px 0 10px;padding-left:20px}.smart-mail-assets li{margin:8px 0}.smart-mail-assets li span{display:block;color:var(--muted);font-size:.9rem}.smart-mail-assets p{margin:8px 0 0;color:var(--muted)}
 .smart-mail-actions{display:flex;justify-content:flex-end;gap:10px;position:sticky;bottom:0;padding-top:8px;background:var(--panel,#fff)}
 @media(max-width:700px){.smart-mail-summary{grid-template-columns:1fr}.smart-mail-actions{display:grid;grid-template-columns:1fr}.smart-mail-actions button{width:100%}}
+
+/* Persistent CRM dialog headers */
+dialog[data-ribbon]{padding-top:0;overflow:auto}
+dialog[data-ribbon] .dialog-header{
+ position:sticky;top:0;z-index:30;
+ margin:0 -18px 14px;padding:25px 18px 12px;
+ background:var(--panel,#0f2238);
+ border-bottom:1px solid var(--line);
+ box-shadow:0 8px 18px rgba(0,0,0,.14)
+}
+dialog[data-ribbon] .dialog-header::before{
+ content:attr(data-ribbon);
+ position:absolute;left:18px;top:7px;
+ font-size:.66rem;font-weight:800;letter-spacing:.09em;
+ color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+ max-width:calc(100% - 110px)
+}
+dialog[data-ribbon] .dialog-header>button{
+ margin-left:auto;flex:0 0 auto;position:sticky;right:0;
+ min-width:64px
+}
+dialog[data-ribbon] .dialog-header h2{margin:0;padding-right:8px}
+#methodDialog[data-ribbon]{padding-top:0}
+#methodDialog[data-ribbon]::before{
+ content:attr(data-ribbon);display:block;position:sticky;top:0;z-index:30;
+ margin:0 -18px 12px;padding:7px 18px;
+ background:var(--panel,#0f2238);border-bottom:1px solid var(--line);
+ font-size:.66rem;font-weight:800;letter-spacing:.09em;color:var(--muted)
+}
+@media(max-width:700px){
+ dialog[data-ribbon] .dialog-header{margin-left:-12px;margin-right:-12px;padding-left:12px;padding-right:12px}
+ dialog[data-ribbon] .dialog-header::before{left:12px;max-width:calc(100% - 96px)}
+}
