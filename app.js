@@ -7,7 +7,7 @@ import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executiv
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
-import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.7';
+import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.8';
 
 const $ = id => document.getElementById(id);
 const SPLASH_STARTED_AT=performance.now();
@@ -120,8 +120,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-26-v2.45.7';
-const CRM_VERSION_LABEL='v2.45.7';
+const CRM_RELEASE='2026-09-26-v2.45.8';
+const CRM_VERSION_LABEL='v2.45.8';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -2300,7 +2300,7 @@ function openLeadDetails(id){
   (directEmail?'<button type="button" class="lead-action-button" data-smart-mail="'+lead.id+'">Correo</button>':'')+
   (directPhone?'<a class="lead-action-button" href="'+esc(radarWhatsappHref(directPhone))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
   (writableFor('activities')?'<button type="button" class="lead-action-button" data-activity-lead="'+lead.id+'">Registrar resultado</button>':'')+
- '</div><p class="lead-action-contact">'+esc(contact?nameOf(contact):'Contacto decisor pendiente')+(contact?.job_title?' · '+esc(contact.job_title):'')+'</p></section>';
+ '</div></section>';
  const profileDetails='<details class="executive-detail"><summary>Datos del expediente</summary><div class="executive-detail-body"><dl>'+
   field('Estado',enums.status[lead.status]||lead.status)+field('Institución',institution?.name||'Pendiente de vincular')+field('Contacto',contact?nameOf(contact):'Pendiente de vincular')+
   (contact?field('Cargo',contact.job_title)+field('Correo',contact.email)+field('Teléfono',contact.phone):'')+
@@ -2317,7 +2317,8 @@ function openLeadDetails(id){
   '<h4>Tareas</h4>'+(tasks.length?tasks.map(row=>'<article class="lead-note"><strong>'+esc(row.title)+'</strong><p>'+esc(enums.taskStatus[row.status]||row.status)+' · '+esc(date(row.due_at))+'</p></article>').join(''):'<p class="muted">Sin tareas.</p>')+
  '</div></details>';
  const management=writableFor('leads')?'<details class="executive-detail management"><summary>Gestión del expediente</summary><div class="executive-detail-body lead-master-actions"><button type="button" data-edit-lead="'+lead.id+'">Editar prospecto</button><button type="button" data-create-task-lead="'+lead.id+'">Crear tarea</button><button type="button" data-create-meeting-lead="'+lead.id+'">Agendar reunión</button><button type="button" data-create-document-lead="'+lead.id+'">Subir documento</button></div></details>':'';
- $('leadDetailTitle').textContent='Expediente Comercial · '+(institution?.name||lead.title||'Prospecto');
+ $('leadDetailTitle').textContent=institution?.name||lead.title||'Prospecto';
+ const leadSubtitle=$('leadDetailSubtitle');if(leadSubtitle)leadSubtitle.textContent=(contact?nameOf(contact):'Contacto decisor pendiente')+(contact?.job_title?' · '+contact.job_title:'');
  $('leadDetailContent').innerHTML='<section class="lead-master commercial-dossier executive-dossier">'+
   quickActions+
   '<section class="executive-mini-progress"><div><small>AVANCE</small><strong>'+maturity+'%</strong><span>'+esc(milestoneLabel(lead.commercial_milestone))+'</span></div><div class="prospect-progress-track"><i style="width:'+maturity+'%"></i></div></section>'+
