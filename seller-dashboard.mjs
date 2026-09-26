@@ -185,7 +185,96 @@ function matchesProspectSearch(row,query){
   return fullId.includes(qId)||shortId.includes(qId);
 }
 
+
+function sameMonth(value,now){
+  const d=new Date(value);return Number.isFinite(d.getTime())&&d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();
+}
+function sameYear(value,now){
+  const d=new Date(value);return Number.isFinite(d.getTime())&&d.getFullYear()===now.getFullYear();
+}
+function currentGoal(goals,now){
+  const stamp=now.getTime();
+  return (goals||[]).find(row=>{
+    const start=Date.parse(String(row.period_start||'')+'T00:00:00');
+    const end=Date.parse(String(row.period_end||'')+'T23:59:59');
+    return Number.isFinite(start)&&Number.isFinite(end)&&start<=stamp&&stamp<=end;
+  })||null;
+}
+function sellerPerformanceDashboard(data,{now=new Date(),demo=false,failures={}}={}){
+  const opportunities=data.opportunities||[], tasks=data.tasks||[], meetings=data.meetings||[], activities=data.activities||[], leads=data.leads||[];
+  const openOpps=opportunities.filter(row=>!['WON','LOST'].includes(row.stage));
+  const won=opportunities.filter(row=>row.stage==='WON');
+  const lost=opportunities.filter(row=>row.stage==='LOST');
+  const wonMonth=won.filter(row=>sameMonth(row.updated_at||row.expected_close_date,now));
+  const wonYear=won.filter(row=>sameYear(row.updated_at||row.expected_close_date,now));
+  const salesMonth=wonMonth.reduce((sum,row)=>sum+(Number(row.value)||0),0);
+  const salesYear=wonYear.reduce((sum,row)=>sum+(Number(row.value)||0),0);
+  const pipeline=openOpps.reduce((sum,row)=>sum+(Number(row.value)||0),0);
+  const forecast=openOpps.reduce((sum,row)=>{
+    const p=Math.max(0,Math.min(100,Number(row.probability)||0));
+    return sum+(Number(row.value)||0)*p/100;
+  },0);
+  const openTasks=tasks.filter(row=>!['COMPLETED','CANCELLED'].includes(row.status));
+  const overdue=openTasks.filter(row=>row.due_at&&Date.parse(row.due_at)<now.getTime()).length;
+  const upcomingMeetings=meetings.filter(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&Date.parse(row.start_at)>=now.getTime()&&Date.parse(row.start_at)<=now.getTime()+7*86400000).length;
+  const activeLeads=leads.filter(row=>!['DISQUALIFIED','CONVERTED'].includes(row.status)).length;
+  const conversion=(won.length+lost.length)?Math.round(won.length/(won.length+lost.length)*100):0;
+  const monthActivities=activities.filter(row=>sameMonth(row.occurred_at||row.created_at,now)).length;
+  const monthMeetings=meetings.filter(row=>row.status==='COMPLETED'&&sameMonth(row.start_at,now)).length;
+  const monthTasks=tasks.filter(row=>sameMonth(row.updated_at||row.created_at,now));
+  const completedMonth=monthTasks.filter(row=>row.status==='COMPLETED').length;
+  const taskDiscipline=monthTasks.length?Math.round(completedMonth/monthTasks.length*100):0;
+  const goal=currentGoal(data.goals||[],now);
+  const target=Number(goal?.target_won_value)||0;
+  const goalPct=target>0?Math.max(0,Math.min(999,Math.round(salesMonth/target*100))):null;
+  const incomplete=Object.keys(failures||{}).length>0;
+
+  return '<div class="seller-performance-dashboard">'+
+    '<section class="seller-performance-hero"><div><small>MI RENDIMIENTO COMERCIAL</small><h1>Tu negocio, en una sola vista</h1><p>Inicio resume resultados y tendencia. Las acciones operativas se ejecutan en Mis tareas, Mi cartera y Mi agenda.</p></div>'+
+    '<span class="seller-performance-period">'+now.toLocaleDateString('es-PE',{month:'long',year:'numeric'})+'</span></section>'+
+
+    '<section class="seller-performance-kpis">'+
+      '<article class="seller-performance-kpi primary"><small>VENTAS DEL MES</small><strong>'+money(salesMonth)+'</strong><span>'+wonMonth.length+' venta'+(wonMonth.length===1?'':'s')+' ganada'+(wonMonth.length===1?'':'s')+'</span></article>'+
+      '<article class="seller-performance-kpi"><small>VENTAS DEL AÑO</small><strong>'+money(salesYear)+'</strong><span>'+wonYear.length+' cierre'+(wonYear.length===1?'':'s')+' registrado'+(wonYear.length===1?'':'s')+'</span></article>'+
+      '<article class="seller-performance-kpi"><small>PIPELINE PERSONAL</small><strong>'+money(pipeline)+'</strong><span>'+openOpps.length+' oportunidad'+(openOpps.length===1?'':'es')+' abierta'+(openOpps.length===1?'':'s')+'</span></article>'+
+      '<article class="seller-performance-kpi"><small>FORECAST PONDERADO</small><strong>'+money(forecast)+'</strong><span>valor × probabilidad</span></article>'+
+    '</section>'+
+
+    '<section class="seller-performance-grid">'+
+      '<article class="seller-performance-panel goal-panel"><header><div><small>META COMERCIAL</small><h2>'+(target>0?'Progreso del periodo':'Meta todavía no asignada')+'</h2></div><strong>'+(goalPct===null?'—':goalPct+'%')+'</strong></header>'+
+        '<div class="seller-goal-track"><i style="width:'+Math.min(100,goalPct||0)+'%"></i></div>'+
+        '<div class="seller-goal-values"><span><b>'+money(salesMonth)+'</b><small>Ganado este mes</small></span><span><b>'+(target>0?money(target):'—')+'</b><small>Meta vigente</small></span></div>'+
+      '</article>'+
+      '<article class="seller-performance-panel execution-panel"><header><div><small>OPERACIÓN</small><h2>Estado de tu jornada</h2></div></header>'+
+        '<div class="seller-execution-stats"><button type="button" data-page="tasks"><b>'+openTasks.length+'</b><span>Tareas pendientes</span><small>'+overdue+' vencidas</small></button>'+
+        '<button type="button" data-page="meetings"><b>'+upcomingMeetings+'</b><span>Reuniones próximas</span><small>próximos 7 días</small></button>'+
+        '<button type="button" data-page="leads"><b>'+activeLeads+'</b><span>Prospectos activos</span><small>mi cartera</small></button></div>'+
+      '</article>'+
+    '</section>'+
+
+    '<section class="seller-performance-grid lower">'+
+      '<article class="seller-performance-panel"><header><div><small>DESEMPEÑO</small><h2>Indicadores del mes</h2></div></header>'+
+        '<div class="seller-skill-grid">'+
+          '<span><b>'+conversion+'%</b><small>Conversión de cierres</small></span>'+
+          '<span><b>'+taskDiscipline+'%</b><small>Disciplina de tareas</small></span>'+
+          '<span><b>'+monthActivities+'</b><small>Movimientos registrados</small></span>'+
+          '<span><b>'+monthMeetings+'</b><small>Reuniones realizadas</small></span>'+
+        '</div>'+
+      '</article>'+
+      '<article class="seller-performance-panel compensation-panel"><header><div><small>MI COMPENSACIÓN</small><h2>Pendiente de contrato</h2></div><span>PRÓXIMAMENTE</span></header>'+
+        '<p>El sueldo fijo, bonos y comisiones aparecerán aquí cuando exista un contrato comercial vigente y aprobado. El CRM no estimará pagos sin una regla contractual formal.</p>'+
+      '</article>'+
+    '</section>'+
+
+    '<section class="seller-dashboard-shortcuts"><button type="button" data-page="tasks"><span>Mis tareas</span><small>Ejecutar acciones pendientes</small></button>'+
+    '<button type="button" data-page="leads"><span>Mi cartera</span><small>Revisar prospectos y expedientes</small></button>'+
+    '<button type="button" data-page="meetings"><span>Mi agenda</span><small>Ver reuniones y compromisos</small></button></section>'+
+    (incomplete?'<p class="seller-dashboard-data-note">Hay módulos con información pendiente de carga. Los indicadores se calculan únicamente con los datos disponibles.</p>':'')+
+  '</div>';
+}
+
 export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={},searchQuery='',showSearch=false}={}){
+  if(!showSearch)return sellerPerformanceDashboard(data,{now,demo,failures});
   const rows=prospectRows(data,now),tasks=data.tasks||[],meetings=data.meetings||[];
   const incomplete=Object.keys(failures).length>0;
   const openTasks=tasks.filter(row=>!['COMPLETED','CANCELLED'].includes(row.status));
