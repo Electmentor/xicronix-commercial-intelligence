@@ -978,10 +978,8 @@ function zohoMailComposeHref(row){
  const email=String(row?.contact_email||'').trim();
  if(!email)return '';
  const subject='Xicronix | '+String(row?.institution_name||'Contacto comercial');
- const mailto='mailto:'+email+'?subject='+encodeURIComponent(subject);
- return 'https://mail.zoho.com/mail/compose.do?extsrc=mailto&mode=compose&tp=zb&ct='+encodeURIComponent(mailto);
+ return 'https://mail.zoho.com/zm/#compose?to='+encodeURIComponent(email)+'&subject='+encodeURIComponent(subject);
 }
-
 function radarMailHref(row){return zohoMailComposeHref(row);}
 function openLeadFromRadar(signalId){
  const row=(data.radar||[]).find(item=>item.id===signalId);
