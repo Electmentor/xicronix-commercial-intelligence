@@ -1044,7 +1044,7 @@ function renderDashboard(){
  const admin=canViewDashboard();
  const viewData=commercialDataView();
  $('dashboard').innerHTML=admin?renderExecutive(viewData,{demo:dataSource==='demo',failures,analyticsPeriod}):renderSellerDashboard(viewData,{demo:dataSource==='demo',failures});
- if(admin){const mobileHead=$('dashboard').querySelector('.director-mobile-head');if(mobileHead)mobileHead.insertAdjacentHTML('afterend',renderDirectorResponsibilityCenter(viewData));else $('dashboard').insertAdjacentHTML('afterbegin',renderDirectorResponsibilityCenter(viewData));}
+ if(admin){const mobileKpis=$('dashboard').querySelector('.director-mobile-kpis');if(mobileKpis)mobileKpis.insertAdjacentHTML('afterend',renderDirectorResponsibilityCenter(viewData));else $('dashboard').insertAdjacentHTML('afterbegin',renderDirectorResponsibilityCenter(viewData));}
  if(admin&&dataSource==='live'&&Array.isArray(data.territorialMacro)&&data.territorialMacro.length){
    const section=$('dashboard').querySelector('.territorial-intelligence');
    if(section){
