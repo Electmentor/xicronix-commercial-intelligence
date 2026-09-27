@@ -535,10 +535,10 @@ function playXicronixChime(){
   const ctx=xicronixAudioCtx||(xicronixAudioCtx=new AudioCtx());
   if(ctx.state==='suspended')ctx.resume().catch(()=>{});
   const now=ctx.currentTime;
-  [[659.25,0],[783.99,.13],[987.77,.27]].forEach(([freq,delay],i)=>{
-   const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.value=freq;
-   gain.gain.setValueAtTime(.0001,now+delay);gain.gain.exponentialRampToValueAtTime(i===2?.075:.055,now+delay+.018);gain.gain.exponentialRampToValueAtTime(.0001,now+delay+.20);
-   osc.connect(gain);gain.connect(ctx.destination);osc.start(now+delay);osc.stop(now+delay+.22);
+  [[659.25,0,.34],[783.99,.28,.38],[987.77,.58,.52]].forEach(([freq,delay,duration],i)=>{
+   const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=i===2?'triangle':'sine';osc.frequency.value=freq;
+   gain.gain.setValueAtTime(.0001,now+delay);gain.gain.exponentialRampToValueAtTime(i===2?.085:.06,now+delay+.025);gain.gain.setValueAtTime(i===2?.065:.045,now+delay+duration*.52);gain.gain.exponentialRampToValueAtTime(.0001,now+delay+duration);
+   osc.connect(gain);gain.connect(ctx.destination);osc.start(now+delay);osc.stop(now+delay+duration+.03);
   });
  }catch(_error){}
 }
