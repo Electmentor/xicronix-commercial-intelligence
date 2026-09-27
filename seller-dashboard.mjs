@@ -264,12 +264,7 @@ function sellerPerformanceDashboard(data,{now=new Date(),demo=false,failures={}}
       '<article class="seller-performance-panel compensation-panel"><header><div><small>MI COMPENSACIÓN</small><h2>Pendiente de contrato</h2></div><span>PRÓXIMAMENTE</span></header>'+
         '<p>El sueldo fijo, bonos y comisiones aparecerán aquí cuando exista un contrato comercial vigente y aprobado. El CRM no estimará pagos sin una regla contractual formal.</p>'+
       '</article>'+
-    '</section>'+
-
-    '<section class="seller-dashboard-shortcuts"><button type="button" data-page="tasks"><span>Mis tareas</span><small>Ejecutar acciones pendientes</small></button>'+
-    '<button type="button" data-page="leads"><span>Mi cartera</span><small>Revisar prospectos y expedientes</small></button>'+
-    '<button type="button" data-page="meetings"><span>Mi agenda</span><small>Ver reuniones y compromisos</small></button></section>'+
-    (incomplete?'<p class="seller-dashboard-data-note">Hay módulos con información pendiente de carga. Los indicadores se calculan únicamente con los datos disponibles.</p>':'')+
+    '</section>'+    (incomplete?'<p class="seller-dashboard-data-note">Hay módulos con información pendiente de carga. Los indicadores se calculan únicamente con los datos disponibles.</p>':'')+
   '</div>';
 }
 
