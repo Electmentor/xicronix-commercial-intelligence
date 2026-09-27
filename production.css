@@ -4230,3 +4230,62 @@ dialog[data-ribbon] .dialog-header>button:focus-visible{
 .operator-mic{position:absolute;z-index:8;right:15%;top:52%;width:78px;height:7px;background:#14283d;border-radius:9px;transform:rotate(8deg);transform-origin:right center}.operator-mic::before{content:"";position:absolute;left:-8px;top:-5px;width:16px;height:16px;border-radius:50%;background:#14283d}
 .modern-hero-operator::after{content:"";position:absolute;z-index:9;right:27%;top:52%;width:45px;height:14px;border-bottom:4px solid #a84f50;border-radius:0 0 50% 50%;transform:rotate(-2deg)}
 .modern-home .seller-performance-kpi:nth-child(1){background:linear-gradient(145deg,#eef6ff,#fff)!important}.modern-home .seller-performance-kpi:nth-child(2){background:linear-gradient(145deg,#eefcf6,#fff)!important}.modern-home .seller-performance-kpi:nth-child(3){background:linear-gradient(145deg,#f4f0ff,#fff)!important}.modern-home .seller-performance-kpi:nth-child(4){background:linear-gradient(145deg,#fff5eb,#fff)!important}
+
+
+/* V2.45.26 · Mobile hero + night-mode luminance correction */
+html[data-theme="night"] .modern-hero{
+  background:linear-gradient(145deg,#10253b 0%,#0d2034 56%,#102a43 100%)!important;
+  border-color:#28445f!important;
+  color:#eef6ff!important;
+  box-shadow:0 14px 36px rgba(0,0,0,.24)!important;
+}
+html[data-theme="night"] .modern-hero-copy>small{color:#8eb4d8!important}
+html[data-theme="night"] .modern-hero-copy h1{color:#f3f8fd!important}
+html[data-theme="night"] .modern-hero-copy>p{color:#b9cce0!important}
+html[data-theme="night"] .modern-hero-pillars b{color:#eaf3fb!important}
+html[data-theme="night"] .modern-hero-pillars small{color:#9fb7ce!important}
+html[data-theme="night"] .modern-hero-operator{
+  background:radial-gradient(circle at 65% 32%,rgba(91,139,180,.24),rgba(25,57,86,.48) 42%,rgba(8,27,50,.72) 72%),linear-gradient(135deg,#173957,#0a2136)!important;
+}
+html[data-theme="night"] .modern-hero-operator::before{
+  background:linear-gradient(90deg,#10253b 0%,rgba(16,37,59,.52) 20%,transparent 48%),linear-gradient(0deg,rgba(4,15,26,.20),rgba(4,15,26,.20))!important;
+}
+html[data-theme="night"] .modern-home .seller-performance-kpi,
+html[data-theme="night"] .modern-home .seller-performance-kpi.primary,
+html[data-theme="night"] .modern-home .seller-performance-panel,
+html[data-theme="night"] .modern-home .seller-dashboard-shortcuts button{
+  background:linear-gradient(145deg,#10253b,#0c1d2f)!important;
+  border-color:#28445f!important;
+  color:var(--ink)!important;
+  box-shadow:0 7px 20px rgba(0,0,0,.18)!important;
+}
+@media(max-width:700px){
+  .modern-home{gap:12px!important}
+  .modern-hero{
+    min-height:0!important;
+    grid-template-columns:minmax(0,1.18fr) minmax(118px,.82fr)!important;
+    border-radius:18px!important;
+  }
+  .modern-hero-copy{padding:24px 10px 22px 22px!important;align-self:center!important}
+  .modern-hero-copy>small{font-size:.64rem!important;letter-spacing:.13em!important}
+  .modern-hero-copy h1{font-size:clamp(1.72rem,8vw,2.25rem)!important;margin:10px 0 9px!important;line-height:1.02!important}
+  .modern-hero-copy>p{font-size:.84rem!important;line-height:1.42!important}
+  .modern-hero-pillars{margin-top:18px!important;display:grid!important;grid-template-columns:1fr!important;gap:9px!important}
+  .modern-hero-pillars span{grid-template-columns:30px auto!important;column-gap:7px!important}
+  .modern-hero-pillars i{width:30px!important;height:30px!important;font-size:.72rem!important}
+  .modern-hero-pillars b{font-size:.73rem!important}
+  .modern-hero-pillars small{font-size:.62rem!important}
+  .modern-hero-operator{display:block!important;max-height:none!important;min-height:310px!important;align-self:stretch!important}
+  .modern-hero-operator svg{min-height:310px!important}
+  .operator-hair{right:-14%!important;top:12%!important;transform:scale(.72);transform-origin:top right}
+  .operator-face{right:-7%!important;top:20%!important;transform:scale(.72);transform-origin:top right}
+  .operator-headset{right:-10%!important;top:15%!important;transform:scale(.72);transform-origin:top right}
+  .operator-body{right:-55%!important;bottom:-35px!important;transform:scale(.76) rotate(-2deg);transform-origin:bottom right}
+  .operator-mic{right:-5%!important;top:52%!important;transform:scale(.72) rotate(8deg);transform-origin:right center}
+  .modern-hero-operator::after{right:9%!important;top:50%!important;transform:scale(.72) rotate(-2deg)}
+}
+@media(max-width:390px){
+  .modern-hero{grid-template-columns:minmax(0,1.28fr) minmax(96px,.72fr)!important}
+  .modern-hero-copy{padding-left:18px!important}
+  .modern-hero-copy h1{font-size:1.62rem!important}
+}
