@@ -6,7 +6,10 @@
   if(url!=='/api/assistant')return originalFetch(url,options);
   const body=JSON.parse(options.body);await new Promise(resolve=>setTimeout(resolve,500));
   if(body.message==='SIMULAR ERROR')return Response.json({error:'PROVIDER_ERROR'},{status:502});
-  return Response.json({answer:'PRUEBA AISLADA — '+body.context.module+' · '+body.context.page+' · '+body.message});
+  const {buildEvidence,queryIntent,renderEvidence}=await import('/assistant-policy.mjs');
+  const evidence=buildEvidence({records:{radar:db.commercial_radar_dashboard,tasks:db.tasks,opportunities:db.opportunities,leads:db.leads,meetings:db.meetings},page:body.context.page,role:'ADMIN',source:'demo',intent:queryIntent(body.message),focus:body.context.focus});
+  const plan={evidence_ids:evidence.facts.slice(0,3).map(f=>f.id),recommendation_ids:evidence.recommendations.slice(0,1).map(f=>f.id),insufficient:!evidence.facts.length};
+  return Response.json({answer:'PRUEBA AISLADA — '+renderEvidence(evidence,plan),focus:evidence.focus});
  };
  const user={id:'11111111-1111-4111-8111-111111111111',email:'admin@example.invalid'};
  const org='22222222-2222-4222-8222-222222222222';

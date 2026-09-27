@@ -1,4 +1,4 @@
-import {radarNeedsAttention,radarPriorityOrder} from './radar-lifecycle.mjs?v=2.46.7';
+import {radarNeedsAttention,radarPriorityOrder} from './radar-lifecycle.mjs?v=2.46.8';
 import {renderDirectorInsights} from './director-insights.mjs?v=20260927-v2.45.41';
 import {escapeHTML as esc, money} from './domain.mjs';
 import {assignedUserId} from './workspace.mjs';

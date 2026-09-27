@@ -1,20 +1,20 @@
-import {createAssistant,buildAssistantContext} from './assistant.mjs?v=2.46.7';
-import {radarState,radarStateLabels,radarTransition,renderRadarLifecycle} from './radar-lifecycle.mjs?v=2.46.7';
-import {directorGeography} from './director-insights.mjs?v=20260927-v2.46.7';
+import {createAssistant,buildAssistantContext} from './assistant.mjs?v=2.46.8';
+import {radarState,radarStateLabels,radarTransition,renderRadarLifecycle} from './radar-lifecycle.mjs?v=2.46.8';
+import {directorGeography} from './director-insights.mjs?v=20260927-v2.46.8';
 import {escapeHTML as esc, filterRecords, money, metrics, priorities, taskUrgency, sortTasksByUrgency, csv, parseCsv, normalize} from './domain.mjs';
 
 import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWriteModule, assignedUserId, scopeWorkspaceData} from './workspace.mjs';
 
 import {DEMO_VERSION, DEMO_SELLERS, createDemoData, upgradeDemoData, mutateDemo, realOnly, localDay} from './demo.mjs?v=20260924-v2.41.16';
-import {renderExecutive, executivePriority, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260927-v2.46.7';
+import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260927-v2.46.8';
 import {analyticsCSV} from './analytics.mjs';
-import {renderPerformance, performanceCSV, performancePages} from './performance.mjs?v=2.46.7';
+import {renderPerformance, performanceCSV, performancePages} from './performance.mjs?v=2.46.8';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
 import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.14';
 
 const $ = id => document.getElementById(id);
-const CLIENT_BUILD='v2.46.7';
+const CLIENT_BUILD='v2.46.8';
 const SPLASH_STARTED_AT=performance.now();
 const SPLASH_MIN_MS=450;
 function startLarsonScanner(){
@@ -140,8 +140,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-27-v2.46.7';
-const CRM_VERSION_LABEL='v2.46.7';
+const CRM_RELEASE='2026-09-27-v2.46.8';
+const CRM_VERSION_LABEL='v2.46.8';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -2694,12 +2694,11 @@ function openLeadDetails(id){
 
 let aiAssistant=null,aiSelected=null;
 function aiContextSnapshot(){
- const keys=page==='dashboard'||page==='now'?['radar','opportunities','tasks','leads']:Array.from(new Set([page,'opportunities','tasks','leads','radar']));
- const records=Object.fromEntries(keys.filter(k=>modules[k]).map(k=>[k,scopedRows(k)]));
- const region=page==='dashboard'?$('dashboard'):$('recordList');
+ const keys=['radar','opportunities','tasks','leads','meetings'];
+ const records=dataSource==='demo'?Object.fromEntries(keys.map(k=>[k,scopedRows(k)])):{};
  const leadId=new URLSearchParams(location.hash.slice(1)).get('lead');
- const selected=$('editor')?.open?(data[editTable]||[]).find(r=>r.id===editId):radarActionContext?(data.radar||[]).find(r=>r.id===radarActionContext.id):$('leadDetailDialog')?.open?(records.leads||[]).find(r=>r.id===leadId):aiSelected&&aiSelected.kind===page?(records[page]||[]).find(r=>r.id===aiSelected.id):null;
- return buildAssistantContext({page:performancePage?'performance:'+performancePage:page,module:performancePage?'Rendimiento del negocio':page==='dashboard'?'Dirección Comercial':modules[page]?.label||page,workspace,role:profile?.role,source:dataSource,records,failures,visibleText:region?.innerText||'',visibleMetrics:[...(region?.querySelectorAll('[aria-label="Indicadores comerciales"] button,[aria-label="Indicadores de rendimiento"] article')||[])].slice(0,8).map(node=>node.innerText.slice(0,300)),selected,priority:canViewDashboard()?executivePriority(records,{failures}):null,filters:{search:$('search')?.value||'',status:$('filter')?.value||''}});
+ const selected=$('editor')?.open?{id:editId,kind:editTable}:radarActionContext?{id:radarActionContext.id,kind:'radar'}:$('leadDetailDialog')?.open?{id:leadId,kind:'leads'}:aiSelected&&aiSelected.kind===page?aiSelected:null;
+ return buildAssistantContext({page:performancePage?'performance:'+performancePage:page,module:performancePage?'Rendimiento del negocio':page==='dashboard'?'Dirección Comercial':modules[page]?.label||page,workspace,source:dataSource,records,failures,selected,filters:{search:$('search')?.value||'',status:$('filter')?.value||''}});
 }
 function openAiAssistant(){aiAssistant?.open();$('aiAssistantLauncher')?.setAttribute('aria-expanded','true');}
 function closeAiAssistant(){aiAssistant?.close();$('aiAssistantLauncher')?.setAttribute('aria-expanded','false');}
@@ -2712,13 +2711,13 @@ function init(){
  try{recovery=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery'||sessionStorage.getItem(RECOVERY_KEY)==='1';}catch(_error){}
  $('rememberEmail').onchange=()=>{if(!$('rememberEmail').checked){try{localStorage.removeItem(REMEMBER_EMAIL_KEY);}catch(_error){}}};
  aiAssistant=createAssistant({panel:$('aiAssistantPanel'),messages:$('aiAssistantMessages'),form:$('aiAssistantForm'),input:$('aiAssistantInput'),status:$('aiAssistantStatus'),contextLabel:$('aiAssistantContext'),identity:()=>[session?.user?.id,profile?.organization_id,dataSource,workspace].join(':'),getContext:aiContextSnapshot,send:async(payload,signal)=>{
-  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),40000);
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),55000);
   const cancel=()=>controller.abort();signal.addEventListener('abort',cancel,{once:true});
   try{
    const {data:auth}=await sb.auth.getSession();if(!auth?.session?.access_token)throw Error('AUTH_REQUIRED');
    const response=await fetch('/api/assistant',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+auth.session.access_token},body:JSON.stringify(payload),signal:controller.signal});
    const result=await response.json();if(!response.ok)throw Error(result?.error||'ASSISTANT_UNAVAILABLE');
-   if(!result?.answer)throw Error('EMPTY_RESPONSE');return result.answer;
+   if(!result?.answer)throw Error('EMPTY_RESPONSE');return result;
   }catch(error){if(controller.signal.aborted)throw Error('TIMEOUT');throw error;}
   finally{clearTimeout(timeout);signal.removeEventListener('abort',cancel);}
  }});
