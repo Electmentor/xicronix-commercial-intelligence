@@ -10,10 +10,11 @@ try {
   const plan=await generateResponse({key:process.env.GROQ_API_KEY,model,payload:{message,history:[],evidence}});
   const answer=renderEvidence(evidence,plan);if(!answer.trim())throw Error('EMPTY_RESPONSE');
   if(message===questions[5]&&!answer.includes('No tengo evidencia suficiente en el CRM'))throw Error('UNSUPPORTED_EVIDENCE');
-  results.push({intent:evidence.intent,verified:true,responseCharacters:answer.length});
+  results.push({intent:evidence.intent,verified:true,responseCharacters:answer.length});console.log('ASSISTANT_CHECK_VERIFIED '+evidence.intent);
  }
  console.log('ASSISTANT_PROVIDER_VERIFIED '+JSON.stringify({provider:'Groq',model,policy:'a009-evidence-v1',checks:results}));
 } catch(error) {
+ if(['JSON_PARSE','REFERENCE_OR_SCHEMA'].includes(error.validation))console.error('ASSISTANT_VALIDATION_STAGE '+error.validation);
  console.error('ASSISTANT_PROVIDER_NOT_VERIFIED '+(['NOT_CONFIGURED','PROVIDER_CREDIT','PROVIDER_AUTH','RATE_LIMIT','PROVIDER_ERROR','EMPTY_RESPONSE','UNSUPPORTED_EVIDENCE'].includes(error.message)?error.message:'UNAVAILABLE'));
  process.exitCode=1;
 }
