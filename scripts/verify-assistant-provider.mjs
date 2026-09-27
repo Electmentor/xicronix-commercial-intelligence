@@ -5,12 +5,13 @@ try {
  const model=process.env.ASSISTANT_MODEL||'openai/gpt-oss-120b';
  const questions=['¿Qué es lo más importante que debo hacer hoy?','¿Por qué?','¿Qué hago después?','¿Qué requiere autorización?','¿Qué oportunidades tienen mayor impacto?','¿Cuál es el teléfono del contacto?'];
  const results=[];
+ const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  for(const message of questions){
   const evidence=buildEvidence({records:message===questions[5]?{}:records,role:'ADMIN',page:'dashboard',source:'synthetic',now:Date.parse('2026-09-27T20:00:00Z'),intent:queryIntent(message),focus:'radar:validation-critical'});
-  const plan=await generateResponse({key:process.env.GROQ_API_KEY,model,payload:{message,history:[],evidence}});
+  let plan;for(let attempt=0;attempt<3;attempt++){try{plan=await generateResponse({key:process.env.GROQ_API_KEY,model,payload:{message,history:[],evidence}});break;}catch(error){if(error.message!=='RATE_LIMIT'||attempt===2)throw error;console.log('ASSISTANT_CHECK_COOLDOWN '+evidence.intent);await pause(error.retryAfterMs||30000);}}
   const answer=renderEvidence(evidence,plan);if(!answer.trim())throw Error('EMPTY_RESPONSE');
   if(message===questions[5]&&!answer.includes('No tengo evidencia suficiente en el CRM'))throw Error('UNSUPPORTED_EVIDENCE');
-  results.push({intent:evidence.intent,verified:true,responseCharacters:answer.length});console.log('ASSISTANT_CHECK_VERIFIED '+evidence.intent);
+  results.push({intent:evidence.intent,verified:true,responseCharacters:answer.length});console.log('ASSISTANT_CHECK_VERIFIED '+evidence.intent);if(message!==questions.at(-1))await pause(15000);
  }
  console.log('ASSISTANT_PROVIDER_VERIFIED '+JSON.stringify({provider:'Groq',model,policy:'a009-evidence-v1',checks:results}));
 } catch(error) {
