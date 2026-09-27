@@ -1739,3 +1739,20 @@ html:not([data-theme="night"]) .pipeline-dashboard-note{color:#657b92}
  }
  .director-pipeline-stage--clone .stage-main{min-height:49px!important;gap:7px!important}
 }
+
+
+/* V2.45.37 · Director dashboard typography +70% */
+@media(max-width:700px){
+ /* Top KPI cards: labels, values and supporting figures */
+ .director-mobile-kpi small{font-size:1.7em!important;line-height:1.08!important}
+ .director-mobile-kpi strong{font-size:1.7em!important;line-height:1!important}
+ .director-mobile-kpi div>span{font-size:1.7em!important;line-height:1.08!important}
+
+ /* Pipeline cards: same +70% scale */
+ .director-pipeline-stage--clone .stage-main strong{
+  font-size:2.21rem!important;line-height:1!important;
+ }
+ .director-pipeline-stage--clone>small{
+  font-size:1.037rem!important;line-height:1.08!important;
+ }
+}
