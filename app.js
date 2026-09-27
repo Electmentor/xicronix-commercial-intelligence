@@ -917,7 +917,7 @@ function render(){
  const sellerCommercialView=!admin&&page==='leads';
  $('dashboard').hidden=page!=='dashboard'&&!sellerCommercialView;
  $('records').hidden=page==='dashboard'||sellerCommercialView;
- $('pageTitle').textContent=page==='dashboard'?(admin?'Dirección Comercial':'Inicio comercial'):page==='now'?'Xicronix Ahora':!admin&&page==='prospects'?'Prospectos':!admin&&page==='leads'?'Mi cartera':modules[page].label;
+ $('pageTitle').textContent=page==='dashboard'?(admin?'Dirección Comercial':'Mi rendimiento'):page==='now'?'Xicronix Ahora':!admin&&page==='prospects'?'Prospectos':!admin&&page==='leads'?'Mi cartera':modules[page].label;
  const target=page==='dashboard'?(admin?'institutions':'leads'):page==='now'?'leads':page;
  $('newBtn').hidden=page==='dashboard'||page==='now'||(!admin&&page==='leads')||target==='users'||!writableFor(target);
  $('newBtn').textContent='+ Crear '+modules[target].singular;
