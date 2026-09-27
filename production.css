@@ -4363,3 +4363,30 @@ html[data-theme="night"] .modern-home .seller-dashboard-shortcuts button{
   background:linear-gradient(90deg,#071827 0%,rgba(7,24,39,.98) 10%,rgba(7,24,39,.78) 25%,rgba(7,24,39,.40) 40%,rgba(7,24,39,.10) 55%,transparent 72%)!important;
  }
 }
+
+
+/* V2.45.30 · Deep-universe blue + production icon language */
+html[data-theme="night"] .modern-hero{
+ background:linear-gradient(120deg,#020817 0%,#04112a 34%,#071b3d 68%,#0a2452 100%)!important;
+ border-color:#173b72!important;
+}
+html[data-theme="night"] .modern-hero-copy{
+ background:linear-gradient(90deg,#020817 0%,rgba(3,12,31,.99) 72%,rgba(4,17,42,.86) 88%,rgba(4,17,42,0) 100%)!important;
+}
+html[data-theme="night"] .modern-hero-operator{background:#020817!important}
+html[data-theme="night"] .modern-hero-operator:has(.modern-operator-real-photo)::before{
+ background:linear-gradient(90deg,#020817 0%,rgba(2,8,23,.98) 9%,rgba(3,13,33,.88) 21%,rgba(4,17,42,.58) 34%,rgba(5,20,49,.22) 47%,rgba(5,20,49,.05) 60%,transparent 74%)!important;
+}
+html[data-theme="night"] .modern-home .seller-performance-kpi,
+html[data-theme="night"] .modern-home .seller-performance-kpi.primary,
+html[data-theme="night"] .modern-home .seller-performance-panel,
+html[data-theme="night"] .modern-home .seller-dashboard-shortcuts button{
+ background:linear-gradient(145deg,#06152f,#020817)!important;
+ border-color:#173b72!important;
+}
+.modern-hero-pillars .pillar-icon{border-radius:12px!important;width:40px!important;height:40px!important;background:rgba(255,255,255,.055)!important;border:1px solid currentColor!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 6px 18px rgba(0,0,0,.12)!important}
+.modern-hero-pillars .pillar-icon svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.modern-hero-pillars .pillar-clients{color:#3b9cff!important;background:rgba(37,99,235,.13)!important}
+.modern-hero-pillars .pillar-sales{color:#28d7a1!important;background:rgba(16,185,129,.12)!important}
+.modern-hero-pillars .pillar-auto{color:#8b6cff!important;background:rgba(109,74,255,.13)!important}
+@media(max-width:700px){.modern-hero-pillars .pillar-icon{width:32px!important;height:32px!important;border-radius:10px!important}.modern-hero-pillars .pillar-icon svg{width:17px;height:17px}}
