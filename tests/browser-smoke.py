@@ -34,10 +34,21 @@ with sync_playwright() as p:
   return context,page
  def check(name,fn):
   fn();checks.append(name)
+
+ def choose_direction(page):
+  page.locator('#entryDirectionBtn').click()
+  page.wait_for_function("""()=>{
+   const gate=document.querySelector('#workspaceEntry');
+   const refresh=document.querySelector('#refreshBtn');
+   const app=document.querySelector('#appView');
+   return gate?.hidden===true && refresh && !refresh.disabled && app?.dataset.workspace==='admin';
+  }""",timeout=15000)
+  page.wait_for_timeout(250)
+  expect(page.locator('#workspaceEntry')).to_be_hidden()
  try:
   context,page=newpage();expect(page.locator('#workspaceControls')).to_be_visible()
-  page.locator('#entryDirectionBtn').click();expect(page.locator('#workspaceEntry')).to_be_hidden()
-  page.wait_for_timeout(500)
+  choose_direction(page)
+  page.wait_for_timeout(250)
   if page.locator('#dailyBriefingDialog').evaluate("el=>el.open"):
    page.locator('#closeDailyBriefing').click()
   check('actual data is default',lambda:expect(page.locator('#sidebarLiveBtn')).to_have_attribute('aria-pressed','true'))
@@ -74,7 +85,7 @@ with sync_playwright() as p:
   page.locator('#closeLeadDetail').click()
   page.get_by_role('button',name='Registrar movimiento').first.click();check('interaction form',lambda:expect(page.locator('#editor')).to_be_visible());page.locator('#cancelEditor').click()
   page.locator('#themeToggle').click();page.reload(wait_until='networkidle')
-  page.locator('#entryDirectionBtn').click();expect(page.locator('#workspaceEntry')).to_be_hidden();page.wait_for_timeout(500)
+  choose_direction(page);page.wait_for_timeout(250)
   if page.locator('#dailyBriefingDialog').evaluate("el=>el.open"):
    page.locator('#closeDailyBriefing').click()
   check('night mode persists',lambda:expect(page.locator('html')).to_have_attribute('data-theme','night'))
