@@ -1,4 +1,4 @@
-import {renderDirectorInsights} from './director-insights.mjs?v=20260927-v2.45.39';
+import {renderDirectorInsights} from './director-insights.mjs?v=20260927-v2.45.40';
 import {escapeHTML as esc, money} from './domain.mjs';
 import {assignedUserId} from './workspace.mjs';
 import {businessMonthRange as monthRange, businessDay} from './analytics.mjs';
@@ -212,7 +212,7 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  const iconTeam='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 14a4 4 0 0 1 4 4v3"/></svg>';
  const iconTasks='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13v7H4V4h12M9 11l3 3 9-10"/></svg>';
  return '<div class="ceo-dashboard director-dashboard">'+mobileClone+
- '<section class="director-hero director-desktop-hero"><div><small>DIRECCIÓN COMERCIAL</small><div class="director-desktop-greeting"><h2>Hola, Toshi</h2><span id="desktopConnectionPresence" class="desktop-connection-presence" data-state="connecting" role="status"><i class="connection-led" aria-hidden="true"></i><span id="desktopConnectionLabel">Conectando</span></span></div><p>'+esc(headline)+'</p></div><div class="director-hero-actions"><button id="ceoMethodBtn" class="secondary">Cómo se calcula</button></div></section>'+
+ '<section class="director-hero director-desktop-hero"><div><div class="director-desktop-greeting"><h2>Hola, Toshi</h2></div><p>'+esc(headline)+'</p></div><div class="director-hero-actions"><button id="ceoMethodBtn" class="secondary">Cómo se calcula</button></div></section>'+
  '<section class="director-kpis director-desktop-kpis" aria-label="Indicadores comerciales">'+
   desktopKpi('Ventas mes',compactMoney(m.revenue),m.wonCount+' cierres · '+progress,'won','sales',iconSales)+
   desktopKpi('Pipeline',compactMoney(m.pipeline),m.openCount+' oportunidades','pipeline','pipeline',iconPipeline)+

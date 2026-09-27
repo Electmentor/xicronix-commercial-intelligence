@@ -1828,15 +1828,10 @@ html:not([data-theme="night"]) .pipeline-dashboard-note{color:#657b92}
 
 /* V2.45.38 · Approved upper Direction layout; mobile and lower sections stay intact. */
 @media(min-width:701px){
- .director-desktop-hero{background:none;border:0;padding:10px 8px 18px;margin-bottom:8px;align-items:center}
+ .director-desktop-hero{background:none;border:0;padding:0 0 18px;margin-bottom:8px;align-items:center}
  .director-desktop-hero>div:first-child{min-width:0}
- .director-desktop-hero>div>small{color:var(--accent);font-size:.72rem;letter-spacing:.1em}
- .director-desktop-greeting{display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin:12px 0 7px}
+ .director-desktop-greeting{display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin:0 0 7px}
  .director-desktop-greeting h2{margin:0;font-size:clamp(1.7rem,2.8vw,2.65rem);letter-spacing:-.035em}
- .desktop-connection-presence{display:inline-flex;align-items:center;gap:9px;font-size:.9rem;color:var(--muted)}
- .desktop-connection-presence[data-state="online"]{color:#159c81}
- .desktop-connection-presence[data-state="online"] .connection-led{background:#20b26b;box-shadow:0 0 10px #20b26b66}
- .desktop-connection-presence[data-state="offline"] .connection-led{background:#d94841}
  .director-desktop-kpis{gap:16px;margin-bottom:22px}
  .director-desktop-kpis>button{--kpi:#228be6;container-type:inline-size;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;background:color-mix(in srgb,var(--kpi) 10%,var(--panel));border-color:color-mix(in srgb,var(--kpi) 42%,var(--line));padding:20px;min-height:166px}
  .director-desktop-kpis>button.pipeline{--kpi:#08ad83}
@@ -1878,7 +1873,6 @@ html:not([data-theme="night"]) .pipeline-dashboard-note{color:#657b92}
  .director-team-detail{margin-top:14px;font-size:.7rem;color:var(--muted)}
  .director-team-detail summary{cursor:pointer;padding:6px 0}.director-team-detail .director-team-grid{margin-top:10px}
  html[data-theme="night"] .director-desktop-kpis>button{background:color-mix(in srgb,var(--kpi) 16%,#081b32)}
- html[data-theme="night"] .director-desktop-hero .desktop-connection-presence[data-state="online"]{color:#28d5b3}
  .director-desktop-kpis button:focus-visible,.director-desktop-panels button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 }
 @media(min-width:701px) and (max-width:1100px){
