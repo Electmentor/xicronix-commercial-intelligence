@@ -135,8 +135,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-26-v2.45.14';
-const CRM_VERSION_LABEL='v2.45.14';
+const CRM_RELEASE='2026-09-26-v2.45.15';
+const CRM_VERSION_LABEL='v2.45.15';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -526,6 +526,33 @@ function renderConnectionState(){
  const mobile=$('mobileConnectionPresence'),mobileLabel=$('mobileConnectionLabel');
  if(mobile&&mobileLabel){mobile.dataset.state=status.state;mobileLabel.textContent=status.label;mobile.title=title;}
 }
+
+function activityDayKey(value){
+ const d=value?new Date(value):new Date();if(!Number.isFinite(d.getTime()))return '';
+ return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
+}
+function renderActivityRail(){
+ const rail=$('activityRail'),content=$('activityRailContent'),count=$('activityRailPending'),picker=$('activityDate');
+ if(!rail||!content||!profile||dataSource!=='live'||!accessible('mail')){if(rail)rail.hidden=true;return;}
+ rail.hidden=false;
+ const rows=(data.mail||[]).slice().sort((a,b)=>Date.parse(b.received_at||b.created_at)-Date.parse(a.received_at||a.created_at));
+ const pending=rows.filter(row=>row.status==='NEW');
+ if(count){count.textContent=String(pending.length);count.hidden=!pending.length;}
+ const selected=picker?.value||activityDayKey(new Date());
+ if(picker&&!picker.value)picker.value=selected;
+ const history=rows.filter(row=>row.status!=='NEW'&&activityDayKey(row.received_at||row.created_at)===selected);
+ const card=(row,isPending)=>{
+   const stamp=new Date(row.received_at||row.created_at);
+   const time=Number.isFinite(stamp.getTime())?stamp.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}):'';
+   const cls=isPending?'pending':row.status==='REVIEWED'?'progress':'done';
+   const sender=row.sender_name||row.from_address||'Remitente';
+   const actions=isPending?'<div class="activity-card-actions">'+(row.lead_id?'<button type="button" class="primary" data-mail-lead="'+esc(row.lead_id)+'">Ver y responder</button>':'')+'<button type="button" data-mail-reviewed="'+esc(row.id)+'">En atención</button></div>':'';
+   return '<article class="activity-card '+cls+'"><header><h3>'+esc(sender)+'</h3><time>'+esc(time)+'</time></header><small>'+esc(row.subject||'(Sin asunto)')+'</small><p>'+esc(row.summary||'Nuevo correo recibido. Abre el expediente para revisar el mensaje y preparar la respuesta.')+'</p>'+actions+'</article>';
+ };
+ content.innerHTML=(pending.length?'<div class="activity-section-label">PENDIENTES · NO DESAPARECEN POR FECHA</div>'+pending.map(row=>card(row,true)).join(''):'')+
+   '<div class="activity-section-label">HISTORIAL · '+esc(selected)+'</div>'+
+   (history.length?history.map(row=>card(row,false)).join(''):'<div class="activity-empty">Sin actividad atendida para esta fecha.</div>');
+}
 function stopLiveMailRealtime(){
  if(liveMailFallbackTimer){clearInterval(liveMailFallbackTimer);liveMailFallbackTimer=null;}
  if(liveMailChannel&&sb){try{sb.removeChannel(liveMailChannel);}catch(_error){}liveMailChannel=null;}
@@ -541,6 +568,7 @@ async function refreshLiveMail(announce=false){
    failures.mail=false;
    const newlyArrived=incoming.filter(row=>row.status==='NEW'&&!previousNew.has(String(row.id)));
    if(['dashboard','leads','mail'].includes(page))render();
+   renderActivityRail();
    if(announce&&newlyArrived.length){
      const first=newlyArrived[0];
      notice('Nuevo correo recibido'+(first.sender_name?' de '+first.sender_name:'')+'. Requiere atención.',false,12000);
@@ -600,6 +628,7 @@ async function refreshLiveIntelligence(announce=false){
   }
   liveIntelligencePrimed=true;liveIntelligenceLastSync=Date.now();renderConnectionState();
   if(['dashboard','prospects','radar','now'].includes(page))render();
+  renderActivityRail();
   if(announce&&newRows.length){
     const actionNow=newRows.filter(row=>row.operating_bucket==='ACTION_NOW').length;
     const first=newRows[0]?.name||'nuevo candidato';
@@ -868,6 +897,7 @@ function render(){
  else if(!admin&&page==='leads'){
    renderSellerManagement();
  }else renderRecords();
+ requestAnimationFrame(renderActivityRail);
 }
 const TERRITORIAL_REGION_CENTROIDS={
  'AMAZONAS':[-6.23,-77.87],'ANCASH':[-9.53,-77.53],'APURIMAC':[-13.63,-72.88],'AREQUIPA':[-16.40,-71.54],
@@ -2498,6 +2528,9 @@ function init(){
  restoreRememberedEmail();
  try{recovery=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery'||sessionStorage.getItem(RECOVERY_KEY)==='1';}catch(_error){}
  $('rememberEmail').onchange=()=>{if(!$('rememberEmail').checked){try{localStorage.removeItem(REMEMBER_EMAIL_KEY);}catch(_error){}}};
+ const activityToday=$('activityTodayBtn'),activityDate=$('activityDate');
+ if(activityToday)activityToday.onclick=()=>{if(activityDate)activityDate.value=activityDayKey(new Date());renderActivityRail();};
+ if(activityDate)activityDate.onchange=renderActivityRail;
  $('closeLeadDetail').onclick=()=>closeLeadDetails();$('closeAttention').onclick=()=>{if($('attentionDialog').open)$('attentionDialog').close();};$('closeDailyBriefing').onclick=()=>{if($('dailyBriefingDialog').open)$('dailyBriefingDialog').close();};$('closeSmartMail').onclick=()=>{if($('smartMailDialog').open)$('smartMailDialog').close();};
  $('leadDetailDialog').addEventListener('close',()=>{$('leadDetailContent').replaceChildren();rememberPage();});$('attentionDialog').addEventListener('close',()=>{$('attentionContent').replaceChildren();});
  initTheme();
