@@ -4439,3 +4439,27 @@ html[data-theme="night"] .modern-home .seller-dashboard-shortcuts button{
   border-top-color:#173b72!important;
  }
 }
+
+
+/* V2.45.32 · Unified Xicronix icon system */
+:root{--xi-icon-radius:11px;--xi-icon-stroke:1.8}
+:is(.mobile-app-bottom-nav button>span,.workspace-entry-icon,.user-identity,.ai-assistant-launcher,.icon-refresh){
+ border-radius:var(--xi-icon-radius)!important;
+}
+:is(.mobile-app-bottom-nav button svg,.workspace-entry-icon svg,.user-identity svg,.ai-assistant-launcher svg,.icon-refresh svg){
+ fill:none!important;stroke:currentColor!important;stroke-width:var(--xi-icon-stroke)!important;stroke-linecap:round!important;stroke-linejoin:round!important;
+}
+.mobile-app-bottom-nav button>span{
+ border:1px solid color-mix(in srgb,currentColor 40%,transparent)!important;
+ background:color-mix(in srgb,currentColor 9%,transparent)!important;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.05)!important;
+}
+.mobile-app-bottom-nav button.active>span,.mobile-app-bottom-nav button[aria-current="page"]>span{
+ background:color-mix(in srgb,currentColor 16%,transparent)!important;
+ box-shadow:0 5px 16px color-mix(in srgb,currentColor 14%,transparent),inset 0 1px 0 rgba(255,255,255,.07)!important;
+}
+.workspace-entry-icon,.user-identity,.ai-assistant-launcher,.icon-refresh{
+ border:1px solid color-mix(in srgb,currentColor 38%,var(--line))!important;
+ background:color-mix(in srgb,var(--panel) 90%,currentColor 10%)!important;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.05)!important;
+}
