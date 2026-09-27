@@ -139,8 +139,8 @@ with sync_playwright() as p:
    check(role+' has seller dashboard',lambda:expect(page.locator('#dashboard')).to_contain_text('Tu negocio'))
    check(role+' seller dashboard value proposition',lambda:expect(page.locator('#dashboard')).to_contain_text('en una sola vista'))
    click_nav(page,'leads')
-   check(role+' sees assigned prospect in portfolio',lambda:expect(page.locator('#recordList')).to_contain_text('Institución de validación'))
-   check(role+' sees only assigned leads',lambda:expect(page.locator('#recordList')).not_to_contain_text('Prospecto de otro vendedor'))
+   check(role+' sees assigned prospect in portfolio',lambda:expect(page.locator('#dashboard')).to_contain_text('Institución de validación'))
+   check(role+' sees only assigned leads',lambda:expect(page.locator('#dashboard')).not_to_contain_text('Prospecto de otro vendedor'))
    if role=='SALES':
     click_nav(page,'tasks')
     check('seller task cards render',lambda:expect(page.locator('.task-mobile-card')).to_have_count(1))
