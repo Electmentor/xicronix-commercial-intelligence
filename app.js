@@ -1,17 +1,17 @@
-import {directorGeography} from './director-insights.mjs?v=20260927-v2.45.40';
+import {directorGeography} from './director-insights.mjs?v=20260927-v2.45.41';
 import {escapeHTML as esc, filterRecords, money, metrics, priorities, taskUrgency, sortTasksByUrgency, csv, parseCsv, normalize} from './domain.mjs';
 
 import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWriteModule, assignedUserId, scopeWorkspaceData} from './workspace.mjs';
 
 import {DEMO_VERSION, DEMO_SELLERS, createDemoData, upgradeDemoData, mutateDemo, realOnly, localDay} from './demo.mjs?v=20260924-v2.41.16';
-import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260927-v2.45.40';
+import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260927-v2.45.41';
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
 import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.14';
 
 const $ = id => document.getElementById(id);
-const CLIENT_BUILD='v2.45.40';
+const CLIENT_BUILD='v2.45.41';
 const SPLASH_STARTED_AT=performance.now();
 const SPLASH_MIN_MS=450;
 function startLarsonScanner(){
@@ -137,8 +137,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-27-v2.45.40';
-const CRM_VERSION_LABEL='v2.45.40';
+const CRM_RELEASE='2026-09-27-v2.45.41';
+const CRM_VERSION_LABEL='v2.45.41';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -720,6 +720,13 @@ function applyTheme(theme,persist=false){
 function initTheme(){let stored='';try{stored=localStorage.getItem(THEME_STORAGE_KEY)||'';}catch(_error){}applyTheme(stored==='night'?'night':'day');}
 function mobileNavMode(){return window.matchMedia('(max-width:700px)').matches;}
 function syncMobileHeaderMenu(){
+ const toggle=$('sidebarToggle'),heading=$('pageTitle')?.closest('.page-heading'),app=$('appView');
+ if(toggle&&heading&&app){
+  if(mobileNavMode()){
+   if(toggle.parentElement!==app)app.insertBefore(toggle,app.querySelector('.main'));
+  }else if(toggle.parentElement!==heading)heading.insertBefore(toggle,$('pageTitle'));
+ }
+
  const controls=$('workspaceControls'),top=$('pageTitle')?.closest('.top'),marker=$('workspaceControlsMarker');
  if(!controls||!top)return;
  if(controls.parentElement!==top){
@@ -746,7 +753,7 @@ function initSidebar(){
  let stored='';try{stored=localStorage.getItem(SIDEBAR_STORAGE_KEY)||'';}catch(_error){}
  syncMobileHeaderMenu();
  applySidebar(mobileNavMode()?true:stored==='1');
- window.addEventListener('resize',()=>{syncMobileHeaderMenu();if(mobileNavMode())applySidebar(true);});
+ window.addEventListener('resize',()=>{syncMobileHeaderMenu();applySidebar(mobileNavMode()||$('appView').classList.contains('sidebar-collapsed'));});
 }
 function navigate(next,{historyMode='push'}={}){
  if(busy||$('editor').open)return;

@@ -1,4 +1,4 @@
-import {renderDirectorInsights} from './director-insights.mjs?v=20260927-v2.45.40';
+import {renderDirectorInsights} from './director-insights.mjs?v=20260927-v2.45.41';
 import {escapeHTML as esc, money} from './domain.mjs';
 import {assignedUserId} from './workspace.mjs';
 import {businessMonthRange as monthRange, businessDay} from './analytics.mjs';
