@@ -1,9 +1,15 @@
-const CACHE='xicronix-v2-45-27';
-const ASSETS=['/','/index.html','/styles.css','/executive.css?v=20260926-v2.45.27','/analytics.css','/production.css?v=20260926-v2.45.27','/radar.css?v=20260922-v3','/mobile-now.css?v=20260923-v2.37','/app.js?v=20260926-v2.45.27','/workspace.mjs','/manifest.webmanifest?v=20260926-v2.45.27','/xicronix-icon.svg','/xicronix-icon-192.png','/xicronix-icon-512.png','/xicronix-splash-maskable.svg?v=20260926-v2.45.27'];
-self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).catch(()=>{}).then(()=>self.skipWaiting())));
+const CACHE='xicronix-v2-45-28';
+const SHELL=['./','./index.html','./styles.css?v=2.45.28','./production.css?v=2.45.28','./mobile-now.css?v=2.45.28','./executive.css?v=2.45.28','./app.js?v=2.45.28'];
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).catch(()=>{}).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')self.skipWaiting();});
-self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;const opts=event.request.mode==='navigate'?{cache:'no-store'}:undefined;event.respondWith(fetch(event.request,opts).then(response=>{const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy)).catch(()=>{});return response;}).catch(()=>caches.match(event.request)));});
-self.addEventListener('push',event=>{let data={};try{data=event.data?.json()||{};}catch(_error){data={title:'Xicronix Radar',body:event.data?.text()||'Nueva alerta comercial.'};}
- event.waitUntil(self.registration.showNotification(data.title||'Xicronix Radar',{body:data.body||'Nueva alerta comercial.',icon:'/xicronix-icon.svg',badge:'/xicronix-icon.svg',data:{url:data.url||'/#now'},tag:data.tag||'xicronix-radar'}));});
-self.addEventListener('notificationclick',event=>{event.notification.close();const url=event.notification.data?.url||'/#now';event.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(list=>{for(const client of list){if('focus'in client){client.navigate(url);return client.focus();}}return clients.openWindow(url);}));});
+self.addEventListener('fetch',event=>{
+ if(event.request.method!=='GET')return;
+ const url=new URL(event.request.url);
+ const critical=event.request.mode==='navigate'||/\/(index\.html|app\.js|styles\.css|production\.css|mobile-now\.css|executive\.css)$/.test(url.pathname);
+ if(critical){
+  event.respondWith(fetch(event.request,{cache:'no-store'}).then(response=>{if(response&&response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy));}return response;}).catch(()=>caches.match(event.request).then(r=>r||caches.match('./index.html'))));
+  return;
+ }
+ event.respondWith(fetch(event.request).catch(()=>caches.match(event.request)));
+});
