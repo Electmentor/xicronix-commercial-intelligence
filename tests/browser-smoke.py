@@ -38,7 +38,15 @@ with sync_playwright() as p:
  def ensure_sidebar_open(page):
   if 'sidebar-collapsed' in (page.locator('#appView').get_attribute('class') or ''):
    page.locator('#sidebarToggle').click()
+  page.wait_for_function("()=>!document.querySelector('#appView')?.classList.contains('sidebar-collapsed')",timeout=5000)
   expect(page.locator('#mainSidebar')).to_be_visible()
+
+ def click_nav(page,target):
+  ensure_sidebar_open(page)
+  button=page.locator('#navigation [data-page="'+target+'"]')
+  button.evaluate("el=>el.scrollIntoView({block:'nearest',inline:'nearest'})")
+  expect(button).to_be_visible()
+  button.click()
 
  def choose_direction(page):
   page.locator('#entryDirectionBtn').click()
@@ -61,34 +69,26 @@ with sync_playwright() as p:
   check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-27-v2.47.1'))
   page.screenshot(path=str(out/'desktop-v2-fixture.png'),full_page=True)
   pages=['now','users','goals','opportunities','meetings','leads','prospects','radar','supplier_relationships','strategic_alliances','catalog_products','institutions','contacts','mail','documents','cost_profiles','expenses','dashboard']
-  first_nav=page.locator('#navigation [data-page="now"]')
-  if not first_nav.is_visible():
-   diag=first_nav.evaluate("""el=>{
-    const chain=[];let n=el;
-    while(n&&chain.length<6){const s=getComputedStyle(n),r=n.getBoundingClientRect();chain.push({tag:n.tagName,id:n.id,class:n.className,display:s.display,visibility:s.visibility,opacity:s.opacity,position:s.position,overflow:s.overflow,width:r.width,height:r.height,top:r.top,bottom:r.bottom,scrollTop:n.scrollTop,clientHeight:n.clientHeight,scrollHeight:n.scrollHeight});n=n.parentElement;}
-    return {chain,viewport:{w:innerWidth,h:innerHeight},app:document.querySelector('#appView')?.className,workspace:document.querySelector('#appView')?.dataset.workspace};
-   }""")
-   raise AssertionError('Navigation visibility diagnostic: '+json.dumps(diag))
   for target in pages:
-   page.locator('#navigation [data-page="'+target+'"]').click()
+   click_nav(page,target)
    check('navigation '+target,lambda t=target:expect(page.locator('#appView')).to_have_attribute('data-page',t))
-  page.locator('#navigation [data-page="now"]').click()
+  click_nav(page,'now')
   check('mobile command center renders',lambda:expect(page.locator('#recordList')).to_contain_text('XICRONIX AHORA'))
   check('now cards are navigable',lambda:expect(page.locator('.now-kpi-card')).to_have_count(4))
   page.locator('.now-kpi-card').nth(2).click()
   check('potential card opens Radar',lambda:expect(page.locator('#appView')).to_have_attribute('data-page','radar'))
   check('potential card applies Radar filter',lambda:expect(page.locator('#filter')).to_have_value('POTENTIAL'))
-  page.locator('#navigation [data-page="now"]').click()
-  page.locator('#navigation [data-page="mail"]').click()
+  click_nav(page,'now')
+  click_nav(page,'mail')
   check('Zoho mail module renders',lambda:expect(page.locator('#recordList')).to_contain_text('Diagnóstico del laboratorio'))
-  page.locator('#navigation [data-page="radar"]').click()
+  click_nav(page,'radar')
   check('radar module renders safely',lambda:expect(page.locator('#recordList')).to_contain_text('Colegio Radar de prueba'))
   check('Radar call action visible',lambda:expect(page.locator('.radar-quick-actions a[href^="tel:"]')).to_be_visible())
   check('Radar Zoho email action visible',lambda:expect(page.get_by_role('link',name='Correo Zoho')).to_be_visible())
   check('Radar WhatsApp action visible',lambda:expect(page.locator('.radar-quick-actions a[href*="wa.me"]')).to_be_visible())
   check('Radar linked prospect action visible',lambda:expect(page.locator('[data-radar-lead]')).to_be_visible())
   check('Radar register action visible',lambda:expect(page.locator('[data-radar-activity]')).to_be_visible())
-  page.locator('#navigation [data-page="leads"]').click()
+  click_nav(page,'leads')
   check('real lead visible',lambda:expect(page.locator('#recordList')).to_contain_text('Institución de validación · Diagnóstico'))
   page.get_by_role('button',name='Abrir expediente comercial').first.click();check('commercial dossier opens',lambda:expect(page.locator('.lead-detail-kicker')).to_have_text('EXPEDIENTE COMERCIAL'));check('recommended action visible',lambda:expect(page.locator('#leadDetailContent')).to_contain_text('ACCIÓN RECOMENDADA'));check('planning section visible',lambda:expect(page.locator('#leadDetailContent')).to_contain_text('Agenda y tareas'));check('documents section visible',lambda:expect(page.locator('#leadDetailContent')).to_contain_text('Documentos y material'));page.locator('#closeLeadDetail').click()
   check('historical simulated records excluded',lambda:expect(page.locator('#recordList')).not_to_contain_text('[SIMULADO]'))
@@ -103,7 +103,7 @@ with sync_playwright() as p:
   if page.locator('#dailyBriefingDialog').evaluate("el=>el.open"):
    page.locator('#closeDailyBriefing').click()
   check('night mode persists',lambda:expect(page.locator('html')).to_have_attribute('data-theme','night'))
-  page.locator('#navigation [data-page="radar"]').click()
+  click_nav(page,'radar')
   page.locator('#recordList').evaluate("""node=>node.insertAdjacentHTML('beforeend','<article id="nightRadarProbe" class="radar-card critical"><header><div><span class="radar-class">Crítica</span><h3>Prueba visual</h3><p>Lima</p></div><div class="radar-score"><b>94</b><span>/100</span></div></header><p class="radar-summary">Texto principal legible</p><div class="radar-facts"><span><b>Laboratorio</b>Confirmado</span></div><footer><a href="#">Fuente</a></footer></article>')""")
   assert page.evaluate("getComputedStyle(document.querySelector('#nightRadarProbe')).backgroundColor")!='rgb(255, 255, 255)';checks.append('night radar card uses dark surface')
   assert page.evaluate("getComputedStyle(document.querySelector('#nightRadarProbe')).color") in ['rgb(238, 245, 255)','rgb(232, 240, 250)'];checks.append('night radar text has strong contrast token')
@@ -137,7 +137,7 @@ with sync_playwright() as p:
    check(role+' cannot select administrator mode',lambda:expect(page.locator('#adminModeBtn')).to_be_hidden())
    check(role+' cannot open admin routes',lambda:expect(page.locator('#navigation [data-page="users"]')).to_have_count(0))
    check(role+' has seller dashboard',lambda:expect(page.locator('#dashboard')).to_contain_text('Tu negocio, en una sola vista'))
-   page.locator('#navigation [data-page="leads"]').click()
+   click_nav(page,'leads')
    check(role+' sees prospect progress',lambda:expect(page.locator('#dashboard')).to_contain_text('Institución de validación'))
    check(role+' sees only assigned leads',lambda:expect(page.locator('#dashboard')).not_to_contain_text('Prospecto de otro vendedor'))
    if role=='SALES':
