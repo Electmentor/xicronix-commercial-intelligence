@@ -1713,3 +1713,29 @@ html:not([data-theme="night"]) .pipeline-dashboard-note{color:#657b92}
  .director-mobile-exceptions--clone .attention-icon svg,
  .director-mobile-team--clone .team-icon svg{width:34px!important;height:34px!important;stroke-width:1.7!important}
 }
+
+
+/* V2.45.36 · Director icon normalization: all functional glyphs 45x45, no risk tile */
+@media(max-width:700px){
+ .director-mobile-kpi.risk .director-kpi-icon,
+ .director-mobile-kpi.risk.is-active .director-kpi-icon{
+  background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important;
+ }
+ .director-mobile-kpi .director-kpi-icon svg,
+ .director-mobile-kpi.risk .director-kpi-icon svg,
+ .director-mobile-kpi.risk.is-active .director-kpi-icon svg{
+  width:45px!important;height:45px!important;
+ }
+ .director-pipeline-stage--clone .stage-icon,
+ .director-pipeline-stage--clone .stage-icon--glow{
+  width:45px!important;height:45px!important;min-width:45px!important;min-height:45px!important;
+  display:grid!important;place-items:center!important;
+  background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;filter:none!important;
+ }
+ .director-pipeline-stage--clone .stage-icon svg,
+ .director-pipeline-stage--clone .stage-icon--glow svg{
+  width:45px!important;height:45px!important;
+  fill:none!important;stroke:currentColor!important;stroke-width:1.55!important;stroke-linecap:round!important;stroke-linejoin:round!important;
+ }
+ .director-pipeline-stage--clone .stage-main{min-height:49px!important;gap:7px!important}
+}
