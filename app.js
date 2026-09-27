@@ -1359,6 +1359,7 @@ function updateMovementPreview(){
  if(editTable!=='activities')return;
  const target=$('movementPreview'),action=$('field-action_code')?.value||'';
  if(target)target.textContent=action?movementMilestoneHelp(action):'Selecciona la acción que realmente ocurrió. Solo los hitos definidos modifican la madurez comercial.';
+ if(target&&assistantEditorOpportunity){const stage={PROPOSAL_SENT:'Propuesta',PROPOSAL_PRESENTED:'Propuesta',PROPOSAL_REVISED_SENT:'Propuesta',NEGOTIATION_STARTED:'Negociación',CONDITIONS_AGREED:'Negociación',SALE_WON:'Ganada',PURCHASE_ORDER_RECEIVED:'Ganada',CONTRACT_SIGNED:'Ganada',OPPORTUNITY_LOST:'Perdida',SALE_CANCELLED:'Perdida'}[action];if(stage)target.textContent+=' Requiere autorización: al guardar este movimiento, la oportunidad vinculada pasará a '+stage+'. Guardar confirma este cambio.';}
 }
 function applyLocalMovementMilestone(payload){
  const code=ACTION_MILESTONE[payload.action_code],meta=code&&MILESTONE_META[code];if(!meta||!payload.lead_id)return;
