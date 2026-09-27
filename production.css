@@ -4496,3 +4496,15 @@ html[data-theme="night"] button:disabled{opacity:.62;color:#b9c8d9!important}
 .app[data-workspace="SELLER"] .seller-execution-stats [data-page]{border-color:color-mix(in srgb,var(--dest-color) 38%,var(--line))!important;box-shadow:inset 3px 0 var(--dest-color)!important}
 .app[data-workspace="SELLER"] .seller-dashboard-shortcuts [data-page]:hover,
 .app[data-workspace="SELLER"] .seller-execution-stats [data-page]:hover{background:color-mix(in srgb,var(--dest-color) 12%,var(--surface))!important}
+
+/* V2.45.29 · modern dashboard night skin */
+html[data-theme="night"] .modern-hero{background:linear-gradient(105deg,#101f32 0%,#142b43 52%,#173754 100%)!important;border-color:#31506e!important;color:#eef5ff!important;box-shadow:0 18px 46px rgba(0,0,0,.24)!important}
+html[data-theme="night"] .modern-hero-copy h1{color:#f4f8ff!important}html[data-theme="night"] .modern-hero-copy>small{color:#8fc2ff!important}html[data-theme="night"] .modern-hero-copy>p{color:#c0d0e2!important}
+html[data-theme="night"] .modern-hero-pillars b{color:#eef5ff!important}html[data-theme="night"] .modern-hero-pillars small{color:#b6c5d7!important}
+html[data-theme="night"] .modern-hero-operator{background:radial-gradient(circle at 65% 32%,rgba(78,119,157,.44),rgba(24,52,78,.66) 42%,rgba(12,30,47,.9) 78%),linear-gradient(135deg,#173754,#0d2033)}
+html[data-theme="night"] .modern-home .seller-performance-kpi,html[data-theme="night"] .modern-home .seller-performance-panel,html[data-theme="night"] .modern-home .seller-dashboard-shortcuts button{color:#eef5ff!important;border-color:#2f4b68!important;box-shadow:0 9px 26px rgba(0,0,0,.18)!important}
+html[data-theme="night"] .modern-home .seller-performance-kpi:nth-child(1),html[data-theme="night"] .modern-home .seller-performance-kpi.primary{background:linear-gradient(145deg,#142c47,#101f31)!important}
+html[data-theme="night"] .modern-home .seller-performance-kpi:nth-child(2){background:linear-gradient(145deg,#15372f,#101f27)!important}
+html[data-theme="night"] .modern-home .seller-performance-kpi:nth-child(3){background:linear-gradient(145deg,#2a2750,#171d32)!important}
+html[data-theme="night"] .modern-home .seller-performance-kpi:nth-child(4){background:linear-gradient(145deg,#3a2b20,#201d20)!important}
+html[data-theme="night"] .modern-home .seller-performance-panel,html[data-theme="night"] .modern-home .seller-dashboard-shortcuts button{background:linear-gradient(145deg,#14263a,#101d2d)!important}
