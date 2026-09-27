@@ -1,4 +1,4 @@
-import {radarNeedsAttention,radarPriorityOrder} from './radar-lifecycle.mjs?v=2.46.5';
+import {radarNeedsAttention,radarPriorityOrder} from './radar-lifecycle.mjs?v=2.46.6';
 import {renderDirectorInsights} from './director-insights.mjs?v=20260927-v2.45.41';
 import {escapeHTML as esc, money} from './domain.mjs';
 import {assignedUserId} from './workspace.mjs';
@@ -87,8 +87,11 @@ export function executivePriority(data,{now=new Date(),failures={}}={}){
 }
 function renderExecutivePriority(data,options){
  const p=executivePriority(data,options);
+ const signal=p.kind==='critical'?(data.radar||[]).find(row=>row.id===p.id):null;
+ const headline=signal?'Señal crítica'+(signal.institution_name?' · '+signal.institution_name:''):null;
+ const description=signal?(signal.signal_summary||'Revisión ejecutiva pendiente'):p.text;
  const action=p.id?' data-executive-priority="'+esc(p.id)+'" data-priority-table="'+p.table+'"':p.table?' data-page="'+p.table+'"':' data-performance-page="overview"';
- return '<header class="executive-focus" aria-label="Prioridad ejecutiva"><div class="executive-focus-copy"><h2>Hola, Toshi</h2><div class="executive-focus-message" aria-live="polite"><small>'+(p.kind==='general'?'Panorama actual':p.kind==='unavailable'?'Información parcial':'Prioridad del día')+'</small><p>'+esc(p.text)+'</p></div><button type="button" class="executive-focus-review"'+action+'>'+(p.kind==='general'?'Ver rendimiento':p.kind==='unavailable'?'Revisar datos':'Revisar ahora')+'</button></div><div class="executive-focus-controls"><button type="button" data-performance-page="overview">Rendimiento del negocio</button><button type="button" id="ceoMethodBtn">Cómo se calcula</button></div></header>';
+ return '<header class="executive-focus" aria-label="Prioridad ejecutiva"><div class="executive-focus-copy"><h2>Hola, Toshi</h2><div class="executive-focus-message" aria-live="polite"><small>'+(p.kind==='general'?'Panorama actual':p.kind==='unavailable'?'Información parcial':'Prioridad del día')+'</small>'+(headline?'<strong class="executive-focus-subject">'+esc(headline)+'</strong>':'')+'<p>'+esc(description)+'</p></div><button type="button" class="executive-focus-review"'+action+'>'+(p.kind==='general'?'Ver rendimiento':p.kind==='unavailable'?'Revisar datos':'Revisar ahora')+'</button></div><div class="executive-focus-controls"><button type="button" data-performance-page="overview">Rendimiento del negocio</button><button type="button" id="ceoMethodBtn">Cómo se calcula</button></div></header>';
 }
 export function renderExecutive(data,{now=new Date(),demo=false,failures={},analyticsPeriod='year'}={}){
  const m=executiveMetrics(data,now),incomplete=Object.values(failures).some(Boolean);

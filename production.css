@@ -4590,22 +4590,17 @@ html[data-theme="night"] .modern-home .seller-performance-panel,html[data-theme=
 html{scroll-padding-top:calc(var(--app-header-height,110px) + 12px)}
 @media(max-width:700px){body{overflow-x:clip!important;overflow-y:visible!important}}
 /* Executive greeting only: one compact shared block for every screen size. */
-#dashboard .executive-focus{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0 20px;margin:0;min-height:0;background:none;border:0}
-#dashboard .executive-focus-copy{min-width:0;max-width:780px}
-#dashboard .executive-focus h2{margin:0 0 10px;font-size:clamp(1.5rem,2vw,2rem);line-height:1.15;letter-spacing:-.03em;color:var(--ink)}
-#dashboard .executive-focus-message small{font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--muted)}
-#dashboard .executive-focus-message p{font-size:14px;line-height:1.45;margin:5px 0 10px;overflow-wrap:anywhere;color:var(--ink);max-width:76ch}
-#dashboard .executive-focus-review{min-height:36px;padding:7px 12px;font-size:12px;color:var(--accent);border:1px solid var(--line);background:var(--surface);border-radius:8px}
+#dashboard .executive-focus{display:flex;align-items:center;justify-content:space-between;gap:32px;padding:16px 0 20px;margin:0;min-height:0;background:none;border:0}
+#dashboard .executive-focus-copy{min-width:0;flex:1;max-width:780px;display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+#dashboard .executive-focus h2{margin:0 0 16px;font-size:clamp(24px,2vw,30px);line-height:1.15;letter-spacing:-.035em;color:var(--ink)}
+#dashboard .executive-focus-message{padding-left:14px;border-left:3px solid var(--accent)}
+#dashboard .executive-focus-message small{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+#dashboard .executive-focus-subject{display:block;font-size:15px;line-height:1.4;color:var(--ink);overflow-wrap:anywhere}
+#dashboard .executive-focus-message p{font-size:13px;line-height:1.5;margin:5px 0 0;overflow-wrap:anywhere;color:var(--muted);max-width:76ch;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+#dashboard .executive-focus-review{justify-self:start;margin:10px 0 0 17px;min-height:36px;padding:7px 12px;font-size:12px;font-weight:650;color:var(--accent);border:1px solid var(--line);background:var(--surface);border-radius:8px;white-space:nowrap}
 #dashboard .executive-focus-controls{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;flex:0 0 auto;max-width:360px}
-#dashboard .executive-focus-controls button{min-height:38px;padding:9px 12px;font-size:12px;border-radius:8px}
+#dashboard .executive-focus-controls button{min-height:40px;padding:10px 14px;font-size:12px;border-radius:9px}
 #dashboard .executive-focus-controls button:first-child{background:#1265a5;color:#fff;border:1px solid #429bda}
-@media(max-width:1000px){#dashboard .executive-focus{align-items:flex-start;gap:16px}#dashboard .executive-focus-controls{max-width:220px}}
-@media(max-width:700px){#dashboard .executive-focus{display:flex!important;flex-direction:column;gap:14px;padding:12px 0 18px!important}#dashboard .executive-focus-controls{justify-content:flex-start;max-width:100%;width:100%}#dashboard .executive-focus-controls button{flex:1 1 130px}#dashboard .executive-focus h2{font-size:24px}}
-#dashboard .executive-focus{padding:8px 0 12px;gap:18px}
-#dashboard .executive-focus-copy{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:14px;align-items:center}
-#dashboard .executive-focus h2{grid-column:1/-1;margin-bottom:8px}
-#dashboard .executive-focus-message p{margin:4px 0 0}
-#dashboard .executive-focus-review{white-space:nowrap;align-self:center}
-@media(min-width:701px) and (max-width:1500px){#dashboard .executive-focus-controls{max-width:180px;justify-content:stretch}#dashboard .executive-focus-controls button{width:100%}}
-@media(max-width:700px){#dashboard .executive-focus{padding:8px 0 14px!important;gap:12px}#dashboard .executive-focus-copy{grid-template-columns:minmax(0,1fr)}#dashboard .executive-focus-review{justify-self:start;margin-top:8px}}
+@media(min-width:701px) and (max-width:1500px){#dashboard .executive-focus-controls{max-width:185px;justify-content:stretch}#dashboard .executive-focus-controls button{width:100%}}
+@media(max-width:700px){#dashboard .executive-focus{flex-direction:column;align-items:stretch;gap:16px;padding:12px 0 18px!important}#dashboard .executive-focus h2{font-size:24px;margin-bottom:14px}#dashboard .executive-focus-controls{justify-content:flex-start;max-width:100%;width:100%}#dashboard .executive-focus-controls button{flex:1 1 130px}#dashboard .executive-focus-message p{-webkit-line-clamp:3}}
 .radar-lifecycle{border-top:1px solid var(--line);padding:12px 0;display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap}.radar-lifecycle small{display:block;color:var(--muted);font-size:11px;margin-top:4px}.radar-lifecycle-actions{display:flex;gap:6px;flex-wrap:wrap}.radar-lifecycle-actions button{font-size:12px;min-height:36px;padding:7px 10px}#radarStateDialog{width:min(560px,calc(100vw - 24px))}#radarStateReasonField{display:grid;gap:8px}#radarStateReasonField[hidden]{display:none}#radarStateReason{width:100%;box-sizing:border-box}#radarStateHistory p{overflow-wrap:anywhere;border-bottom:1px solid var(--line);padding-bottom:10px}#radarStateDialog details{margin-top:18px}
