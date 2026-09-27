@@ -12,7 +12,7 @@ export function workspaceKey(userId, organizationId) {
 }
 export function canAccessPage(profile, workspace, page) {
   if (!profile?.organization_id || !['ADMIN','MANAGER','SALES','VIEWER'].includes(profile.role)) return false;
-  return (page==='mail' ? effectiveWorkspace(profile, workspace)===ADMIN : operational.includes(page)) || ['dashboard','now'].includes(page) || (effectiveWorkspace(profile, workspace) === ADMIN && managementOnly.includes(page));
+  return (page==='mail' ? ['ADMIN','MANAGER','SALES'].includes(profile.role) : operational.includes(page)) || ['dashboard','now'].includes(page) || (effectiveWorkspace(profile, workspace) === ADMIN && managementOnly.includes(page));
 }
 export function canWriteModule(profile, workspace, table) {
   if (!canAccessPage(profile, workspace, table) || ['dashboard','radar','now','prospects'].includes(table) || !['ADMIN','MANAGER','SALES'].includes(profile.role)) return false;
