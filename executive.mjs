@@ -1,3 +1,4 @@
+import {renderDirectorInsights} from './director-insights.mjs?v=20260927-v2.45.39';
 import {escapeHTML as esc, money} from './domain.mjs';
 import {assignedUserId} from './workspace.mjs';
 import {businessMonthRange as monthRange, businessDay} from './analytics.mjs';
@@ -227,6 +228,8 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
    '<button data-page="goals"><span class="director-summary-icon">'+iconSales+'</span><strong>'+(incomplete||m.attainment===null?'—':Math.round(m.attainment)+'%')+'</strong><small>'+(incomplete?'Datos incompletos':m.attainment===null?'Sin meta mensual':'Cumplimiento mensual')+'</small></button>'+
   '</div><details class="director-team-detail"><summary>Detalle por ejecutivo</summary><div class="director-team-grid">'+teamCards+'</div></details></article>'+
  '</section>'+
+ renderDirectorInsights(data,{now,failures,pipeline:mobilePipeline})+
+ '<details class="director-existing-details"><summary>Más información comercial y analítica</summary>'+
  '<section class="director-prospect-feed"><div><small>PROSPECT INTELLIGENCE</small><h2>Prospectos potenciales en actualización automática</h2><p>'+prospects.length+' candidatos consolidados · '+actionNow.length+' listos para acción · '+reviewFirst.length+' requieren investigación o revalidación.</p></div><div class="director-prospect-metrics"><span><strong>'+actionNow.length+'</strong><small>Acción ahora</small></span><span><strong>'+reviewFirst.length+'</strong><small>Investigar</small></span><span><strong>'+prospects.length+'</strong><small>Total</small></span></div><button data-page="prospects">Abrir prospectos →</button></section>'+
  '<section class="director-grid director-grid-secondary">'+
   '<article class="director-panel"><header><div><small>NEGOCIOS ESTRATÉGICOS</small><h2>Oportunidades de mayor impacto</h2></div><button data-page="opportunities">Ver cartera →</button></header><div class="director-opportunity-list">'+strategicCards+'</div></article>'+
@@ -234,7 +237,7 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  '</section>'+
  '<section class="director-radar-strip"><div><small>RADAR COMERCIAL</small><h2>'+radarCritical.length+' críticas · '+radarHigh.length+' alta prioridad</h2><p>'+(topSignal?'Señal destacada: '+esc(topSignal.institution_name||'Institución')+'.':'No hay una señal prioritaria destacada en este momento.')+'</p></div><button data-page="radar">Abrir Radar →</button></section>'+
  '<details class="director-intelligence"><summary>Inteligencia y analítica avanzada</summary><div class="director-intelligence-body">'+territorial+renderAnalytics(data,{now,period:analyticsPeriod,demo,failures})+'</div></details>'+
- '</div>';
+ '</details></div>';
 }
 export const EXECUTIVE_METHOD = 'Ventas ganadas: oportunidades WON cuya fecha de cierre prevista está en el mes actual; no son cobros. Margen: valor menos costo informado, admite pérdidas; sin costo no se estima. Meta: objetivo que cubre el mes completo. Proyección: ganadas del mes más cartera con cierre previsto en el mes ponderada por probabilidad manual, no es una garantía. Riesgo: oportunidades abiertas con seguimiento vencido o margen inferior al 15%; no se cuenta dos veces una oportunidad. Prioridades: primero margen bajo, luego atrasos, luego datos pendientes; dentro de cada grupo se ordena por importe. Son reglas explicables, no IA generativa. El ranking compara cumplimiento de metas de ventas, no liquida bonos. Los datos de demostración nunca se mezclan con datos reales.';
 

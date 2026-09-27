@@ -1,16 +1,17 @@
+import {directorGeography} from './director-insights.mjs?v=20260927-v2.45.39';
 import {escapeHTML as esc, filterRecords, money, metrics, priorities, taskUrgency, sortTasksByUrgency, csv, parseCsv, normalize} from './domain.mjs';
 
 import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWriteModule, assignedUserId, scopeWorkspaceData} from './workspace.mjs';
 
 import {DEMO_VERSION, DEMO_SELLERS, createDemoData, upgradeDemoData, mutateDemo, realOnly, localDay} from './demo.mjs?v=20260924-v2.41.16';
-import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260927-v2.45.38';
+import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260927-v2.45.39';
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
 import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.14';
 
 const $ = id => document.getElementById(id);
-const CLIENT_BUILD='v2.45.38';
+const CLIENT_BUILD='v2.45.39';
 const SPLASH_STARTED_AT=performance.now();
 const SPLASH_MIN_MS=450;
 function startLarsonScanner(){
@@ -136,8 +137,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-27-v2.45.38';
-const CRM_VERSION_LABEL='v2.45.38';
+const CRM_RELEASE='2026-09-27-v2.45.39';
+const CRM_VERSION_LABEL='v2.45.39';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -964,10 +965,24 @@ function renderTerritorialMaps(){
  if(!peruEl||!limaEl)return;
  const makeMap=(el,center,zoom)=>{
   if(el._leaflet_id)return null;
+  el.replaceChildren();
   const map=L.map(el,{scrollWheelZoom:false,attributionControl:true}).setView(center,zoom);
+  el._directorMap=map;
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
   return map;
  };
+ const summaryEl=document.getElementById('directorCoverageMap');
+ if(summaryEl&&summaryEl.getClientRects().length){
+  const summaryMap=makeMap(summaryEl,[-9.2,-75],4);
+  if(summaryMap){
+   const geography=directorGeography(commercialDataView());
+   for(const region of geography.regions){
+    const coordinates=TERRITORIAL_REGION_CENTROIDS[region.label];if(!coordinates)continue;
+    L.circleMarker(coordinates,{radius:Math.min(22,5+Math.sqrt(region.count)),color:'#35a5ff',fillColor:'#18c9ac',fillOpacity:.65,weight:2}).addTo(summaryMap)
+     .bindPopup('<strong>'+esc(region.label)+'</strong><br>'+region.count+' '+esc(geography.unit)+' · '+region.percent.toLocaleString('es-PE',{maximumFractionDigits:1})+'%');
+   }
+  }
+ }
  const peru=makeMap(peruEl,[-9.2,-75],5);
  if(peru){
   if(departmentAgg.length){
@@ -1067,6 +1082,25 @@ function renderDashboard(){
  }
  renderConnectionState();
  if(admin)requestAnimationFrame(renderTerritorialMaps);
+}
+function openDirectorInsight(target){
+ if(!canViewDashboard()||page!=='dashboard')return;
+ const selector=target==='analytics'?'[data-analytics-section]':'.territorial-intelligence';
+ const section=document.querySelector(selector);if(!section)return;
+ let ancestor=section.parentElement;
+ while(ancestor){if(ancestor.tagName==='DETAILS')ancestor.open=true;ancestor=ancestor.parentElement;}
+ requestAnimationFrame(()=>{
+  renderTerritorialMaps();
+  for(const id of ['territorialPeruMap','territorialLimaMap'])$(id)?._directorMap?.invalidateSize();
+  section.scrollIntoView({block:'start',behavior:'auto'});
+ });
+}
+function openDirectorRecord(kind,id){
+ if(!canViewDashboard())return;
+ const rows=kind==='prospects'?liveProspectRows():data.radar||[];
+ const row=rows.find(row=>String(row.id)===id);if(!row)return;
+ navigate(kind);$('search').value=kind==='prospects'?(row.name||row.institution_name||row.canonical_name||''):(row.institution_name||'');
+ pageIndex=0;renderRecords();
 }
 function setAnalyticsPeriod(period){
  if(!canViewDashboard()||loading||busy||!['month','quarter','year'].includes(period))return;
@@ -2612,7 +2646,7 @@ function init(){
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  $('sidebarToggle').onclick=event=>{event.stopPropagation();applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);};
  document.addEventListener('click',event=>{if(!mobileNavMode())return;const sidebar=$('mainSidebar');if(!sidebar||$('appView').classList.contains('sidebar-collapsed'))return;if(sidebar.contains(event.target)||event.target===$('sidebarToggle'))return;applySidebar(true);});
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.radarPromote){promoteRadarSignal(b.dataset.radarPromote);return;}if(b.id==='refreshIntelligenceBtn'){b.disabled=true;b.classList.add('is-refreshing');refreshLiveIntelligence(true).finally(()=>{const next=$('refreshIntelligenceBtn');if(next){next.disabled=false;next.classList.remove('is-refreshing');}});return;}if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='brandThemeToggle'){applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.sellerFilter){navigate('leads');sellerQuickFilter=b.dataset.sellerFilter;renderRecords();return;}if(b.dataset.prospectKpi){navigate('prospects');prospectDashboardFilter=b.dataset.prospectKpi==='ALL'?'':b.dataset.prospectKpi;$('filter').value='';pageIndex=0;renderRecords();return;}if(b.dataset.dailyLead){if($('dailyBriefingDialog')?.open)$('dailyBriefingDialog').close();navigate('leads');openLeadDetails(b.dataset.dailyLead);return;}
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.directorTarget){openDirectorInsight(b.dataset.directorTarget);return;}if(b.dataset.directorProspect){openDirectorRecord('prospects',b.dataset.directorProspect);return;}if(b.dataset.directorSignal){openDirectorRecord('radar',b.dataset.directorSignal);return;}if(b.dataset.radarPromote){promoteRadarSignal(b.dataset.radarPromote);return;}if(b.id==='refreshIntelligenceBtn'){b.disabled=true;b.classList.add('is-refreshing');refreshLiveIntelligence(true).finally(()=>{const next=$('refreshIntelligenceBtn');if(next){next.disabled=false;next.classList.remove('is-refreshing');}});return;}if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='brandThemeToggle'){applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.sellerFilter){navigate('leads');sellerQuickFilter=b.dataset.sellerFilter;renderRecords();return;}if(b.dataset.prospectKpi){navigate('prospects');prospectDashboardFilter=b.dataset.prospectKpi==='ALL'?'':b.dataset.prospectKpi;$('filter').value='';pageIndex=0;renderRecords();return;}if(b.dataset.dailyLead){if($('dailyBriefingDialog')?.open)$('dailyBriefingDialog').close();navigate('leads');openLeadDetails(b.dataset.dailyLead);return;}
 if(b.dataset.dailyPage){if($('dailyBriefingDialog')?.open)$('dailyBriefingDialog').close();navigate(b.dataset.dailyPage);return;}
 if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){if(openEditor('leads',b.dataset.editLead))closeLeadDetails(false);return;}if(b.dataset.editActivity){if(openEditor('activities',b.dataset.editActivity))closeLeadDetails(false);return;}if(b.dataset.activityLead){if(openActivityForLead(b.dataset.activityLead)!==false)closeLeadDetails(false);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.radarLead){openLeadFromRadar(b.dataset.radarLead);return;}if(b.dataset.radarActivity){openActivityForLead(b.dataset.radarActivity);return;}if(b.dataset.editSmartContact!==undefined){const contactId=b.dataset.editSmartContact||'';const institutionId=b.dataset.editSmartInstitution||'';if($('smartMailDialog').open)$('smartMailDialog').close();if(contactId){openEditor('contacts',contactId);}else if(institutionId){openEditor('institutions',institutionId);}return;}if(b.dataset.smartUploadCategory){uploadSmartMaterial(b.dataset.smartUploadLead,b.dataset.smartUploadCategory);return;}if(b.dataset.smartMaterial){toggleSmartMaterial(b.dataset.smartMaterial);return;}if(b.dataset.smartMail){openSmartMailDraft(b.dataset.smartMail);return;}if(b.dataset.copySmartMail){copySmartMailDraft(b.dataset.copySmartMail);return;}if(b.dataset.openSmartZoho){openSmartMailInZoho(b.dataset.openSmartZoho);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
