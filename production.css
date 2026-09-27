@@ -4589,3 +4589,22 @@ html[data-theme="night"] .modern-home .seller-performance-panel,html[data-theme=
 #appView #activityRail{top:var(--app-header-height,110px);height:calc(100dvh - var(--app-header-height,110px))}
 html{scroll-padding-top:calc(var(--app-header-height,110px) + 12px)}
 @media(max-width:700px){body{overflow-x:clip!important;overflow-y:visible!important}}
+/* Executive greeting only: one compact shared block for every screen size. */
+#dashboard .executive-focus{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0 20px;margin:0;min-height:0;background:none;border:0}
+#dashboard .executive-focus-copy{min-width:0;max-width:780px}
+#dashboard .executive-focus h2{margin:0 0 10px;font-size:clamp(1.5rem,2vw,2rem);line-height:1.15;letter-spacing:-.03em;color:var(--ink)}
+#dashboard .executive-focus-message small{font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--muted)}
+#dashboard .executive-focus-message p{font-size:14px;line-height:1.45;margin:5px 0 10px;overflow-wrap:anywhere;color:var(--ink);max-width:76ch}
+#dashboard .executive-focus-review{min-height:36px;padding:7px 12px;font-size:12px;color:var(--accent);border:1px solid var(--line);background:var(--surface);border-radius:8px}
+#dashboard .executive-focus-controls{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;flex:0 0 auto;max-width:360px}
+#dashboard .executive-focus-controls button{min-height:38px;padding:9px 12px;font-size:12px;border-radius:8px}
+#dashboard .executive-focus-controls button:first-child{background:#1265a5;color:#fff;border:1px solid #429bda}
+@media(max-width:1000px){#dashboard .executive-focus{align-items:flex-start;gap:16px}#dashboard .executive-focus-controls{max-width:220px}}
+@media(max-width:700px){#dashboard .executive-focus{display:flex!important;flex-direction:column;gap:14px;padding:12px 0 18px!important}#dashboard .executive-focus-controls{justify-content:flex-start;max-width:100%;width:100%}#dashboard .executive-focus-controls button{flex:1 1 130px}#dashboard .executive-focus h2{font-size:24px}}
+#dashboard .executive-focus{padding:8px 0 12px;gap:18px}
+#dashboard .executive-focus-copy{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:14px;align-items:center}
+#dashboard .executive-focus h2{grid-column:1/-1;margin-bottom:8px}
+#dashboard .executive-focus-message p{margin:4px 0 0}
+#dashboard .executive-focus-review{white-space:nowrap;align-self:center}
+@media(min-width:701px) and (max-width:1500px){#dashboard .executive-focus-controls{max-width:180px;justify-content:stretch}#dashboard .executive-focus-controls button{width:100%}}
+@media(max-width:700px){#dashboard .executive-focus{padding:8px 0 14px!important;gap:12px}#dashboard .executive-focus-copy{grid-template-columns:minmax(0,1fr)}#dashboard .executive-focus-review{justify-self:start;margin-top:8px}}

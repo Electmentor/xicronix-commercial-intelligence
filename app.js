@@ -1,18 +1,18 @@
-import {directorGeography} from './director-insights.mjs?v=20260927-v2.46.3';
+import {directorGeography} from './director-insights.mjs?v=20260927-v2.46.4';
 import {escapeHTML as esc, filterRecords, money, metrics, priorities, taskUrgency, sortTasksByUrgency, csv, parseCsv, normalize} from './domain.mjs';
 
 import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWriteModule, assignedUserId, scopeWorkspaceData} from './workspace.mjs';
 
 import {DEMO_VERSION, DEMO_SELLERS, createDemoData, upgradeDemoData, mutateDemo, realOnly, localDay} from './demo.mjs?v=20260924-v2.41.16';
-import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260927-v2.46.3';
+import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260927-v2.46.4';
 import {analyticsCSV} from './analytics.mjs';
-import {renderPerformance, performanceCSV, performancePages} from './performance.mjs?v=2.46.3';
+import {renderPerformance, performanceCSV, performancePages} from './performance.mjs?v=2.46.4';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
 import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.14';
 
 const $ = id => document.getElementById(id);
-const CLIENT_BUILD='v2.46.3';
+const CLIENT_BUILD='v2.46.4';
 const SPLASH_STARTED_AT=performance.now();
 const SPLASH_MIN_MS=450;
 function startLarsonScanner(){
@@ -138,8 +138,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-27-v2.46.3';
-const CRM_VERSION_LABEL='v2.46.3';
+const CRM_RELEASE='2026-09-27-v2.46.4';
+const CRM_VERSION_LABEL='v2.46.4';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -650,7 +650,8 @@ async function refreshLiveIntelligence(announce=false){
  if(!session||!profile||dataSource!=='live'||busy||loading||recovery||document.hidden||$('editor')?.open)return;
  const userId=session.user.id,org=profile.organization_id;
  try{
-  const [prospectsResult,radarResult,mailResult]=await Promise.allSettled([allRows('prospects',org),allRows('radar',org),accessible('mail')?allRows('mail',org):Promise.resolve([])]);
+  const refreshPriority=page==='dashboard'&&canViewDashboard()&&!performancePage;
+  const [prospectsResult,radarResult,mailResult,...priorityResults]=await Promise.allSettled([allRows('prospects',org),allRows('radar',org),accessible('mail')?allRows('mail',org):Promise.resolve([]),...(refreshPriority?['opportunities','tasks','leads'].map(key=>allRows(key,org)):[])]);
   if(userId!==session?.user?.id||org!==profile?.organization_id||dataSource!=='live')return;
   let newRows=[];
   if(prospectsResult.status==='fulfilled'){
@@ -668,6 +669,8 @@ async function refreshLiveIntelligence(announce=false){
     data.mail=mailResult.value||[];
     failures.mail=false;
   }
+  if(radarResult.status==='rejected')failures.radar=true;
+  if(refreshPriority)for(const [index,key] of ['opportunities','tasks','leads'].entries()){const result=priorityResults[index];failures[key]=result.status!=='fulfilled';if(result.status==='fulfilled')data[key]=realOnly({[key]:result.value})[key]||[];}
   liveIntelligencePrimed=true;liveIntelligenceLastSync=Date.now();renderConnectionState();
   if(['dashboard','prospects','radar','now'].includes(page))render();
   renderActivityRail();
@@ -1072,7 +1075,6 @@ function renderDashboard(){
  $('pageTitle').textContent=admin?(performancePage?performancePages[performancePage]:'Dirección Comercial'):'Mi rendimiento';
  if(admin&&performancePage){$('dashboard').innerHTML=renderPerformance(viewData,{page:performancePage,period:analyticsPeriod,filters:performanceFilters,adjustment:performanceAdjustment,demo:dataSource==='demo',failures});renderConnectionState();return;}
  $('dashboard').innerHTML=admin?renderExecutive(viewData,{demo:dataSource==='demo',failures,analyticsPeriod}):renderSellerDashboard(viewData,{demo:dataSource==='demo',failures});
- if(admin)$('dashboard').insertAdjacentHTML('afterbegin','<div class="performance-entry"><button type="button" data-performance-page="overview">Rendimiento del negocio</button></div>');
  if(admin&&dataSource==='live'&&Array.isArray(data.territorialMacro)&&data.territorialMacro.length){
    const section=$('dashboard').querySelector('.territorial-intelligence');
    if(section){
@@ -1132,6 +1134,7 @@ function openPerformance(next){
 document.addEventListener('click',event=>{
  const b=event.target.closest('button');if(!b||!canViewDashboard()||loading||busy)return;
  if(b.dataset.performanceScroll){const region=b.closest('.performance-table-card')?.querySelector('.analytics-table-scroll');if(region)region.scrollBy({left:Number(b.dataset.performanceScroll)*region.clientWidth*.75,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});return;}
+ if(b.dataset.executivePriority){const table=b.dataset.priorityTable;if(table==='radar'){openDirectorRecord('radar',b.dataset.executivePriority);}else if(['tasks','leads','opportunities'].includes(table)&&accessible(table)){openEditor(table,b.dataset.executivePriority);}return;}
  if(b.dataset.performancePage){openPerformance(b.dataset.performancePage);return;}
  if(b.hasAttribute('data-performance-calculate')){performanceAdjustment=Math.min(50,Math.max(0,Number(document.querySelector('[data-performance-adjustment]')?.value)||0));renderDashboard();return;}
  if(b.dataset.performanceRecord){const table=b.dataset.performanceTable;if(['opportunities','expenses','tasks'].includes(table)&&accessible(table)){openEditor(table,b.dataset.performanceRecord);}return;}

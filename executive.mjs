@@ -64,8 +64,33 @@ export function filterExecutiveRows(rows,table,filter,owner,now=new Date()){
  }
  return rows;
 }
+// One pending item, ranked by business category; no persisted dismissal state.
+export function executivePriority(data,{now=new Date(),failures={}}={}){
+ const idSort=(a,b)=>String(a.id).localeCompare(String(b.id));
+ const pending=r=>!['COMPLETED','CANCELLED','RESOLVED','DISCARDED','WON','LOST','CONVERTED','DISQUALIFIED'].includes(r.status)&&!['WON','LOST','CONVERTED','DISQUALIFIED'].includes(r.stage)&&!r.resolved_at;
+ const date=v=>v&&Number.isFinite(Date.parse(v))?Date.parse(String(v).length===10?v+'T23:59:59-05:00':v):null;
+ const item=(kind,row,text,table)=>({kind,id:row.id,table,text});
+ if(failures.radar)return {kind:'unavailable',text:'Radar pendiente de actualización: no se puede confirmar la prioridad principal.',table:'radar'};
+ const signals=(data.radar||[]).filter(r=>r.id&&r.classification==='CRITICAL'&&pending(r)).filter(r=>!r.signal_date||String(r.signal_date).slice(0,10)<=businessDay(now)).filter(r=>!r.lead_id||!(data.leads||[]).some(l=>l.id===r.lead_id&&!pending(l))).sort((a,b)=>Number(b.weighted_score||0)-Number(a.weighted_score||0)||idSort(a,b));
+ if(signals.length)return item('critical',signals[0],'Señal crítica: '+(signals[0].signal_summary||'Revisión ejecutiva pendiente')+(signals[0].institution_name?' · '+signals[0].institution_name:''),'radar');
+ if(failures.opportunities)return {kind:'unavailable',text:'Oportunidades pendientes de carga: actualiza para confirmar la prioridad.',table:'opportunities'};
+ const opportunities=(data.opportunities||[]).filter(r=>r.id&&pending(r)&&['PROPOSAL','NEGOTIATION'].includes(r.stage)&&(!r.currency||r.currency==='PEN')&&Number(r.value)>0).sort((a,b)=>Number(b.value)-Number(a.value)||idSort(a,b));
+ if(opportunities.length){const r=opportunities[0];return item('opportunity',r,'Mayor oportunidad en propuesta o negociación: '+(r.name||r.title||'Oportunidad')+' · '+compactMoney(Number(r.value)),'opportunities');}
+ if(failures.tasks)return {kind:'unavailable',text:'Tareas pendientes de carga: actualiza para confirmar la prioridad.',table:'tasks'};
+ const tasks=(data.tasks||[]).filter(r=>r.id&&pending(r)&&date(r.due_at)!==null&&date(r.due_at)<=now.getTime()+3*86400000).sort((a,b)=>date(a.due_at)-date(b.due_at)||idSort(a,b));
+ if(tasks.length){const r=tasks[0];return item('task',r,(date(r.due_at)<now.getTime()?'Tarea vencida: ':'Tarea próxima: ')+(r.title||'Revisar tarea'),'tasks');}
+ if(failures.leads)return {kind:'unavailable',text:'Seguimientos pendientes de carga: actualiza para confirmar la prioridad.',table:'leads'};
+ const leads=(data.leads||[]).filter(r=>r.id&&pending(r)&&r.next_action&&date(r.next_action_date)!==null&&date(r.next_action_date)<=now.getTime()+86400000).sort((a,b)=>date(a.next_action_date)-date(b.next_action_date)||idSort(a,b));
+ if(leads.length){const r=leads[0];return item('followup',r,'Seguimiento prioritario: '+r.next_action+' · '+(r.title||'Prospecto'),'leads');}
+ return {kind:'general',text:'No hay asuntos pendientes que cumplan las reglas de prioridad. Revisa el rendimiento del negocio.',table:null};
+}
+function renderExecutivePriority(data,options){
+ const p=executivePriority(data,options);
+ const action=p.id?' data-executive-priority="'+esc(p.id)+'" data-priority-table="'+p.table+'"':p.table?' data-page="'+p.table+'"':' data-performance-page="overview"';
+ return '<header class="executive-focus" aria-label="Prioridad ejecutiva"><div class="executive-focus-copy"><h2>Hola, Toshi</h2><div class="executive-focus-message" aria-live="polite"><small>'+(p.kind==='general'?'Panorama actual':p.kind==='unavailable'?'Información parcial':'Prioridad del día')+'</small><p>'+esc(p.text)+'</p></div><button type="button" class="executive-focus-review"'+action+'>'+(p.kind==='general'?'Ver rendimiento':p.kind==='unavailable'?'Revisar datos':'Revisar ahora')+'</button></div><div class="executive-focus-controls"><button type="button" data-performance-page="overview">Rendimiento del negocio</button><button type="button" id="ceoMethodBtn">Cómo se calcula</button></div></header>';
+}
 export function renderExecutive(data,{now=new Date(),demo=false,failures={},analyticsPeriod='year'}={}){
- const m=executiveMetrics(data,now),incomplete=Object.keys(failures).length>0;
+ const m=executiveMetrics(data,now),incomplete=Object.values(failures).some(Boolean);
  const progress=m.attainment===null?'Sin meta':Math.round(m.attainment)+'% de la meta';
  const radar=(data.radar||[]).filter(row=>!['DISCARD'].includes(row.classification));
  const radarCritical=radar.filter(row=>row.classification==='CRITICAL');
@@ -173,7 +198,7 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  const iconRisk='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.7 20h18.6L12 3Z"/><path d="M12 9v5M12 17.3v.1"/></svg>';
  const iconForecast='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16M6 16l4-5 3 2 5-7M16 6h2v2"/></svg>';
  const mobileClone='<section class="director-mobile-dashboard director-mobile-clone" aria-label="Dashboard de dirección móvil">'+
-  '<header class="director-mobile-head director-mobile-head--clone"><div><small>DIRECCIÓN</small><div class="director-greeting-row"><h2>Hola, Toshi</h2><span id="mobileConnectionPresence" class="mobile-connection-presence" data-state="connecting" title="Estado de conexión"><i class="connection-led" aria-hidden="true"></i><small id="mobileConnectionLabel">Conectando</small></span></div><p>'+esc(headline)+'</p></div></header>'+
+
   '<section class="director-mobile-kpis director-mobile-kpis--clone">'+
    '<article class="director-mobile-kpi sales"><span class="director-kpi-icon">'+iconSales+'</span><div><small>Ventas mes</small><strong>'+compactMoney(m.revenue)+'</strong><span>'+progress+'</span></div></article>'+
    '<article class="director-mobile-kpi pipeline"><span class="director-kpi-icon">'+iconPipeline+'</span><div><small>Pipeline</small><strong>'+compactMoney(m.pipeline)+'</strong><span>'+m.openCount+' oportunidades</span></div></article>'+
@@ -211,8 +236,8 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  }).join('')+'</tbody></table></div>';
  const iconTeam='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 14a4 4 0 0 1 4 4v3"/></svg>';
  const iconTasks='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13v7H4V4h12M9 11l3 3 9-10"/></svg>';
- return '<div class="ceo-dashboard director-dashboard">'+mobileClone+
- '<section class="director-hero director-desktop-hero"><div><div class="director-desktop-greeting"><h2>Hola, Toshi</h2></div><p>'+esc(headline)+'</p></div><div class="director-hero-actions"><button id="ceoMethodBtn" class="secondary">Cómo se calcula</button></div></section>'+
+ return '<div class="ceo-dashboard director-dashboard">'+renderExecutivePriority(data,{now,failures})+mobileClone+
+
  '<section class="director-kpis director-desktop-kpis" aria-label="Indicadores comerciales">'+
   desktopKpi('Ventas mes',compactMoney(m.revenue),m.wonCount+' cierres · '+progress,'won','sales',iconSales)+
   desktopKpi('Pipeline',compactMoney(m.pipeline),m.openCount+' oportunidades','pipeline','pipeline',iconPipeline)+
@@ -239,5 +264,5 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  '<details class="director-intelligence"><summary>Inteligencia y analítica avanzada</summary><div class="director-intelligence-body">'+territorial+'<button type="button" data-performance-page="overview">Rendimiento del negocio · abrir análisis</button>'+'</div></details>'+
  '</details></div>';
 }
-export const EXECUTIVE_METHOD = 'Ventas ganadas: oportunidades WON cuya fecha de cierre prevista está en el mes actual; no son cobros. Margen: valor menos costo informado, admite pérdidas; sin costo no se estima. Meta: objetivo que cubre el mes completo. Proyección: ganadas del mes más cartera con cierre previsto en el mes ponderada por probabilidad manual, no es una garantía. Riesgo: oportunidades abiertas con seguimiento vencido o margen inferior al 15%; no se cuenta dos veces una oportunidad. Prioridades: primero margen bajo, luego atrasos, luego datos pendientes; dentro de cada grupo se ordena por importe. Son reglas explicables, no IA generativa. El ranking compara cumplimiento de metas de ventas, no liquida bonos. Los datos de demostración nunca se mezclan con datos reales.';
+export const EXECUTIVE_METHOD = 'Ventas ganadas: oportunidades WON cuya fecha de cierre prevista está en el mes actual; no son cobros. Margen: valor menos costo informado, admite pérdidas; sin costo no se estima. Meta: objetivo que cubre el mes completo. Proyección: ganadas del mes más cartera con cierre previsto en el mes ponderada por probabilidad manual, no es una garantía. Riesgo: oportunidades abiertas con seguimiento vencido o margen inferior al 15%; no se cuenta dos veces una oportunidad. Prioridad del saludo: señal crítica vigente; después mayor oportunidad PEN en propuesta o negociación; después tarea vencida o próxima (72 horas); después seguimiento vencido o de las próximas 24 horas; finalmente información general. Se excluyen registros resueltos y se recalcula con cada actualización. Las excepciones del resto del tablero conservan sus reglas de margen, atrasos y datos pendientes. Son reglas explicables, no IA generativa. El ranking compara cumplimiento de metas de ventas, no liquida bonos. Los datos de demostración nunca se mezclan con datos reales.';
 

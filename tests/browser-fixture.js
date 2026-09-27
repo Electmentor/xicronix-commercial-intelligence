@@ -33,6 +33,7 @@
    let rows=(db[this.table]||[]).filter(r=>this.filters.every(([k,v])=>r[k]===v));
    if(this.mine){const key=this.table==='tasks'?'assigned_to':'owner_user_id';rows=rows.filter(r=>r[key]===user.id||!r[key]&&r.created_by===user.id);}
    if(this.op!=='select')window.__testWrites.push({table:this.table,operation:this.op});
+   if(this.op==='update')rows.forEach(row=>Object.assign(row,structuredClone(this.payload)));
    return {data:single?(rows[0]||null):structuredClone(rows),error:null};
   }
   async maybeSingle(){return this.result(true);}async single(){return this.result(true);}async range(){return this.result();}

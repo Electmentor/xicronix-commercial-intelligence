@@ -18,7 +18,7 @@ const data={
  goals:[{period_start:'2026-09-01',period_end:'2026-09-30',target_won_value:40000}],
  tasks:[{assigned_to:'seller',status:'PENDING',due_at:'2026-09-20'},{assigned_to:'seller',status:'COMPLETED',due_at:'2026-09-20'}]
 };
-const desktop=(d=data,options={})=>renderExecutive(d,{now,...options}).split('<section class="director-hero director-desktop-hero">')[1];
+const desktop=(d=data,options={})=>renderExecutive(d,{now,...options}).split('<section class="director-kpis director-desktop-kpis"')[1];
 test('desktop KPI values reconcile with records and preserve the approved order',()=>{
  const html=desktop(),kpis=html.split('aria-label="Indicadores comerciales">')[1].split('</section>')[0];
  assert.deepEqual([...kpis.matchAll(/<small>(.*?)<\/small>/g)].map(m=>m[1]),['Ventas mes','Pipeline','En riesgo','Forecast']);
