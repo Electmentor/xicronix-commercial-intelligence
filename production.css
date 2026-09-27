@@ -4193,3 +4193,10 @@ dialog[data-ribbon] .dialog-header>button:focus-visible{
 @keyframes xicronix-message-flash-strong{0%,100%{background:#f8fbff;box-shadow:0 0 0 2px rgba(37,99,235,.18),0 0 20px rgba(37,99,235,.18)}45%{background:#071b31;box-shadow:0 0 0 5px rgba(56,189,248,.62),0 0 42px rgba(37,99,235,.65)}70%{background:#dbeafe;box-shadow:0 0 0 3px rgba(14,165,233,.38),0 0 30px rgba(14,165,233,.38)}}
 @keyframes xicronix-message-text-contrast{0%,100%{color:#0b1f35}45%{color:#f8fbff}70%{color:#102a43}}
 @media(prefers-reduced-motion:reduce){.activity-card.just-arrived,.activity-card.just-arrived h3,.activity-card.just-arrived small,.activity-card.just-arrived p,.activity-card.just-arrived time{animation:none!important}.activity-card.just-arrived{background:#071b31!important;color:#fff!important;outline:4px solid #38bdf8}}
+
+.activity-card.unseen-alert{animation:xicronix-unseen-card 1.35s ease-in-out infinite!important}
+.activity-card.unseen-alert h3,.activity-card.unseen-alert small,.activity-card.unseen-alert p,.activity-card.unseen-alert time{animation:xicronix-unseen-text 1.35s ease-in-out infinite!important}
+@keyframes xicronix-unseen-card{0%,100%{background:#e5e7eb;border-color:#60a5fa;box-shadow:0 0 0 2px rgba(96,165,250,.28),0 0 22px rgba(37,99,235,.24)}50%{background:#071b31;border-color:#38bdf8;box-shadow:0 0 0 5px rgba(56,189,248,.62),0 0 46px rgba(37,99,235,.68)}}
+@keyframes xicronix-unseen-text{0%,100%{color:#0b2a4a}50%{color:#f8fbff}}
+.mail-seen-btn{font-size:.72rem!important;padding:6px 8px!important}.mail-seen-mark{align-self:center;color:var(--muted);font-size:.7rem}
+@media(prefers-reduced-motion:reduce){.activity-card.unseen-alert,.activity-card.unseen-alert h3,.activity-card.unseen-alert small,.activity-card.unseen-alert p,.activity-card.unseen-alert time{animation:none!important}.activity-card.unseen-alert{outline:4px solid #38bdf8;background:#071b31!important;color:#fff!important}}
