@@ -1,3 +1,8 @@
+const env=process.env.VERCEL_ENV||'local';
+if(env!=='production'&&!process.env.GROQ_API_KEY){
+ console.log('ASSISTANT_PROVIDER_CHECK_SKIPPED '+JSON.stringify({env,reason:'GROQ_API_KEY_NOT_CONFIGURED_OUTSIDE_PRODUCTION'}));
+ process.exit(0);
+}
 import {generateResponse} from '../api/assistant.mjs';
 import {buildEvidence,queryIntent,renderEvidence,POLICY_VERSION} from '../assistant-policy.mjs';
 const records={radar:[{id:'validation-critical',institution_name:'Caso sintético de validación',classification:'CRITICAL',weighted_score:95,workflow_status:'PENDING',actionable:false,signal_date:'2026-09-26'}],opportunities:[{id:'validation-opportunity',name:'Oportunidad sintética',stage:'PROPOSAL',value:1000,currency:'PEN',next_action:'Enviar propuesta'}]};
