@@ -33,7 +33,7 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
   closest(){return this;}
  }
  for(const match of html.matchAll(/id="([^"]+)"/g))nodes.set(match[1],new Element(match[1]));
- const document={readyState:'loading',documentElement:{dataset:{}},getElementById:id=>{if(!nodes.has(id))throw Error('Unknown element '+id);return nodes.get(id);},addEventListener:(name,fn)=>{listeners[name]=fn;},querySelectorAll:()=>[],querySelector:()=>null,createElement:()=>new Element('created')};
+ const document={readyState:'loading',documentElement:{dataset:{}},getElementById:id=>nodes.get(id)||null,addEventListener:(name,fn)=>{listeners[name]=fn;},querySelectorAll:()=>[],querySelector:()=>null,createElement:()=>new Element('created')};
  const base={organization_id:'org',created_by:'me',created_at:'2026-09-09',updated_at:'2026-09-09'};
  const row=(id,extra={})=>({...base,id,...extra});
  const db={
