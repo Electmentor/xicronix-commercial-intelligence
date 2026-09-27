@@ -35,6 +35,11 @@ with sync_playwright() as p:
  def check(name,fn):
   fn();checks.append(name)
 
+ def ensure_sidebar_open(page):
+  if 'sidebar-collapsed' in (page.locator('#appView').get_attribute('class') or ''):
+   page.locator('#sidebarToggle').click()
+  expect(page.locator('#mainSidebar')).to_be_visible()
+
  def choose_direction(page):
   page.locator('#entryDirectionBtn').click()
   page.wait_for_function("""()=>{
@@ -45,6 +50,7 @@ with sync_playwright() as p:
   }""",timeout=15000)
   page.wait_for_timeout(250)
   expect(page.locator('#workspaceEntry')).to_be_hidden()
+  ensure_sidebar_open(page)
  try:
   context,page=newpage();expect(page.locator('#workspaceControls')).to_be_visible()
   choose_direction(page)
