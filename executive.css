@@ -1679,3 +1679,10 @@ html:not([data-theme="night"]) .pipeline-dashboard-note{color:#657b92}
   width:20px!important;height:20px!important;fill:none!important;stroke:currentColor!important;stroke-width:1.8!important;stroke-linecap:round!important;stroke-linejoin:round!important;
  }
 }
+
+
+/* V2.45.34 · Director approved icon size */
+@media(max-width:700px){
+ .director-mobile-kpi{grid-template-columns:47px 1fr!important}
+ .director-mobile-kpi .director-kpi-icon{width:45px!important;height:45px!important}
+}
