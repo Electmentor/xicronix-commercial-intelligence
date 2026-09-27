@@ -1756,3 +1756,13 @@ html:not([data-theme="night"]) .pipeline-dashboard-note{color:#657b92}
   font-size:1.037rem!important;line-height:1.08!important;
  }
 }
+
+
+/* V2.45.38 · Director typography refinement: -20% from V2.45.37 */
+@media(max-width:700px){
+ .director-mobile-kpi small{font-size:1.36em!important}
+ .director-mobile-kpi strong{font-size:1.36em!important}
+ .director-mobile-kpi div>span{font-size:1.36em!important}
+ .director-pipeline-stage--clone .stage-main strong{font-size:1.768rem!important}
+ .director-pipeline-stage--clone>small{font-size:.83rem!important}
+}
