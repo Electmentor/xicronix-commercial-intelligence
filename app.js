@@ -266,17 +266,19 @@ function renderWorkspaceControls(){
  if(mobileBottom){
   mobileBottom.hidden=!profile||!workspaceEntryChosen;
   const primary=$('mobileNavPrimary'),reports=$('mobileNavReports'),nowBtn=$('mobileNavNow');
+  const home=$('mobileNavHome');
+  if(home){home.dataset.page='dashboard';const label=home.querySelector('small');if(label)label.textContent=admin?'Dirección':'Mi rendimiento';}
   if(primary){
    primary.dataset.page=admin?'users':'leads';
    const label=primary.querySelector('small');if(label)label.textContent=admin?'Equipo':'Mi cartera';
   }
   if(reports){
-   reports.dataset.page=admin?'goals':'tasks';
-   const label=reports.querySelector('small');if(label)label.textContent=admin?'Metas':'Mis tareas';
+   reports.dataset.page=admin?'opportunities':'tasks';
+   const label=reports.querySelector('small');if(label)label.textContent=admin?'Negociaciones':'Mis tareas';
   }
   if(nowBtn){
-   nowBtn.dataset.page=admin?'opportunities':'meetings';
-   const label=nowBtn.querySelector('small');if(label)label.textContent=admin?'Negociaciones':'Mi agenda';
+   nowBtn.dataset.page=admin?'goals':'meetings';
+   const label=nowBtn.querySelector('small');if(label)label.textContent=admin?'Metas':'Mi agenda';
   }
  }
  const labels=admin
