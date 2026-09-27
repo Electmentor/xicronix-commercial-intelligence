@@ -4508,3 +4508,13 @@ html[data-theme="night"] .modern-home .seller-performance-kpi:nth-child(2){backg
 html[data-theme="night"] .modern-home .seller-performance-kpi:nth-child(3){background:linear-gradient(145deg,#2a2750,#171d32)!important}
 html[data-theme="night"] .modern-home .seller-performance-kpi:nth-child(4){background:linear-gradient(145deg,#3a2b20,#201d20)!important}
 html[data-theme="night"] .modern-home .seller-performance-panel,html[data-theme="night"] .modern-home .seller-dashboard-shortcuts button{background:linear-gradient(145deg,#14263a,#101d2d)!important}
+
+/* V2.45.30 · persistent semantic footer colors by actual element IDs */
+.app[data-workspace="SELLER"] #mobileNavHome{--nav-sem:#2f80ed!important}
+.app[data-workspace="SELLER"] #mobileNavPrimary{--nav-sem:#19b99a!important}
+.app[data-workspace="SELLER"] #mobileNavReports{--nav-sem:#8b6cff!important}
+.app[data-workspace="SELLER"] #mobileNavNow{--nav-sem:#f59e42!important}
+.app[data-workspace="SELLER"] #mobileAppBottomNav>button>span{color:var(--nav-sem)!important;border-color:color-mix(in srgb,var(--nav-sem) 58%,#536b83)!important;background:color-mix(in srgb,var(--nav-sem) 10%,#0c1b2c)!important}
+.app[data-workspace="SELLER"] #mobileAppBottomNav>button>small{color:color-mix(in srgb,var(--nav-sem) 76%,#d7e2ef)!important;font-weight:800!important}
+.app[data-workspace="SELLER"] #mobileAppBottomNav>button.active{background:color-mix(in srgb,var(--nav-sem) 15%,#07182a)!important}
+.app[data-workspace="SELLER"] #mobileAppBottomNav>button.active>span{background:color-mix(in srgb,var(--nav-sem) 24%,#0c1b2c)!important;box-shadow:0 0 0 1px color-mix(in srgb,var(--nav-sem) 52%,transparent),0 0 20px color-mix(in srgb,var(--nav-sem) 30%,transparent)!important}
