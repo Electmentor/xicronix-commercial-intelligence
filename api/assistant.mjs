@@ -15,9 +15,10 @@ export function validateBody(body){
  const history=(Array.isArray(body.history)?body.history:[]).slice(-12).filter(x=>x&&['user','assistant'].includes(x.role)&&typeof x.content==='string').map(x=>({role:x.role,content:x.content.slice(0,3000)}));
  return {message:body.message.trim(),context:body.context,history};
 }
-export async function generateResponse({key,model='openai/gpt-oss-120b',payload,fetcher=fetch,provider=null}){
- const resolved=provider||{id:'groq',name:'Groq',endpoint:'https://api.groq.com/openai/v1/responses',defaultModel:'openai/gpt-oss-120b',keyEnv:'GROQ_API_KEY',key,model};
- const {answer}=await requestEvidencePlan({provider:{...resolved,key:key??resolved.key,model:model??resolved.model},payload,schema:planSchema(payload.evidence),instructions:INSTRUCTIONS,fetcher});
+export async function generateResponse({key,model=null,payload,fetcher=fetch,provider=null}){
+ const resolved=provider||{id:'groq',name:'Groq',endpoint:'https://api.groq.com/openai/v1/responses',defaultModel:'openai/gpt-oss-120b',keyEnv:'GROQ_API_KEY',key,model:model||'openai/gpt-oss-120b'};
+ const active={...resolved,key:key??resolved.key,model:model||resolved.model||resolved.defaultModel};
+ const {answer}=await requestEvidencePlan({provider:active,payload,schema:planSchema(payload.evidence),instructions:INSTRUCTIONS,fetcher});
  let plan;try{plan=JSON.parse(answer);}catch{throw Object.assign(Error('UNSUPPORTED_EVIDENCE'),{validation:'JSON_PARSE'});}
  try{return validatePlan(plan,payload.evidence);}catch{throw Object.assign(Error('UNSUPPORTED_EVIDENCE'),{validation:'REFERENCE_OR_SCHEMA'});}
 }
