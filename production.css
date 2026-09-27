@@ -4289,3 +4289,20 @@ html[data-theme="night"] .modern-home .seller-dashboard-shortcuts button{
   .modern-hero-copy{padding-left:18px!important}
   .modern-hero-copy h1{font-size:1.62rem!important}
 }
+
+
+/* V2.45.27 · Real photographic hero; CSS avatar retired */
+.modern-hero-operator{position:relative!important;overflow:hidden!important;background:#0d2841!important}
+.modern-operator-real-photo{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;display:block!important;object-fit:cover!important;object-position:center 38%!important;filter:saturate(.94) contrast(1.02)!important}
+.modern-hero-operator:has(.modern-operator-real-photo)::before{content:"";position:absolute!important;inset:0!important;z-index:2!important;pointer-events:none!important;background:linear-gradient(90deg,#f8fbff 0%,rgba(248,251,255,.72) 10%,rgba(248,251,255,.14) 34%,transparent 58%)!important}
+.modern-hero-operator:has(.modern-operator-real-photo)::after{display:none!important}
+html[data-theme="night"] .modern-hero-operator:has(.modern-operator-real-photo)::before{background:linear-gradient(90deg,#10253b 0%,rgba(16,37,59,.78) 12%,rgba(8,27,50,.24) 38%,rgba(4,15,26,.10) 100%)!important}
+html[data-theme="night"] .modern-operator-real-photo{filter:brightness(.78) saturate(.9) contrast(1.06)!important}
+@media(max-width:700px){
+ .modern-hero{grid-template-columns:minmax(0,1.12fr) minmax(135px,.88fr)!important}
+ .modern-hero-operator{display:block!important;min-height:350px!important;max-height:none!important}
+ .modern-operator-real-photo{object-position:58% center!important}
+ .modern-hero-operator:has(.modern-operator-real-photo)::before{background:linear-gradient(90deg,#f8fbff 0%,rgba(248,251,255,.68) 9%,rgba(248,251,255,.08) 30%,transparent 52%)!important}
+ html[data-theme="night"] .modern-hero-operator:has(.modern-operator-real-photo)::before{background:linear-gradient(90deg,#10253b 0%,rgba(16,37,59,.72) 10%,rgba(8,27,50,.12) 34%,rgba(4,15,26,.08) 100%)!important}
+}
+@media(max-width:390px){.modern-hero{grid-template-columns:minmax(0,1.16fr) minmax(118px,.84fr)!important}.modern-hero-operator{min-height:340px!important}}
