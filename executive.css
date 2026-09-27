@@ -1644,3 +1644,38 @@ html:not([data-theme="night"]) .pipeline-dashboard-note{color:#657b92}
     stroke-width:1.9!important;
   }
 }
+
+
+/* V2.45.33 · Director dashboard adopts unified Xicronix icon system */
+@media(max-width:700px){
+ .director-mobile-kpi{grid-template-columns:44px 1fr!important;gap:10px!important}
+ .director-mobile-kpi .director-kpi-icon{
+  width:42px!important;height:42px!important;display:grid!important;place-items:center!important;
+  border-radius:11px!important;background:color-mix(in srgb,currentColor 10%,#07152c)!important;
+  border:1px solid color-mix(in srgb,currentColor 42%,#173b72)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 6px 16px rgba(0,0,0,.14)!important;
+  filter:none!important;
+ }
+ .director-mobile-kpi .director-kpi-icon svg{
+  width:22px!important;height:22px!important;fill:none!important;stroke:currentColor!important;
+  stroke-width:1.8!important;stroke-linecap:round!important;stroke-linejoin:round!important;
+ }
+ .director-mobile-kpi.sales .director-kpi-icon{color:#3b9cff!important}
+ .director-mobile-kpi.pipeline .director-kpi-icon{color:#28d7a1!important}
+ .director-mobile-kpi.risk .director-kpi-icon{color:#ff6d67!important;background:rgba(239,68,68,.08)!important}
+ .director-mobile-kpi.forecast .director-kpi-icon{color:#8b6cff!important}
+ .director-pipeline-stage--clone .stage-icon--glow{
+  width:30px!important;height:30px!important;min-width:30px!important;border-radius:9px!important;
+  background:color-mix(in srgb,var(--pipe) 10%,#07152c)!important;
+  border:1px solid color-mix(in srgb,var(--pipe) 44%,#173b72)!important;
+  filter:none!important;
+ }
+ .director-pipeline-stage--clone .stage-icon--glow svg{width:18px!important;height:18px!important;stroke-width:1.8!important}
+ .director-mobile-exceptions--clone .attention-icon,.director-mobile-team--clone .team-icon{
+  width:36px!important;height:36px!important;display:grid!important;place-items:center!important;border-radius:10px!important;
+  background:rgba(59,156,255,.09)!important;border:1px solid rgba(59,156,255,.34)!important;color:#58aaff!important;
+ }
+ .director-mobile-exceptions--clone .attention-icon svg,.director-mobile-team--clone .team-icon svg{
+  width:20px!important;height:20px!important;fill:none!important;stroke:currentColor!important;stroke-width:1.8!important;stroke-linecap:round!important;stroke-linejoin:round!important;
+ }
+}
