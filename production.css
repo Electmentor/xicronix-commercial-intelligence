@@ -4390,3 +4390,52 @@ html[data-theme="night"] .modern-home .seller-dashboard-shortcuts button{
 .modern-hero-pillars .pillar-sales{color:#28d7a1!important;background:rgba(16,185,129,.12)!important}
 .modern-hero-pillars .pillar-auto{color:#8b6cff!important;background:rgba(109,74,255,.13)!important}
 @media(max-width:700px){.modern-hero-pillars .pillar-icon{width:32px!important;height:32px!important;border-radius:10px!important}.modern-hero-pillars .pillar-icon svg{width:17px;height:17px}}
+
+
+/* V2.45.31 · Mobile approved-reference lock */
+@media(max-width:700px){
+ html[data-theme="night"] body{background:#020817!important}
+ html[data-theme="night"] .app .main{background:#020817!important}
+ .modern-home{gap:10px!important}
+ .modern-hero{
+  min-height:0!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  border-radius:18px!important;
+  overflow:hidden!important;
+ }
+ .modern-hero-copy{
+  padding:22px 0 20px 20px!important;
+  margin-right:-38px!important;
+  padding-right:48px!important;
+  z-index:3!important;
+ }
+ .modern-hero-copy>small{font-size:.60rem!important;letter-spacing:.12em!important}
+ .modern-hero-copy h1{font-size:1.72rem!important;line-height:1.02!important;margin:10px 0 9px!important}
+ .modern-hero-copy>p{font-size:.76rem!important;line-height:1.38!important}
+ .modern-hero-pillars{margin-top:16px!important;display:grid!important;grid-template-columns:1fr!important;gap:8px!important}
+ .modern-hero-pillars span{grid-template-columns:34px auto!important;column-gap:8px!important}
+ .modern-hero-pillars .pillar-icon{width:34px!important;height:34px!important;border-radius:50%!important}
+ .modern-hero-pillars .pillar-icon svg{width:19px!important;height:19px!important}
+ .modern-hero-pillars b{font-size:.73rem!important}
+ .modern-hero-pillars small{font-size:.61rem!important}
+ .modern-hero-operator{min-height:320px!important}
+ .modern-operator-real-photo{object-position:58% center!important;filter:brightness(.84) saturate(.94) contrast(1.03)!important}
+ html[data-theme="night"] .modern-hero-operator:has(.modern-operator-real-photo)::before{
+  background:linear-gradient(90deg,#020817 0%,rgba(2,8,23,.98) 7%,rgba(3,12,31,.80) 18%,rgba(4,17,42,.40) 31%,rgba(5,20,49,.10) 44%,transparent 58%)!important;
+ }
+ html[data-theme="night"] .modern-home .seller-performance-kpis{gap:10px!important}
+ html[data-theme="night"] .modern-home .seller-performance-kpi{
+  border-radius:17px!important;
+  background:linear-gradient(145deg,#06152f,#020817)!important;
+  border-color:#173b72!important;
+ }
+ html[data-theme="night"] .seller-compensation-notice{
+  background:linear-gradient(135deg,#171913,#111814)!important;
+  border-color:#9b6a16!important;
+  border-radius:18px!important;
+ }
+ html[data-theme="night"] .mobile-app-bottom-nav:not([hidden]){
+  background:#020d20!important;
+  border-top-color:#173b72!important;
+ }
+}
