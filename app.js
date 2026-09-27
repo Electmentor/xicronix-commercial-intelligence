@@ -135,8 +135,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-26-v2.45.19';
-const CRM_VERSION_LABEL='v2.45.19';
+const CRM_RELEASE='2026-09-26-v2.45.20';
+const CRM_VERSION_LABEL='v2.45.20';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -547,13 +547,14 @@ function flagNewActivity(rows){
  if(rows.length)playXicronixChime();
  setTimeout(()=>{rows.forEach(row=>activityFlashIds.delete(String(row.id)));renderActivityRail();},6500);
 }
+function showAppUpdate(worker){const b=$('appUpdateBtn');if(!b)return;b.hidden=false;b.onclick=()=>{b.disabled=true;b.textContent='Actualizando aplicación…';worker?.postMessage({type:'SKIP_WAITING'});setTimeout(()=>location.reload(),900);};}
 function installVersionWatcher(){
  if(!('serviceWorker' in navigator))return;
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(sessionStorage.getItem('xicronix-sw-reloading')==='1')return;sessionStorage.setItem('xicronix-sw-reloading','1');location.reload();});
  navigator.serviceWorker.ready.then(reg=>{
    const activate=worker=>{if(worker)worker.postMessage({type:'SKIP_WAITING'});};
-   if(reg.waiting)activate(reg.waiting);
-   reg.addEventListener('updatefound',()=>{const worker=reg.installing;if(!worker)return;worker.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)activate(worker);});});
+   if(reg.waiting)showAppUpdate(reg.waiting);
+   reg.addEventListener('updatefound',()=>{const worker=reg.installing;if(!worker)return;worker.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)showAppUpdate(worker);});});
    setInterval(()=>reg.update().catch(()=>{}),60000);
  }).catch(()=>{});
 }
