@@ -1766,3 +1766,62 @@ html:not([data-theme="night"]) .pipeline-dashboard-note{color:#657b92}
  .director-pipeline-stage--clone .stage-main strong{font-size:1.768rem!important}
  .director-pipeline-stage--clone>small{font-size:.83rem!important}
 }
+
+
+/* V2.45.39 · Director KPI geometry correction from device validation */
+@media(max-width:700px){
+ .director-mobile-kpis--clone{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:10px!important;
+ }
+ .director-mobile-kpi{
+  min-height:132px!important;
+  padding:14px!important;
+  display:grid!important;
+  grid-template-columns:48px minmax(0,1fr)!important;
+  align-items:center!important;
+  gap:12px!important;
+  overflow:hidden!important;
+ }
+ .director-mobile-kpi .director-kpi-icon{
+  width:45px!important;height:45px!important;align-self:center!important;
+ }
+ .director-mobile-kpi .director-kpi-icon svg{width:45px!important;height:45px!important}
+ .director-mobile-kpi>div{
+  min-width:0!important;display:flex!important;flex-direction:column!important;
+  justify-content:center!important;align-items:flex-start!important;gap:3px!important;
+ }
+ .director-mobile-kpi>div>small{
+  display:block!important;margin:0!important;font-size:1rem!important;line-height:1.08!important;
+  font-weight:650!important;color:#aebfd1!important;white-space:normal!important;
+ }
+ .director-mobile-kpi>div>strong{
+  display:block!important;margin:0!important;font-size:1.48rem!important;line-height:1.04!important;
+  font-weight:850!important;color:#f7fbff!important;letter-spacing:-.025em!important;overflow-wrap:anywhere!important;
+ }
+ .director-mobile-kpi>div>span{
+  display:block!important;margin:0!important;font-size:.88rem!important;line-height:1.18!important;
+  color:#aebfd1!important;white-space:normal!important;overflow-wrap:anywhere!important;
+ }
+ .director-mobile-pipeline--clone{gap:8px!important}
+ .director-pipeline-stage--clone{
+  min-height:112px!important;padding:14px 7px 10px!important;
+  justify-content:center!important;
+ }
+ .director-pipeline-stage--clone .stage-main{
+  min-height:52px!important;gap:8px!important;margin:0 0 4px!important;
+ }
+ .director-pipeline-stage--clone .stage-icon--glow,
+ .director-pipeline-stage--clone .stage-icon{
+  width:45px!important;height:45px!important;min-width:45px!important;
+ }
+ .director-pipeline-stage--clone .stage-icon--glow svg,
+ .director-pipeline-stage--clone .stage-icon svg{width:45px!important;height:45px!important}
+ .director-pipeline-stage--clone .stage-main strong{
+  font-size:1.55rem!important;line-height:1!important;margin:0!important;
+ }
+ .director-pipeline-stage--clone>small{
+  font-size:.78rem!important;line-height:1.08!important;margin:3px 0 0!important;
+  white-space:normal!important;text-align:center!important;
+ }
+}
