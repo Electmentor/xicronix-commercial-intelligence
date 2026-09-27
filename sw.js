@@ -1,5 +1,5 @@
-const CACHE='xicronix-v2-45-29';
-const SHELL=['./','./index.html','./styles.css?v=2.45.29','./production.css?v=2.45.29','./mobile-now.css?v=2.45.29','./executive.css?v=2.45.29','./app.js?v=2.45.29'];
+const CACHE='xicronix-v2-45-30';
+const SHELL=['./','./index.html','./styles.css?v=2.45.30','./production.css?v=2.45.30','./mobile-now.css?v=2.45.30','./executive.css?v=2.45.30','./app.js?v=2.45.30'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).catch(()=>{}).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')self.skipWaiting();});
