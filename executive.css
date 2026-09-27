@@ -1686,3 +1686,30 @@ html:not([data-theme="night"]) .pipeline-dashboard-note{color:#657b92}
  .director-mobile-kpi{grid-template-columns:47px 1fr!important}
  .director-mobile-kpi .director-kpi-icon{width:45px!important;height:45px!important}
 }
+
+
+/* V2.45.35 · Director dashboard: bare 45px icon standard */
+@media(max-width:700px){
+ .director-mobile-kpi{grid-template-columns:52px 1fr!important;gap:10px!important}
+ .director-mobile-kpi .director-kpi-icon{
+  width:48px!important;height:48px!important;
+  background:transparent!important;border:0!important;border-radius:0!important;
+  box-shadow:none!important;filter:none!important;
+ }
+ .director-mobile-kpi .director-kpi-icon svg{
+  width:45px!important;height:45px!important;
+  fill:none!important;stroke:currentColor!important;stroke-width:1.65!important;
+  stroke-linecap:round!important;stroke-linejoin:round!important;
+ }
+ .director-pipeline-stage--clone .stage-icon--glow{
+  width:34px!important;height:34px!important;min-width:34px!important;
+  background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;filter:none!important;
+ }
+ .director-pipeline-stage--clone .stage-icon--glow svg{width:30px!important;height:30px!important;stroke-width:1.7!important}
+ .director-mobile-exceptions--clone .attention-icon,
+ .director-mobile-team--clone .team-icon{
+  width:38px!important;height:38px!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;
+ }
+ .director-mobile-exceptions--clone .attention-icon svg,
+ .director-mobile-team--clone .team-icon svg{width:34px!important;height:34px!important;stroke-width:1.7!important}
+}
