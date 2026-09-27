@@ -525,6 +525,7 @@ function renderConnectionState(){
  if(presence&&label){presence.dataset.state=status.state;label.textContent=status.label;presence.title=title;}
  const mobile=$('mobileConnectionPresence'),mobileLabel=$('mobileConnectionLabel');
  if(mobile&&mobileLabel){mobile.dataset.state=status.state;mobileLabel.textContent=status.label;mobile.title=title;}
+ const headerRole=$('headerAccountRole');if(headerRole)headerRole.textContent=enums.role[profile?.role]||profile?.role||'Cuenta';
 }
 
 
