@@ -4181,3 +4181,5 @@ dialog[data-ribbon] .dialog-header>button:focus-visible{
 .daily-briefing-item:nth-child(4n+3){background:color-mix(in srgb,var(--panel) 95%,#14b8a6 5%);border-color:color-mix(in srgb,#14b8a6 22%,var(--line))}
 .daily-briefing-item:nth-child(4n){background:color-mix(in srgb,var(--panel) 96%,#6366f1 4%);border-color:color-mix(in srgb,#6366f1 20%,var(--line))}
 .daily-briefing-item{box-shadow:0 5px 16px rgba(8,27,50,.055)}
+
+.app-update-btn{border-color:color-mix(in srgb,#2563eb 45%,var(--line));background:color-mix(in srgb,var(--surface) 88%,#2563eb 12%);font-weight:800}.app-update-btn:not([hidden]){animation:xicronix-update-ready 1.5s ease-in-out 2}@keyframes xicronix-update-ready{50%{box-shadow:0 0 0 4px color-mix(in srgb,#2563eb 18%,transparent)}}
