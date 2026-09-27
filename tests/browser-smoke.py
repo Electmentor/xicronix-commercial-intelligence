@@ -27,6 +27,7 @@ with sync_playwright() as p:
    if 'cdn.jsdelivr.net/npm/@supabase/supabase-js@' in u:route.fulfill(status=200,content_type='application/javascript',body=fixture)
    elif 'unpkg.com/leaflet@' in u and u.endswith('.js'):route.fulfill(status=200,content_type='application/javascript',body='')
    elif 'unpkg.com/leaflet@' in u and u.endswith('.css'):route.fulfill(status=200,content_type='text/css',body='')
+   elif u.startswith('https://images.unsplash.com/'):route.abort()  # Known decorative asset; keep tests offline without treating it as an unexpected integration.
    elif urlparse(u).netloc==urlparse(base).netloc:route.continue_()
    else:blocked.append(u.split('?')[0]);route.abort()
   context.route('**/*',route_handler)
