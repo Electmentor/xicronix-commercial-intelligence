@@ -575,9 +575,10 @@ function renderActivityRail(){
  const card=(row,isPending)=>{
    const stamp=new Date(row.received_at||row.created_at);
    const time=Number.isFinite(stamp.getTime())?stamp.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}):'';
-   const cls=(isPending?'pending':row.status==='REVIEWED'?'progress':'done')+(activityFlashIds.has(String(row.id))?' just-arrived':'');
+   const unseen=isPending&&!row.seen_at;
+   const cls=(isPending?'pending':row.status==='REVIEWED'?'progress':'done')+(unseen?' unseen-alert':'');
    const sender=row.sender_name||row.from_address||'Remitente';
-   const actions=isPending?'<div class="activity-card-actions">'+(row.lead_id?'<button type="button" class="primary" data-mail-lead="'+esc(row.lead_id)+'">Ver y responder</button>':'')+'<button type="button" data-mail-reviewed="'+esc(row.id)+'">En atención</button></div>':'';
+   const actions=isPending?'<div class="activity-card-actions">'+(row.lead_id?'<button type="button" class="primary" data-mail-lead="'+esc(row.lead_id)+'">Ver y responder</button>':'')+(unseen?'<button type="button" class="mail-seen-btn" data-mail-seen="'+esc(row.id)+'" title="Marcar como visto">👁 Visto</button>':'<small class="mail-seen-mark">👁 Visto</small>')+'<button type="button" data-mail-reviewed="'+esc(row.id)+'">En atención</button></div>':'';
    return '<article class="activity-card '+cls+'"><header><h3>'+esc(sender)+'</h3><time>'+esc(time)+'</time></header><small>'+esc(row.subject||'(Sin asunto)')+'</small><p>'+esc(row.summary||'Nuevo correo recibido. Abre el expediente para revisar el mensaje y preparar la respuesta.')+'</p>'+actions+'</article>';
  };
  content.innerHTML=(pending.length?'<div class="activity-section-label">PENDIENTES · NO DESAPARECEN POR FECHA</div>'+pending.map(row=>card(row,true)).join(''):'')+
@@ -2564,6 +2565,7 @@ function init(){
  const activityToday=$('activityTodayBtn'),activityDate=$('activityDate');
  if(activityToday)activityToday.onclick=()=>{if(activityDate)activityDate.value=activityDayKey(new Date());renderActivityRail();};
  if(activityDate)activityDate.onchange=renderActivityRail;
+ document.addEventListener('click',async event=>{const b=event.target.closest?.('[data-mail-seen]');if(!b||!profile||!session)return;const id=b.dataset.mailSeen;b.disabled=true;const {error}=await sb.from('commercial_mail_inbox').update({seen_at:new Date().toISOString(),seen_by:session.user.id,updated_at:new Date().toISOString()}).eq('id',id).eq('organization_id',profile.organization_id);if(error){b.disabled=false;notice(errorText(error),true);return;}const row=(data.mail||[]).find(x=>String(x.id)===String(id));if(row){row.seen_at=new Date().toISOString();row.seen_by=session.user.id;}renderActivityRail();});
  $('closeLeadDetail').onclick=()=>closeLeadDetails();$('closeAttention').onclick=()=>{if($('attentionDialog').open)$('attentionDialog').close();};$('closeDailyBriefing').onclick=()=>{if($('dailyBriefingDialog').open)$('dailyBriefingDialog').close();};$('closeSmartMail').onclick=()=>{if($('smartMailDialog').open)$('smartMailDialog').close();};
  $('leadDetailDialog').addEventListener('close',()=>{$('leadDetailContent').replaceChildren();rememberPage();});$('attentionDialog').addEventListener('close',()=>{$('attentionContent').replaceChildren();});
  initTheme();
