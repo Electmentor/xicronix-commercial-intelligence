@@ -4480,3 +4480,19 @@ html[data-theme="night"] .source-badge.demo{background:#563816!important;color:#
 html[data-theme="night"] .mail-connection{background:#14382f!important;border-color:#376f5e!important}.mail-connection strong{color:inherit}
 html[data-theme="night"] .opp-risk-badge{background:#54262a!important;color:#ffd9dc!important;border-color:#9b4d54!important}
 html[data-theme="night"] button:disabled{opacity:.62;color:#b9c8d9!important}
+
+/* Seller destination identity tokens */
+.app[data-workspace="SELLER"]{--dest-performance:#2f80ed;--dest-portfolio:#19b99a;--dest-tasks:#7c5cff;--dest-agenda:#f59e42}
+#mobileNavHome{--dest-color:var(--dest-performance)}#mobileNavLeads{--dest-color:var(--dest-portfolio)}#mobileNavTasks{--dest-color:var(--dest-tasks)}#mobileNavMeetings{--dest-color:var(--dest-agenda)}
+.app[data-workspace="SELLER"] #mobileAppBottomNav button span{color:var(--dest-color)!important;border-color:color-mix(in srgb,var(--dest-color) 42%,var(--line))!important}
+.app[data-workspace="SELLER"] #mobileAppBottomNav button small{color:color-mix(in srgb,var(--dest-color) 72%,var(--ink))!important}
+.app[data-workspace="SELLER"] #mobileAppBottomNav button.active{background:color-mix(in srgb,var(--dest-color) 14%,var(--surface))!important}
+.app[data-workspace="SELLER"] #mobileAppBottomNav button.active span{background:color-mix(in srgb,var(--dest-color) 18%,transparent)!important;box-shadow:0 0 0 1px color-mix(in srgb,var(--dest-color) 32%,transparent),0 0 18px color-mix(in srgb,var(--dest-color) 22%,transparent)!important}
+.app[data-workspace="SELLER"] [data-page="dashboard"]{--dest-color:var(--dest-performance)}
+.app[data-workspace="SELLER"] [data-page="leads"]{--dest-color:var(--dest-portfolio)}
+.app[data-workspace="SELLER"] [data-page="tasks"]{--dest-color:var(--dest-tasks)}
+.app[data-workspace="SELLER"] [data-page="meetings"]{--dest-color:var(--dest-agenda)}
+.app[data-workspace="SELLER"] .seller-dashboard-shortcuts [data-page],
+.app[data-workspace="SELLER"] .seller-execution-stats [data-page]{border-color:color-mix(in srgb,var(--dest-color) 38%,var(--line))!important;box-shadow:inset 3px 0 var(--dest-color)!important}
+.app[data-workspace="SELLER"] .seller-dashboard-shortcuts [data-page]:hover,
+.app[data-workspace="SELLER"] .seller-execution-stats [data-page]:hover{background:color-mix(in srgb,var(--dest-color) 12%,var(--surface))!important}
