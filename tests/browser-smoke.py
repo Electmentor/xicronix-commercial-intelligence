@@ -141,7 +141,7 @@ with sync_playwright() as p:
    check(role+' sees prospect progress',lambda:expect(page.locator('#dashboard')).to_contain_text('Institución de validación'))
    check(role+' sees only assigned leads',lambda:expect(page.locator('#dashboard')).not_to_contain_text('Prospecto de otro vendedor'))
    if role=='SALES':
-    page.locator('#navigation [data-page="tasks"]').click()
+    click_nav(page,'tasks')
     check('seller task cards render',lambda:expect(page.locator('.task-mobile-card')).to_have_count(1))
     check('seller task quick actions visible',lambda:expect(page.locator('.task-mobile-actions').first).to_be_visible())
     check('seller linked task opens prospect',lambda:expect(page.locator('[data-task-lead]').first).to_be_visible())
