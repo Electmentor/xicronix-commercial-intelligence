@@ -1,0 +1,5 @@
+{
+  "buildCommand": "node scripts/verify-assistant-provider.mjs",
+  "outputDirectory": ".",
+  "functions": { "api/assistant.mjs": { "maxDuration": 60 } }
+}
