@@ -10,7 +10,7 @@ import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,mileston
 import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.14';
 
 const $ = id => document.getElementById(id);
-const CLIENT_BUILD='v2.45.32';
+const CLIENT_BUILD='v2.45.33';
 const SPLASH_STARTED_AT=performance.now();
 const SPLASH_MIN_MS=450;
 function startLarsonScanner(){
@@ -136,8 +136,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-27-v2.45.32';
-const CRM_VERSION_LABEL='v2.45.32';
+const CRM_RELEASE='2026-09-27-v2.45.33';
+const CRM_VERSION_LABEL='v2.45.33';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -266,17 +266,19 @@ function renderWorkspaceControls(){
  if(mobileBottom){
   mobileBottom.hidden=!profile||!workspaceEntryChosen;
   const primary=$('mobileNavPrimary'),reports=$('mobileNavReports'),nowBtn=$('mobileNavNow');
+  const home=$('mobileNavHome');
+  if(home){home.dataset.page='dashboard';const label=home.querySelector('small');if(label)label.textContent=admin?'Dirección':'Mi rendimiento';}
   if(primary){
    primary.dataset.page=admin?'users':'leads';
    const label=primary.querySelector('small');if(label)label.textContent=admin?'Equipo':'Mi cartera';
   }
   if(reports){
-   reports.dataset.page=admin?'goals':'tasks';
-   const label=reports.querySelector('small');if(label)label.textContent=admin?'Metas':'Mis tareas';
+   reports.dataset.page=admin?'opportunities':'tasks';
+   const label=reports.querySelector('small');if(label)label.textContent=admin?'Negociaciones':'Mis tareas';
   }
   if(nowBtn){
-   nowBtn.dataset.page=admin?'opportunities':'meetings';
-   const label=nowBtn.querySelector('small');if(label)label.textContent=admin?'Negociaciones':'Mi agenda';
+   nowBtn.dataset.page=admin?'goals':'meetings';
+   const label=nowBtn.querySelector('small');if(label)label.textContent=admin?'Metas':'Mi agenda';
   }
  }
  const labels=admin

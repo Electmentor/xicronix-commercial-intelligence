@@ -4527,3 +4527,15 @@ html[data-theme="night"] .modern-home .seller-performance-panel,html[data-theme=
 .app[data-workspace="seller"] #mobileAppBottomNav>button>small{color:inherit!important}
 .app[data-workspace="seller"] #mobileAppBottomNav>button.active,
 .app[data-workspace="seller"] #mobileAppBottomNav>button[aria-current="page"]{color:var(--nav-sem)!important;background:color-mix(in srgb,var(--nav-sem) 16%,#07182a)!important}
+
+/* V2.45.33 · Director navigation is a separate semantic system */
+.app[data-workspace="admin"]{--dir-home:#22c7e8;--dir-team:#667eea;--dir-deals:#ff6f61;--dir-goals:#e6b84a}
+.app[data-workspace="admin"] #mobileNavHome{--nav-sem:var(--dir-home)!important;color:var(--dir-home)!important;order:1}
+.app[data-workspace="admin"] #mobileNavPrimary{--nav-sem:var(--dir-team)!important;color:var(--dir-team)!important;order:2}
+.app[data-workspace="admin"] #mobileNavReports{--nav-sem:var(--dir-deals)!important;color:var(--dir-deals)!important;order:3}
+.app[data-workspace="admin"] #mobileNavNow{--nav-sem:var(--dir-goals)!important;color:var(--dir-goals)!important;order:4}
+.app[data-workspace="admin"] #mobileAppBottomNav>button>span{color:inherit!important;border-color:color-mix(in srgb,currentColor 58%,#536b83)!important;background:color-mix(in srgb,currentColor 10%,#0c1b2c)!important}
+.app[data-workspace="admin"] #mobileAppBottomNav>button>small{color:inherit!important;font-weight:800!important}
+.app[data-workspace="admin"] #mobileAppBottomNav>button.active,.app[data-workspace="admin"] #mobileAppBottomNav>button[aria-current="page"]{background:color-mix(in srgb,var(--nav-sem) 16%,#07182a)!important;color:var(--nav-sem)!important}
+.app[data-workspace="admin"] [data-page="dashboard"]{--dir-sem:var(--dir-home)}.app[data-workspace="admin"] [data-page="users"]{--dir-sem:var(--dir-team)}.app[data-workspace="admin"] [data-page="opportunities"]{--dir-sem:var(--dir-deals)}.app[data-workspace="admin"] [data-page="goals"]{--dir-sem:var(--dir-goals)}
+.app[data-workspace="admin"] :is(.ceo-dashboard,.director-responsibility-center) button[data-page]{border-color:color-mix(in srgb,var(--dir-sem,currentColor) 42%,var(--line))!important}
