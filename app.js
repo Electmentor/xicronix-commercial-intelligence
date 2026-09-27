@@ -3,14 +3,14 @@ import {escapeHTML as esc, filterRecords, money, metrics, priorities, taskUrgenc
 import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWriteModule, assignedUserId, scopeWorkspaceData} from './workspace.mjs';
 
 import {DEMO_VERSION, DEMO_SELLERS, createDemoData, upgradeDemoData, mutateDemo, realOnly, localDay} from './demo.mjs?v=20260924-v2.41.16';
-import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260925-v2.44.2';
+import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260927-v2.45.38';
 import {analyticsCSV} from './analytics.mjs';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
 import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.14';
 
 const $ = id => document.getElementById(id);
-const CLIENT_BUILD='v2.45.37';
+const CLIENT_BUILD='v2.45.38';
 const SPLASH_STARTED_AT=performance.now();
 const SPLASH_MIN_MS=450;
 function startLarsonScanner(){
@@ -136,8 +136,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-27-v2.45.37';
-const CRM_VERSION_LABEL='v2.45.37';
+const CRM_RELEASE='2026-09-27-v2.45.38';
+const CRM_VERSION_LABEL='v2.45.38';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -528,6 +528,8 @@ function renderConnectionState(){
  if(presence&&label){presence.dataset.state=status.state;label.textContent=status.label;presence.title=title;}
  const mobile=$('mobileConnectionPresence'),mobileLabel=$('mobileConnectionLabel');
  if(mobile&&mobileLabel){mobile.dataset.state=status.state;mobileLabel.textContent=status.label;mobile.title=title;}
+ const desktop=$('desktopConnectionPresence'),desktopLabel=$('desktopConnectionLabel');
+ if(desktop&&desktopLabel){desktop.dataset.state=status.state;desktopLabel.textContent=status.label;desktop.title=title;}
  const headerRole=$('headerAccountRole');if(headerRole)headerRole.textContent=enums.role[profile?.role]||profile?.role||'Cuenta';
 }
 
@@ -1044,7 +1046,6 @@ function renderDashboard(){
  const admin=canViewDashboard();
  const viewData=commercialDataView();
  $('dashboard').innerHTML=admin?renderExecutive(viewData,{demo:dataSource==='demo',failures,analyticsPeriod}):renderSellerDashboard(viewData,{demo:dataSource==='demo',failures});
- if(admin&&window.matchMedia('(min-width:701px)').matches)$('dashboard').insertAdjacentHTML('afterbegin',renderDirectorResponsibilityCenter(viewData));
  if(admin&&dataSource==='live'&&Array.isArray(data.territorialMacro)&&data.territorialMacro.length){
    const section=$('dashboard').querySelector('.territorial-intelligence');
    if(section){

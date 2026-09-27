@@ -195,20 +195,39 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  '</section>';
  const maxStage=Math.max(1,...m.stages.map(row=>row.value));
  const pipeline=m.stages.map((row,index)=>'<div class="ceo-stage"><span>'+row.label+'</span><b>'+row.count+'</b><strong>'+compactMoney(row.value)+'</strong><div><i style="width:'+row.value/maxStage*100+'%;--stage-color:'+['#4b8cff','#62b3e4','#a790ed','#efad55','#40bda0'][index]+'"></i></div></div>').join('');
+ // Desktop reuses the same metrics, priority rules, pipeline counts and action handlers as mobile.
+ const desktopKpi=(label,value,hint,view,tone,icon)=>'<button class="'+tone+'" data-ceo-view="'+view+'"'+(incomplete?' disabled':'')+'><span class="director-desktop-kpi-icon">'+icon+'</span><small>'+label+'</small><strong>'+(incomplete?'—':value)+'</strong><span>'+(incomplete?'Datos incompletos':esc(hint))+'</span></button>';
+ const desktopPipeline=mobilePipeline.map(([label,count],index)=>'<div class="director-pipeline-stage" style="--pipe:'+['#2369db','#389eea','#e5b319','#ef8b2c','#ef555f','#079c75'][index]+'"><strong>'+(incomplete?'—':count)+'</strong><small>'+esc(label)+'</small></div>').join('');
+ const desktopAttention=incomplete?'<div class="director-empty">Actualiza los datos antes de interpretar prioridades.</div>':!m.decisions.length?'<div class="director-empty">No hay excepciones según las reglas actuales.</div>':'<div class="director-attention-table"><table><thead><tr><th>Prioridad</th><th>Institución</th><th>Acción</th><th>Fecha</th></tr></thead><tbody>'+m.decisions.map(item=>{
+  const row=(data[item.table]||[]).find(row=>row.id===item.id)||{};
+  const lead=(data.leads||[]).find(lead=>lead.id===row.lead_id);
+  const institution=(data.institutions||[]).find(institution=>institution.id===(row.institution_id||lead?.institution_id));
+  const due=row.next_action_date;
+  const validDate=due&&Number.isFinite(Date.parse(due));
+  const dueDay=validDate?(String(due).length===10?due:businessDay(new Date(due))):null;
+  const dateLabel=dueDay===businessDay(now)?'Hoy':validDate?new Date(String(due).length===10?due+'T12:00:00Z':due).toLocaleDateString('es-PE',{day:'2-digit',month:'2-digit',timeZone:'America/Lima'}):'Sin fecha';
+  return '<tr><td><span class="director-priority '+item.tone+'">'+({3:'Alta',2:'Media',1:'Baja'}[item.severity])+'</span></td><td><strong>'+esc(institution?.name||item.detail||'Sin institución')+'</strong><small>'+esc(item.detail)+'</small></td><td><button data-edit="'+esc(item.id)+'" data-table="'+item.table+'" title="'+esc(item.reason)+'">'+esc(item.action)+' →</button></td><td><time'+(validDate?' datetime="'+esc(due)+'"':'')+'>'+esc(dateLabel)+'</time></td></tr>';
+ }).join('')+'</tbody></table></div>';
+ const iconTeam='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 14a4 4 0 0 1 4 4v3"/></svg>';
+ const iconTasks='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13v7H4V4h12M9 11l3 3 9-10"/></svg>';
  return '<div class="ceo-dashboard director-dashboard">'+mobileClone+
- '<section class="director-hero"><div><small>DIRECCIÓN COMERCIAL · '+esc(now.toLocaleDateString('es-PE',{month:'long',year:'numeric'}))+'</small><h2>Hola, Toshi</h2><p>'+esc(headline)+'</p></div><div class="director-hero-actions"><button data-page="now">Ver prioridades</button><button id="ceoMethodBtn" class="secondary">Cómo se calcula</button></div></section>'+
- '<section class="director-kpis">'+
-  '<button data-ceo-view="won"><small>Ventas ganadas · mes</small><strong>'+compactMoney(m.revenue)+'</strong><span>'+m.wonCount+' cierres · '+progress+'</span></button>'+
-  '<button data-ceo-view="pipeline"><small>Pipeline abierto</small><strong>'+compactMoney(m.pipeline)+'</strong><span>'+m.openCount+' oportunidades</span></button>'+
-  '<button data-ceo-view="pipeline"><small>Forecast del mes</small><strong>'+compactMoney(m.forecast)+'</strong><span>'+(m.target===null?'Sin meta definida':'Meta '+compactMoney(m.target))+'</span></button>'+
-  '<button data-ceo-view="risk" class="'+(m.atRisk.length?'risk':'')+'"><small>Exposición en riesgo</small><strong>'+compactMoney(m.riskValue)+'</strong><span>'+m.atRisk.length+' oportunidades · '+m.overdueTasks+' tareas vencidas</span></button>'+
+ '<section class="director-hero director-desktop-hero"><div><small>DIRECCIÓN COMERCIAL</small><div class="director-desktop-greeting"><h2>Hola, Toshi</h2><span id="desktopConnectionPresence" class="desktop-connection-presence" data-state="connecting" role="status"><i class="connection-led" aria-hidden="true"></i><span id="desktopConnectionLabel">Conectando</span></span></div><p>'+esc(headline)+'</p></div><div class="director-hero-actions"><button id="ceoMethodBtn" class="secondary">Cómo se calcula</button></div></section>'+
+ '<section class="director-kpis director-desktop-kpis" aria-label="Indicadores comerciales">'+
+  desktopKpi('Ventas mes',compactMoney(m.revenue),m.wonCount+' cierres · '+progress,'won','sales',iconSales)+
+  desktopKpi('Pipeline',compactMoney(m.pipeline),m.openCount+' oportunidades','pipeline','pipeline',iconPipeline)+
+  desktopKpi('En riesgo',String(m.atRisk.length),'Requieren atención · '+compactMoney(m.riskValue),'risk','risk',iconRisk)+
+  desktopKpi('Forecast',compactMoney(m.forecast),m.target===null?'Sin meta definida':'Meta '+compactMoney(m.target),'pipeline','forecast',iconForecast)+
+ '</section>'+
+ '<section class="director-panel director-pipeline-panel director-desktop-pipeline"><header><h2>Pipeline comercial</h2><button data-page="opportunities">Ver detalle →</button></header><div class="director-pipeline">'+desktopPipeline+'</div><small class="director-pipeline-note">Ganado: cierres del mes · Etapas sin duplicar prospectos convertidos en oportunidades.</small></section>'+
+ '<section class="director-grid director-grid-primary director-desktop-panels">'+
+  '<article class="director-panel director-attention-panel"><header><h2>Requiere tu atención</h2><button data-page="now">Ver todas →</button></header>'+desktopAttention+'</article>'+
+  '<article class="director-panel director-team-panel"><header><h2>Equipo comercial</h2><button data-page="users">Ver equipo →</button></header><div class="director-team-summary">'+
+   '<button data-page="users"><span class="director-summary-icon">'+iconTeam+'</span><strong>'+(incomplete?'—':m.team.length)+'</strong><small>Comerciales registrados</small></button>'+
+   '<button data-page="tasks"><span class="director-summary-icon">'+iconTasks+'</span><strong>'+(incomplete?'—':m.team.reduce((sum,row)=>sum+row.overdueTasks,0))+'</strong><small>Tareas vencidas del equipo</small></button>'+
+   '<button data-page="goals"><span class="director-summary-icon">'+iconSales+'</span><strong>'+(incomplete||m.attainment===null?'—':Math.round(m.attainment)+'%')+'</strong><small>'+(incomplete?'Datos incompletos':m.attainment===null?'Sin meta mensual':'Cumplimiento mensual')+'</small></button>'+
+  '</div><details class="director-team-detail"><summary>Detalle por ejecutivo</summary><div class="director-team-grid">'+teamCards+'</div></details></article>'+
  '</section>'+
  '<section class="director-prospect-feed"><div><small>PROSPECT INTELLIGENCE</small><h2>Prospectos potenciales en actualización automática</h2><p>'+prospects.length+' candidatos consolidados · '+actionNow.length+' listos para acción · '+reviewFirst.length+' requieren investigación o revalidación.</p></div><div class="director-prospect-metrics"><span><strong>'+actionNow.length+'</strong><small>Acción ahora</small></span><span><strong>'+reviewFirst.length+'</strong><small>Investigar</small></span><span><strong>'+prospects.length+'</strong><small>Total</small></span></div><button data-page="prospects">Abrir prospectos →</button></section>'+
- '<section class="director-grid director-grid-primary">'+
-  '<article class="director-panel director-team-panel"><header><div><small>EQUIPO COMERCIAL</small><h2>¿Quién necesita mi atención?</h2></div><button data-page="users">Gestionar equipo →</button></header><div class="director-team-grid">'+teamCards+'</div></article>'+
-  '<article class="director-panel director-attention-panel"><header><div><small>EXCEPCIONES</small><h2>Requiere mi intervención</h2></div><span>'+m.decisions.length+' priorizadas</span></header><div class="director-exception-list">'+exceptionCards+'</div></article>'+
- '</section>'+
- '<section class="director-panel director-pipeline-panel"><header><div><small>FLUJO COMERCIAL</small><h2>Pipeline del equipo</h2></div><span>Vista agregada · no es una lista</span></header><div class="director-pipeline">'+directorPipeline+'</div></section>'+
  '<section class="director-grid director-grid-secondary">'+
   '<article class="director-panel"><header><div><small>NEGOCIOS ESTRATÉGICOS</small><h2>Oportunidades de mayor impacto</h2></div><button data-page="opportunities">Ver cartera →</button></header><div class="director-opportunity-list">'+strategicCards+'</div></article>'+
   '<article class="director-panel"><header><div><small>PRÓXIMOS HITOS</small><h2>Qué viene después</h2></div><button data-page="meetings">Abrir agenda →</button></header><div class="director-upcoming-list">'+upcomingRows+'</div></article>'+
