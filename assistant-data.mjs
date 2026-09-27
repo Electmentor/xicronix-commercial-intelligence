@@ -6,8 +6,8 @@ export const CRM_PUBLIC_KEY='sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK';
 const TABLES={radar:'commercial_radar_dashboard',tasks:'tasks',opportunities:'opportunities',leads:'leads',meetings:'meetings'};
 export async function loadEvidence(payload,auth,authorization,{fetcher=fetch,now=Date.now()}={}){
  const intent=queryIntent(payload.message),context=payload.context;
- const page=String(context.page).split(':')[0],global=['priority','why','next','authorization','impact'].includes(intent)||['dashboard','now'].includes(page);
- const kinds=intent==='impact'?['opportunities']:global?KINDS:KINDS.includes(page)?[page]:[];
+ const page=String(context.page).split(':')[0],global=['priority','why','next','authorization','impact','brief','clarify','audit'].includes(intent)||['dashboard','now'].includes(page);
+ const kinds=intent==='priority'&&/primera tarea|tarea.*prioridad|prioridad.*tarea/.test(payload.message.toLowerCase())?['tasks']:intent==='impact'?['opportunities']:global?KINDS:KINDS.includes(page)?[page]:[];
  const workspace=effectiveWorkspace(auth,context.workspace);
  const limitations=[],records={};
  if(context.source==='demo'){
