@@ -4584,3 +4584,8 @@ html[data-theme="night"] .modern-home .seller-performance-panel,html[data-theme=
 @media(max-width:1179px) and (min-width:701px){#appView:not([hidden]){display:grid!important;grid-template-columns:220px minmax(0,1fr)}#appView:not([hidden]).sidebar-collapsed{grid-template-columns:0 minmax(0,1fr)!important}}
 @media(max-width:700px){#appView #appHeader{padding:16px 60px 14px 16px!important;gap:12px!important}#appView #appHeader .top-title-block{flex-basis:100%}#appView #appHeader h1{font-size:1.25rem!important}#appView #appHeader .top-title-row{align-items:flex-start!important}#appView #appHeader #workspaceControls:not([hidden]){width:100%!important;justify-content:flex-start!important}#appView #appHeader .workspace-switch{flex-wrap:wrap}#appView>.main,#appView.sidebar-collapsed>.main{padding:14px 12px calc(84px + env(safe-area-inset-bottom))!important}}
 @media(max-width:700px){#appView #appHeader{padding-right:16px!important}#appView #appHeader .top-title-block{padding-right:44px}#appView #appHeader #workspaceControls:not([hidden]){display:flex!important;flex-wrap:wrap!important;box-sizing:border-box;min-width:0!important}#appView #appHeader .workspace-actions{width:auto!important;flex:none!important}#appView #appHeader .workspace-switch{flex-wrap:wrap!important;min-width:0!important}}
+/* Persistent header and an independently scrollable activity panel beneath it. */
+#appView #appHeader{position:sticky!important;top:0!important;z-index:25;align-self:start}
+#appView #activityRail{top:var(--app-header-height,110px);height:calc(100dvh - var(--app-header-height,110px))}
+html{scroll-padding-top:calc(var(--app-header-height,110px) + 12px)}
+@media(max-width:700px){body{overflow-x:clip!important;overflow-y:visible!important}}
