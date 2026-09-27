@@ -30,3 +30,11 @@ Evidencia local conservada fuera de los assets productivos, en `../performance-r
 Se mantienen las notificaciones y el Assistant, por lo que el marco exterior no replica la imagen. Las subpáginas presentan los campos realmente disponibles y no replican métricas inventadas de las miniaturas. La prueba visual no equivale a una sesión autenticada real en producción ni a una auditoría WCAG completa.
 
 No quedan hallazgos P0/P1/P2 de funcionamiento o recorte dentro del alcance revisado. Refinamiento P3 posible: reducir el número de puntos de la curva anual manteniendo los valores diarios accesibles.
+
+## Corrección de tabla v2.46.1 — 27 septiembre 2026
+final result: passed
+Referencia: captura del usuario de la tabla recortada; se conserva la paleta y se mejora intencionalmente la densidad y alineación.
+Causa corregida: el mínimo intrínseco de la columna de grid permitía que la tabla excediera el contenedor. Se usa minmax(0,1fr), región con overflow:auto y altura limitada.
+Controles Anterior/Siguiente verificados: escritorio scrollLeft=71.2, ancho visible840 / contenido912; móvil scrollLeft=225.6, ancho visible301 / contenido900. Página móvil375 <= viewport390, sin desbordamiento global.
+Encabezados sticky; texto multilínea, cantidades tabulares a la derecha, filas alternadas, foco visible. Evidencia: ../performance-review/table-desktop-2461.png y table-mobile-2461.png. Las capturas muestran el desplazamiento activo, por lo que las columnas fuera del área visible se recuperan con los controles.
+36/36 pruebas enfocadas aprobadas. Prueba visual aislada con demostración, sin cambios a datos/backend.

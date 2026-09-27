@@ -1,6 +1,6 @@
 import {analyticsMetrics, businessDay} from './analytics.mjs';
 import {escapeHTML as esc} from './domain.mjs';
-import {renderAnalytics, salesChart, expenseChart, profitChart} from './analytics-view.mjs?v=2.46.0';
+import {renderAnalytics, salesChart, expenseChart, profitChart} from './analytics-view.mjs?v=2.46.1';
 
 export const performancePages={overview:'Rendimiento del negocio',sales:'Ventas',budget:'Presupuesto',profit:'Rentabilidad',forecast:'Proyecciones'};
 const numeric=v=>v!==null&&v!==undefined&&v!==''&&typeof v!=='boolean'&&Number.isFinite(Number(v))?Number(v):null;
@@ -48,7 +48,10 @@ export function performanceModel(input,{now=new Date(),period='year',demo=false,
  return {data,m,trend,sales,allSales,expenses,open,upcoming,alerts,scenarios,spread,failures,provenance:{sales:failures.opportunities?'NO DISPONIBLE':'REAL',result:failures.opportunities||failures.expenses||m.totals.operatingResult===null?'NO DISPONIBLE':'CALCULADA',forecast:scenarios?'PROYECTADA':'NO DISPONIBLE'}};
 }
 
-function table(headers,rows){return '<div class="analytics-table-scroll" tabindex="0"><table class="analytics-table"><thead><tr>'+headers.map(h=>'<th scope="col">'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>'<td>'+c+'</td>').join('')+'</tr>').join('')+'</tbody></table>'+(!rows.length?'<p class="performance-empty">Sin registros para estos filtros.</p>':'')+'</div>';}
+function table(headers,rows){
+ const cls=i=>/PEN|Importe|Ventas|Venta|Costo|Gasto|Margen|Resultado|Participación|Cumplimiento|Cierre del periodo/.test(headers[i])?' class="performance-number"':'';
+ return '<section class="performance-table-card"><div class="performance-table-toolbar"><strong>Detalle · '+rows.length+' registros</strong><div><span>Desplaza para ver todas las columnas</span><button type="button" data-performance-scroll="-1" aria-label="Desplazar tabla a la izquierda">Anterior</button><button type="button" data-performance-scroll="1" aria-label="Desplazar tabla a la derecha">Siguiente</button></div></div><div class="analytics-table-scroll" tabindex="0" role="region" aria-label="Tabla de detalle, desplazable horizontal y verticalmente"><table class="analytics-table"><thead><tr>'+headers.map((h,i)=>'<th scope="col"'+cls(i)+'>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map((c,i)=>'<td'+cls(i)+'>'+c+'</td>').join('')+'</tr>').join('')+'</tbody></table>'+(!rows.length?'<p class="performance-empty">Sin registros para estos filtros.</p>':'')+'</div></section>';
+}
 function select(field,label,values,selected){return '<label>'+label+'<select data-performance-filter="'+field+'"><option value="">Todos</option>'+values.map(([v,n])=>'<option value="'+esc(v)+'"'+(selected===v?' selected':'')+'>'+esc(n)+'</option>').join('')+'</select></label>';}
 const unique=rows=>[...new Map(rows.filter(([key])=>key)).entries()];
 const metric=(label,value,tone='',page=null)=>'<article class="analytics-kpi '+tone+'"><span>'+esc(label)+'</span><strong>'+esc(value)+'</strong>'+(page?link(page,'Ver detalle'):'')+'</article>';

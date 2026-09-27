@@ -20,3 +20,18 @@
 }
 @media(min-width:1000px){.performance-workspace .analytics-panel>.analytics-charts{height:460px}.performance-workspace .analytics-panel .analytics-bar-svg{height:145px;width:100%;flex-shrink:0}.performance-workspace .analytics-panel .analytics-sales-svg{height:300px;flex-shrink:0}}
 @media(min-width:1000px){.performance-workspace .analytics-panel>.analytics-charts{height:auto}.performance-workspace .analytics-panel .analytics-expenses,.performance-workspace .analytics-panel .analytics-profit{min-height:260px}.performance-workspace .analytics-panel .analytics-sales{min-height:530px}}
+/* Keep intrinsic table widths inside the workspace grid, never behind page clipping. */
+.performance-workspace{grid-template-columns:minmax(0,1fr)}
+.performance-table-card{min-width:0;max-width:100%;border:1px solid #31516b;border-radius:10px;overflow:hidden;background:#071d30}
+.performance-table-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:#0d283d;font-size:13px}
+.performance-table-toolbar>div{display:flex;align-items:center;gap:8px}.performance-table-toolbar span{font-size:11px;color:#b5cbe0;margin-right:6px}
+.performance-workspace .analytics-table-scroll{width:100%;min-width:0;max-width:100%;max-height:560px;overflow:auto;position:relative;border:0;border-radius:0;scrollbar-width:auto;scrollbar-color:#628ca9 #102a40;overscroll-behavior-x:contain}
+.performance-workspace .analytics-table-scroll::-webkit-scrollbar{width:12px;height:12px}.performance-workspace .analytics-table-scroll::-webkit-scrollbar-thumb{background:#628ca9;border:3px solid #102a40;border-radius:9px}.performance-workspace .analytics-table-scroll::-webkit-scrollbar-track{background:#102a40}
+.performance-workspace .analytics-table{min-width:900px;width:100%;border-collapse:separate;border-spacing:0;font-size:13px;line-height:1.5}
+.performance-workspace .analytics-table th,.performance-workspace .analytics-table td{text-align:left;padding:12px 16px;white-space:normal;min-width:130px;max-width:290px;vertical-align:middle;border-bottom:1px solid #214057}
+.performance-workspace .analytics-table th{position:sticky;top:0;z-index:2;font-size:11px;letter-spacing:.025em;font-weight:650;background:#16344c;white-space:nowrap;color:#d8eaf7}
+.performance-workspace .analytics-table td{background:#071d30}.performance-workspace .analytics-table tbody tr:nth-child(even) td{background:#0b2437}.performance-workspace .analytics-table tbody tr:hover td,.performance-workspace .analytics-table tbody tr:focus-within td{background:#12364e}
+.performance-workspace .analytics-table .performance-number{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.performance-workspace .analytics-table td button{display:block;width:100%;min-width:220px;max-width:290px;white-space:normal;overflow-wrap:anywhere;text-align:left;line-height:1.5;padding:3px 0;min-height:36px;background:transparent;border:0;color:#81d1ff;font-weight:550}
+.performance-workspace .analytics-table td button:hover{text-decoration:underline;color:#b8e6ff}
+@media(max-width:700px){.performance-table-toolbar{align-items:flex-start;padding:12px;flex-direction:column}.performance-table-toolbar>div{flex-wrap:wrap}.performance-table-toolbar span{width:100%}.performance-workspace .analytics-table-scroll{max-height:460px}.performance-workspace .analytics-table td,.performance-workspace .analytics-table th{padding:10px 12px}}
