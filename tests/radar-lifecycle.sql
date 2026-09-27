@@ -1,0 +1,33 @@
+begin;
+select set_config('request.jwt.claim.sub',(select id::text from public.profiles where role='ADMIN' and organization_id in (select organization_id from public.commercial_radar_signals) limit 1),true);
+set local role authenticated;
+do $$
+declare s public.commercial_radar_signals%rowtype; r jsonb; n int; rejected boolean:=false;
+begin
+ select * into s from public.commercial_radar_signals where workflow_status not in ('RESOLVED','DISCARDED') order by id limit 1;
+ if s.id is null then raise exception 'NO_TEST_ROW'; end if;
+ r:=public.crm_transition_radar_signal(s.id,'IN_REVIEW',s.workflow_status,s.updated_at,null);
+ if r->>'workflow_status'<>'IN_REVIEW' then raise exception 'REVIEW_FAILED'; end if;
+ begin perform public.crm_transition_radar_signal(s.id,'RESOLVED',s.workflow_status,s.updated_at,'stale test');
+ exception when others then if sqlerrm not like '%STALE_RADAR_SIGNAL%' then raise; end if; rejected:=true; end;
+ if not rejected then raise exception 'STALE_NOT_REJECTED'; end if;
+ rejected:=false;
+ begin perform public.crm_transition_radar_signal(s.id,'RESOLVED','IN_REVIEW',(r->>'updated_at')::timestamptz,' ');
+ exception when others then if sqlerrm not like '%REASON_REQUIRED%' then raise; end if; rejected:=true; end;
+ if not rejected then raise exception 'REASON_NOT_REQUIRED'; end if;
+ r:=public.crm_transition_radar_signal(s.id,'RESOLVED','IN_REVIEW',(r->>'updated_at')::timestamptz,'Prueba transaccional con rollback');
+ if exists(select 1 from public.tasks where automation_key='crm:radar:'||s.id::text and status not in ('COMPLETED','CANCELLED')) then raise exception 'LINKED_TASK_STILL_PENDING'; end if;
+ select count(*) into n from public.commercial_radar_evidence where signal_id=s.id and evidence_type='WORKFLOW_TRANSITION' and excerpt::jsonb->>'actor_id'=auth.uid()::text;
+ if n<2 then raise exception 'AUDIT_MISSING'; end if;
+ update public.commercial_radar_signals set workflow_status='DETECTED' where id=s.id;
+ if (select workflow_status from public.commercial_radar_signals where id=s.id)<>'RESOLVED' then raise exception 'REOPENED'; end if;
+ select * into s from public.commercial_radar_signals where workflow_status not in ('RESOLVED','DISCARDED') order by id limit 1;
+ if s.id is null then raise exception 'NO_SECOND_ROW'; end if;
+ r:=public.crm_transition_radar_signal(s.id,'DISCARDED',s.workflow_status,s.updated_at,'Duplicada: prueba con rollback');
+ if r->>'workflow_status'<>'DISCARDED' then raise exception 'DISCARD_FAILED'; end if;
+ update public.commercial_radar_signals set workflow_status='RESEARCHING' where id=s.id;
+ if (select workflow_status from public.commercial_radar_signals where id=s.id)<>'DISCARDED' then raise exception 'DISCARD_REOPENED'; end if;
+ if has_function_privilege('anon','public.crm_transition_radar_signal(uuid,text,text,timestamptz,text)','execute') then raise exception 'ANON_GRANTED'; end if;
+end $$;
+reset role;
+rollback;

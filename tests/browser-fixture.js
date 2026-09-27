@@ -47,6 +47,17 @@
   async createSignedUrl(path){return {data:{signedUrl:'https://storage.example.invalid/'+encodeURIComponent(path)},error:null};}
  })},
  async rpc(name,args){
+  if(name==='crm_transition_radar_signal'){
+   const signal=db.commercial_radar_dashboard.find(r=>r.id===args.p_signal_id);
+   if(!signal||!['ADMIN','MANAGER','SALES'].includes(config.role||'ADMIN'))return {data:null,error:{message:'NOT_AUTHORIZED'}};
+   if((signal.workflow_status||'DETECTED')!==args.p_expected_status||(signal.updated_at||null)!==args.p_expected_updated_at)return {data:null,error:{message:'STALE_RADAR_SIGNAL'}};
+   if(['RESOLVED','DISCARDED'].includes(signal.workflow_status))return {data:null,error:{message:'INVALID_TRANSITION'}};
+   if(['RESOLVED','DISCARDED'].includes(args.p_status)&&!args.p_reason?.trim())return {data:null,error:{message:'REASON_REQUIRED'}};
+   const stamp=new Date().toISOString(),event={from:signal.workflow_status||'DETECTED',to:args.p_status,at:stamp,actor_id:user.id,reason:args.p_reason};
+   signal.workflow_status=args.p_status;signal.updated_at=stamp;if(['RESOLVED','DISCARDED'].includes(args.p_status))signal.actionable=false;
+   (db.commercial_radar_evidence||=[]).push(row('evidence-'+Date.now(),{signal_id:signal.id,evidence_type:'WORKFLOW_TRANSITION',excerpt:JSON.stringify(event),observed_at:stamp}));
+   return {data:{signal_id:signal.id,workflow_status:signal.workflow_status,updated_at:stamp,event},error:null};
+  }
   if(name!=='crm_register_document_version')return {data:null,error:{code:'UNKNOWN_RPC'}};
   const doc=db.documents.find(row=>row.id===args.p_document_id);if(!doc)return {data:null,error:{code:'PGRST116'}};
   db.document_versions.filter(row=>row.document_id===doc.id&&row.is_current).forEach(row=>{row.is_current=false;if(row.status==='DRAFT')row.status='REPLACED';});

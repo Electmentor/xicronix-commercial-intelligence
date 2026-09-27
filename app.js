@@ -1,18 +1,19 @@
-import {directorGeography} from './director-insights.mjs?v=20260927-v2.46.4';
+import {radarState,radarStateLabels,radarTransition,renderRadarLifecycle} from './radar-lifecycle.mjs?v=2.46.5';
+import {directorGeography} from './director-insights.mjs?v=20260927-v2.46.5';
 import {escapeHTML as esc, filterRecords, money, metrics, priorities, taskUrgency, sortTasksByUrgency, csv, parseCsv, normalize} from './domain.mjs';
 
 import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWriteModule, assignedUserId, scopeWorkspaceData} from './workspace.mjs';
 
 import {DEMO_VERSION, DEMO_SELLERS, createDemoData, upgradeDemoData, mutateDemo, realOnly, localDay} from './demo.mjs?v=20260924-v2.41.16';
-import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260927-v2.46.4';
+import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260927-v2.46.5';
 import {analyticsCSV} from './analytics.mjs';
-import {renderPerformance, performanceCSV, performancePages} from './performance.mjs?v=2.46.4';
+import {renderPerformance, performanceCSV, performancePages} from './performance.mjs?v=2.46.5';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
 import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.14';
 
 const $ = id => document.getElementById(id);
-const CLIENT_BUILD='v2.46.4';
+const CLIENT_BUILD='v2.46.5';
 const SPLASH_STARTED_AT=performance.now();
 const SPLASH_MIN_MS=450;
 function startLarsonScanner(){
@@ -138,8 +139,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-27-v2.46.4';
-const CRM_VERSION_LABEL='v2.46.4';
+const CRM_RELEASE='2026-09-27-v2.46.5';
+const CRM_VERSION_LABEL='v2.46.5';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -498,6 +499,51 @@ function liveProspectRows(){
 }
 const isCommercialTask=row=>!String(row?.automation_key||'').startsWith('cx:readiness:');
 const commercialDataView=()=>({...data,tasks:(data.tasks||[]).filter(isCommercialTask),prospects:liveProspectRows()});
+const canManageRadar=()=>accessible('radar')&&['ADMIN','MANAGER','SALES'].includes(profile?.role);
+let radarActionContext=null;
+function openRadarLifecycle(id,target=null){
+ if(busy||loading||!accessible('radar')||(target&&!canManageRadar()))return;
+ const row=(data.radar||[]).find(r=>r.id===id);if(!row)return;
+ radarActionContext={id,target,source:dataSource,user:session?.user?.id,org:profile?.organization_id,status:row.workflow_status||'DETECTED',updated:row.updated_at||null};
+ $('radarStateTitle').textContent=target?({IN_REVIEW:'Revisar señal',RESOLVED:'Resolver señal',DISCARDED:'Descartar señal'}[target]):'Historial de la señal';
+ $('radarStateName').textContent=row.institution_name||row.signal_summary||'Señal Radar';
+ $('radarStateReason').value='';$('radarStateReason').required=['RESOLVED','DISCARDED'].includes(target);$('radarStateReasonField').hidden=!target;
+ $('radarStateSave').hidden=!target;$('radarStateSave').disabled=false;$('radarStateMessage').textContent=target==='IN_REVIEW'?'La señal permanecerá abierta hasta que se resuelva o descarte explícitamente.':'';
+ $('radarStateHistory').textContent='Cargando historial…';$('radarStateDialog').showModal();
+ const context=radarActionContext;
+ const history=dataSource==='demo'?Promise.resolve({data:row.lifecycle_history||[]}):sb.from('commercial_radar_evidence').select('excerpt,observed_at').eq('signal_id',id).eq('organization_id',profile.organization_id).eq('evidence_type','WORKFLOW_TRANSITION').order('observed_at',{ascending:false}).limit(50);
+ Promise.resolve(history).then(({data:rows,error})=>{
+  if(radarActionContext!==context)return;
+  if(error){$('radarStateHistory').textContent='No se pudo cargar el historial.';return;}
+  const events=(rows||[]).map(r=>{try{return r.excerpt?JSON.parse(r.excerpt):r;}catch{return null;}}).filter(Boolean);
+  $('radarStateHistory').innerHTML=events.length?events.map(e=>'<p><strong>'+esc(radarStateLabels[e.to]||e.to)+'</strong> · '+esc(e.at||'')+'<br><small>Usuario: '+esc(e.actor_id||'No registrado')+'</small>'+(e.reason?'<br>'+esc(e.reason):'')+'</p>').join(''):'Sin transiciones registradas.';
+ }).catch(()=>{if(radarActionContext===context)$('radarStateHistory').textContent='No se pudo cargar el historial.';});
+}
+async function saveRadarLifecycle(event){
+ event.preventDefault();const c=radarActionContext;
+ if(!c?.target||busy||loading||!canManageRadar()||c.source!==dataSource||c.user!==session?.user?.id||c.org!==profile?.organization_id)return;
+ const row=(data.radar||[]).find(r=>r.id===c.id);if(!row)return;
+ const reason=$('radarStateReason').value;
+ try{radarTransition(row,c.target,reason,currentActor(),new Date().toISOString());}catch(error){$('radarStateMessage').textContent=error.message==='REASON_REQUIRED'?'Escribe el motivo o resultado de la atención.':'La transición ya no está disponible. Actualiza la señal.';return;}
+ busy=true;$('radarStateSave').disabled=true;
+ try{
+  if(dataSource==='demo'){
+   const source=demoData.radar.find(r=>r.id===c.id);
+   if((source.workflow_status||'DETECTED')!==c.status||(source.updated_at||null)!==c.updated)throw Error('STALE_RADAR_SIGNAL');
+   const entry=radarTransition(source,c.target,reason,currentActor(),new Date().toISOString());
+   source.workflow_status=c.target;source.updated_at=entry.at;source.lifecycle_history=[entry,...(source.lifecycle_history||[])];if(['RESOLVED','DISCARDED'].includes(c.target))source.actionable=false;
+   if(['RESOLVED','DISCARDED'].includes(c.target))for(const task of demoData.tasks||[]){if(task.automation_key==='crm:radar:'+c.id&&!['COMPLETED','CANCELLED'].includes(task.status)){task.status=c.target==='RESOLVED'?'COMPLETED':'CANCELLED';task.updated_at=entry.at;}}
+   persistDemo();loadDemo();
+  }else{
+   const {data:result,error}=await sb.rpc('crm_transition_radar_signal',{p_signal_id:c.id,p_status:c.target,p_expected_status:c.status,p_expected_updated_at:c.updated,p_reason:reason.trim()||null});
+   if(error)throw error;if(!result||result.workflow_status!==c.target)throw Error('TRANSITION_NOT_CONFIRMED');
+   if(c.source!==dataSource||c.user!==session?.user?.id||c.org!==profile?.organization_id)return;
+   Object.assign(row,{workflow_status:result.workflow_status,updated_at:result.updated_at});if(['RESOLVED','DISCARDED'].includes(c.target)){row.actionable=false;for(const task of data.tasks||[]){if(task.automation_key==='crm:radar:'+c.id&&!['COMPLETED','CANCELLED'].includes(task.status)){task.status=c.target==='RESOLVED'?'COMPLETED':'CANCELLED';task.updated_at=result.updated_at;}}}
+  }
+  $('radarStateDialog').close();radarActionContext=null;busy=false;render();notice('Estado de Radar actualizado: '+radarStateLabels[c.target]+'.');
+ }catch(error){const msg=String(error.message||'');$('radarStateMessage').textContent=msg.includes('STALE_RADAR_SIGNAL')?'La señal cambió en otra sesión. Cierra este diálogo y actualiza los datos antes de reintentar.':errorText(error);}
+ finally{busy=false;$('radarStateSave').disabled=false;}
+}
 async function promoteRadarSignal(signalId){
  if(!signalId||busy||loading||dataSource!=='live')return;
  const signal=(data.radar||[]).find(row=>row.id===signalId);
@@ -1132,8 +1178,11 @@ function openPerformance(next){
  document.querySelector('#appHeader')?.scrollIntoView({block:'start'});
 }
 document.addEventListener('click',event=>{
- const b=event.target.closest('button');if(!b||!canViewDashboard()||loading||busy)return;
+ const b=event.target.closest('button');if(!b||loading||busy)return;
  if(b.dataset.performanceScroll){const region=b.closest('.performance-table-card')?.querySelector('.analytics-table-scroll');if(region)region.scrollBy({left:Number(b.dataset.performanceScroll)*region.clientWidth*.75,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});return;}
+ if(b.dataset.radarState){openRadarLifecycle(b.dataset.radarId,b.dataset.radarState);return;}
+ if(b.dataset.radarHistory){openRadarLifecycle(b.dataset.radarHistory);return;}
+ if(!canViewDashboard())return;
  if(b.dataset.executivePriority){const table=b.dataset.priorityTable;if(table==='radar'){openDirectorRecord('radar',b.dataset.executivePriority);}else if(['tasks','leads','opportunities'].includes(table)&&accessible(table)){openEditor(table,b.dataset.executivePriority);}return;}
  if(b.dataset.performancePage){openPerformance(b.dataset.performancePage);return;}
  if(b.hasAttribute('data-performance-calculate')){performanceAdjustment=Math.min(50,Math.max(0,Number(document.querySelector('[data-performance-adjustment]')?.value)||0));renderDashboard();return;}
@@ -1609,9 +1658,10 @@ function renderRadarRecords(){
     (row.contact_phone?'<a class="radar-action-button primary" href="'+esc(radarPhoneHref(row.contact_phone))+'">Llamar</a>':'')+
     (row.contact_email?'<a class="radar-action-button" href="'+esc(radarMailHref(row))+'">Correo Zoho</a>':'')+
     (row.contact_whatsapp?'<a class="radar-action-button" href="'+esc(radarWhatsappHref(row.contact_whatsapp))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
-    (row.lead_id?'<button type="button" class="radar-action-button" data-radar-lead="'+row.id+'">Abrir prospecto</button>':row.actionable?'<button type="button" class="radar-action-button primary" data-radar-promote="'+row.id+'">Promover a CRM</button>':'<button type="button" class="radar-action-button" data-radar-lead="'+row.id+'">Preparar prospecto</button>')+
+    (row.lead_id?'<button type="button" class="radar-action-button" data-radar-lead="'+row.id+'">Abrir prospecto</button>':['RESOLVED','DISCARDED'].includes(radarState(row))?'':row.actionable?'<button type="button" class="radar-action-button primary" data-radar-promote="'+row.id+'">Promover a CRM</button>':'<button type="button" class="radar-action-button" data-radar-lead="'+row.id+'">Preparar prospecto</button>')+
     (row.lead_id&&writableFor('activities')?'<button type="button" class="radar-action-button" data-radar-activity="'+row.lead_id+'">Registrar acción</button>':'')+
    '</div>'+
+   renderRadarLifecycle(row,canManageRadar())+
    '<div class="radar-action"><p><b>Siguiente acción:</b> '+esc(row.next_action||'Continuar investigación remota')+'</p><p><b>Riesgo:</b> '+esc(row.principal_risk||'Sin riesgo principal registrado')+'</p></div>'+
    '<footer><span>'+esc(row.competitor_or_supplier?'Proveedor/competencia: '+row.competitor_or_supplier:'Proveedor actual: no identificado')+'</span>'+
    (source?'<a href="'+esc(source)+'" target="_blank" rel="noopener noreferrer">Ver evidencia ↗</a>':'<span>Fuente pendiente</span>')+
@@ -2693,6 +2743,9 @@ function init(){
 if(b.dataset.dailyPage){if($('dailyBriefingDialog')?.open)$('dailyBriefingDialog').close();navigate(b.dataset.dailyPage);return;}
 if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){if(openEditor('leads',b.dataset.editLead))closeLeadDetails(false);return;}if(b.dataset.editActivity){if(openEditor('activities',b.dataset.editActivity))closeLeadDetails(false);return;}if(b.dataset.activityLead){if(openActivityForLead(b.dataset.activityLead)!==false)closeLeadDetails(false);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.radarLead){openLeadFromRadar(b.dataset.radarLead);return;}if(b.dataset.radarActivity){openActivityForLead(b.dataset.radarActivity);return;}if(b.dataset.editSmartContact!==undefined){const contactId=b.dataset.editSmartContact||'';const institutionId=b.dataset.editSmartInstitution||'';if($('smartMailDialog').open)$('smartMailDialog').close();if(contactId){openEditor('contacts',contactId);}else if(institutionId){openEditor('institutions',institutionId);}return;}if(b.dataset.smartUploadCategory){uploadSmartMaterial(b.dataset.smartUploadLead,b.dataset.smartUploadCategory);return;}if(b.dataset.smartMaterial){toggleSmartMaterial(b.dataset.smartMaterial);return;}if(b.dataset.smartMail){openSmartMailDraft(b.dataset.smartMail);return;}if(b.dataset.copySmartMail){copySmartMailDraft(b.dataset.copySmartMail);return;}if(b.dataset.openSmartZoho){openSmartMailInZoho(b.dataset.openSmartZoho);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
+ $('radarStateForm').onsubmit=saveRadarLifecycle;
+ $('radarStateClose').onclick=()=>{if(!busy){radarActionContext=null;$('radarStateDialog').close();}};
+ $('radarStateDialog').addEventListener('cancel',e=>{if(busy)e.preventDefault();else radarActionContext=null;});
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
  $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>{if(canViewDashboard())openEditor(page==='dashboard'?'institutions':page);else openEditor('leads');};
  $('search').oninput=$('filter').onchange=()=>{pageIndex=0;renderRecords();};

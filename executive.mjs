@@ -1,3 +1,4 @@
+import {radarNeedsAttention,radarPriorityOrder} from './radar-lifecycle.mjs?v=2.46.5';
 import {renderDirectorInsights} from './director-insights.mjs?v=20260927-v2.45.41';
 import {escapeHTML as esc, money} from './domain.mjs';
 import {assignedUserId} from './workspace.mjs';
@@ -71,7 +72,7 @@ export function executivePriority(data,{now=new Date(),failures={}}={}){
  const date=v=>v&&Number.isFinite(Date.parse(v))?Date.parse(String(v).length===10?v+'T23:59:59-05:00':v):null;
  const item=(kind,row,text,table)=>({kind,id:row.id,table,text});
  if(failures.radar)return {kind:'unavailable',text:'Radar pendiente de actualización: no se puede confirmar la prioridad principal.',table:'radar'};
- const signals=(data.radar||[]).filter(r=>r.id&&r.classification==='CRITICAL'&&pending(r)).filter(r=>!r.signal_date||String(r.signal_date).slice(0,10)<=businessDay(now)).filter(r=>!r.lead_id||!(data.leads||[]).some(l=>l.id===r.lead_id&&!pending(l))).sort((a,b)=>Number(b.weighted_score||0)-Number(a.weighted_score||0)||idSort(a,b));
+ const signals=(data.radar||[]).filter(r=>r.id&&r.classification==='CRITICAL'&&radarNeedsAttention(r)&&pending(r)).filter(r=>!r.signal_date||String(r.signal_date).slice(0,10)<=businessDay(now)).filter(r=>!r.lead_id||!(data.leads||[]).some(l=>l.id===r.lead_id&&!pending(l))).sort(radarPriorityOrder);
  if(signals.length)return item('critical',signals[0],'Señal crítica: '+(signals[0].signal_summary||'Revisión ejecutiva pendiente')+(signals[0].institution_name?' · '+signals[0].institution_name:''),'radar');
  if(failures.opportunities)return {kind:'unavailable',text:'Oportunidades pendientes de carga: actualiza para confirmar la prioridad.',table:'opportunities'};
  const opportunities=(data.opportunities||[]).filter(r=>r.id&&pending(r)&&['PROPOSAL','NEGOTIATION'].includes(r.stage)&&(!r.currency||r.currency==='PEN')&&Number(r.value)>0).sort((a,b)=>Number(b.value)-Number(a.value)||idSort(a,b));
