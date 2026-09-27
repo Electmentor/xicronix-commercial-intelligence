@@ -1887,3 +1887,65 @@ html:not([data-theme="night"]) .pipeline-dashboard-note{color:#657b92}
  .director-desktop-panels header{gap:8px;flex-wrap:wrap}.director-team-summary{gap:5px}
  .director-attention-table th,.director-attention-table td{padding:9px 4px}.director-priority{padding:4px}
 }
+
+/* V2.45.39 · Desktop continuation of the approved Direction dashboard. */
+.director-desktop-insights,.director-existing-details{display:none}
+@media(min-width:701px){
+ .director-desktop-insights{display:block;margin:18px 0}
+ .director-insight-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;margin-bottom:16px}
+ .director-insight-panel{padding:20px;overflow:hidden;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 5%,var(--panel)),var(--panel))}
+ .director-insight-panel>header{align-items:center;gap:12px;margin-bottom:18px}
+ .director-insight-panel>header h2{font-size:1rem;margin:0;line-height:1.4}
+ .director-insight-panel>header h2 small{font-size:.68rem;letter-spacing:0;color:inherit}
+ .director-insight-panel>header button{padding:5px 0;border:0;background:none;color:var(--accent);font-size:.72rem;min-height:32px;white-space:normal;text-align:right}
+ .director-insight-note{font-size:.65rem;color:var(--muted);line-height:1.5;margin:12px 0 0}
+ .director-insight-empty{padding:36px 14px;border:1px dashed var(--line);border-radius:12px;color:var(--muted);font-size:.8rem;line-height:1.5}
+ .director-stage-chart{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;margin:0 4px;padding-top:22px}
+ .director-stage-column{min-width:0;text-align:center}
+ .director-stage-track{height:148px;display:flex;align-items:flex-end;border-bottom:1px solid var(--line);background:repeating-linear-gradient(to top,transparent 0,transparent 36px,var(--line) 37px,transparent 38px)}
+ .director-stage-track>span{display:block;position:relative;background:linear-gradient(to top,color-mix(in srgb,var(--stage-color) 50%,transparent),var(--stage-color));width:100%;border-radius:4px 4px 0 0;min-height:1px}
+ .director-stage-track b{position:absolute;bottom:calc(100% + 5px);left:0;right:0;font-size:.8rem}
+ .director-stage-column>small{display:block;margin-top:9px;color:var(--muted);font-size:.65rem;overflow-wrap:anywhere}
+ .director-sales-chart{display:block;width:100%;height:auto;min-height:170px;overflow:visible}
+ .director-sales-chart text{fill:var(--muted);font-size:11px}
+ .director-chart-grid{stroke:var(--line);stroke-width:1}
+ .director-sales-line{stroke:#39a5ff;stroke-width:2.5;fill:none}
+ .director-sales-area{fill:#259bff16}
+ .director-sales-chart circle{fill:#39a5ff;stroke:#b7deff;stroke-width:1.5}
+ .director-sales-chart circle:focus{outline:none;stroke:#f5c75a;stroke-width:4}
+ .director-insight-data{margin-top:8px;font-size:.65rem;color:var(--muted)}
+ .director-insight-data summary{cursor:pointer}.director-insight-data dl{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+ .director-insight-data dd{margin:4px 0;font-weight:700;color:var(--text)}
+ .director-insight-table{overflow-x:auto}
+ .director-insight-table table{width:100%;border-collapse:collapse;font-size:.68rem;table-layout:fixed}
+ .director-insight-table th{font-size:.63rem;text-align:left;font-weight:500;background:color-mix(in srgb,var(--accent) 7%,var(--panel));color:var(--muted)}
+ .director-insight-table th,.director-insight-table td{padding:12px 7px;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+ .director-insight-table th:first-child{width:36%}.director-insight-table th:nth-child(2){width:21%}
+ .director-insight-table td button{background:none;border:0;padding:0;color:var(--text);text-align:left;font-size:inherit;line-height:1.5;white-space:normal}
+ .director-insight-table td button:hover{color:var(--accent);text-decoration:underline}
+ .director-insight-priority{display:block;border-radius:5px;padding:5px;text-align:center;font-size:.62rem;color:#3d2a00;background:#f2c245}
+ .director-insight-priority.high{background:#cb3b50;color:#fff}
+ .director-geography{display:grid;grid-template-columns:minmax(0,1fr) minmax(125px,.9fr);gap:14px;align-items:center}
+ .director-coverage-map{height:226px;min-width:0;border-radius:12px;background:var(--surface);border:1px solid var(--line);font-size:.68rem;color:var(--muted);position:relative;isolation:isolate}
+ .director-coverage-map>span{display:block;padding:24px 15px;line-height:1.6}
+ .director-coverage-map .leaflet-control-attribution{font-size:8px}
+ .director-geography ul{padding:0;list-style:none;margin:0;display:grid;gap:14px}
+ .director-geography li{display:grid;grid-template-columns:1fr auto;gap:4px 8px;font-size:.68rem}
+ .director-geography li>span{overflow-wrap:anywhere}.director-geography li>strong{color:var(--accent);font-size:.8rem}
+ .director-geography li>small{color:var(--muted);grid-column:1/-1;font-size:.6rem}
+ .director-recent-signals{display:grid}
+ .director-recent-signals>button{display:grid;grid-template-columns:8px minmax(0,1fr) minmax(100px,.35fr) 90px;gap:14px;align-items:center;text-align:left;padding:14px 2px;border:0;border-top:1px solid var(--line);border-radius:0;background:none;min-width:0;font-size:.72rem}
+ .director-recent-signals>button>i{width:7px;height:7px;background:#2e9bff;border-radius:50%}.director-recent-signals>button>i.critical{background:#f36372}
+ .director-recent-signals strong{display:block;overflow-wrap:anywhere;font-size:.75rem}.director-recent-signals small{display:block;margin-top:4px;color:var(--muted);font-size:.64rem}
+ .director-recent-signals>button>span:nth-last-child(2),.director-recent-signals time{color:var(--muted);font-size:.68rem;overflow-wrap:anywhere}
+ .director-existing-details{display:block;border-top:1px solid var(--line);padding-top:12px}
+ .director-existing-details>summary{padding:12px 4px;cursor:pointer;font-size:.8rem;color:var(--muted)}
+ .director-existing-details[open]>summary{margin-bottom:12px}
+ .director-desktop-insights button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+}
+@media(min-width:701px) and (max-width:1100px){
+ .director-insight-panel{padding:14px}.director-insight-grid{gap:12px}
+ .director-geography{grid-template-columns:1fr}.director-coverage-map{height:190px}
+ .director-geography ul{grid-template-columns:1fr 1fr;gap:8px}
+ .director-stage-chart{gap:5px;margin:0}.director-insight-panel>header{flex-wrap:wrap}
+}

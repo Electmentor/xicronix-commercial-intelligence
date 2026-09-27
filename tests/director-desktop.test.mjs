@@ -44,7 +44,7 @@ test('attention resolves institution, escapes data and links to the existing rec
  assert.match(team,/<strong>25%<\/strong>/);
 });
 test('partial loads hide desktop numbers and no target stays unknown rather than zero percent',()=>{
- const html=desktop(data,{failures:{opportunities:true}}).split('PROSPECT INTELLIGENCE')[0];
+ const html=desktop(data,{failures:{opportunities:true}}).split('<section class="director-desktop-insights"')[0];
  assert.equal((html.match(/ disabled/g)||[]).length,4);
  assert.doesNotMatch(html,/<strong>\d/);
  assert.doesNotMatch(html,/data-edit=/);
