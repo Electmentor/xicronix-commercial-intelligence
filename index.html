@@ -84,6 +84,15 @@ html,body{background:#081b32}
   <section id="dashboard"></section>
   <section id="records" hidden><button id="mobileBackDashboard" class="mobile-back-dashboard" type="button">← Atrás</button><div id="sellerSummary" hidden></div><div id="recordContext" class="record-context" hidden><span id="recordContextLabel"></span><button id="clearRecordContext" type="button">Quitar selección</button></div><div class="toolbar"><input id="search" type="search" aria-label="Buscar registros" placeholder="Buscar por nombre, institución o contacto…"><select id="filter" aria-label="Filtrar por estado o tipo"></select><div class="toolbar-actions"><button id="importBtn">Importar CSV</button><button id="exportBtn">Exportar CSV</button><input id="importInput" type="file" accept=".csv,text/csv" hidden></div></div><p id="importHelp" class="muted">Importa un CSV con los encabezados de la exportación de este módulo. La carga se valida antes de guardarse.</p><div id="recordCount" class="muted"></div><div id="recordList"></div><div class="pagination"><button id="previous">Anterior</button><span id="pageNumber"></span><button id="next">Siguiente</button></div></section>
   </main>
+  <button id="aiAssistantLauncher" class="ai-assistant-launcher" type="button" aria-controls="aiAssistantPanel" aria-expanded="false" title="Xicronix Assistant">X</button>
+  <aside id="aiAssistantPanel" class="ai-assistant-panel" hidden aria-label="Xicronix Assistant">
+    <header><div><small>XICRONIX</small><h2>Assistant</h2><span id="aiAssistantContext">Contexto del CRM</span></div><button id="aiAssistantClose" type="button" aria-label="Cerrar asistente">×</button></header>
+    <section id="aiAssistantMessages" class="ai-assistant-messages" aria-live="polite">
+      <article class="ai-message assistant"><b>Xicronix Assistant</b><p>Estoy conectado al contexto de esta pantalla. Puedo ayudarte a analizar la operación comercial y preparar acciones.</p></article>
+    </section>
+    <div class="ai-assistant-suggestions"><button type="button" data-ai-prompt="¿Qué requiere mi atención ahora?">Qué requiere atención</button><button type="button" data-ai-prompt="Resume el contexto comercial de esta pantalla.">Resumir pantalla</button><button type="button" data-ai-prompt="¿Qué mejorarías de esta pantalla del CRM?">Mejorar esta pantalla</button></div>
+    <form id="aiAssistantForm"><textarea id="aiAssistantInput" rows="2" placeholder="Habla con Xicronix Assistant…" aria-label="Mensaje para Xicronix Assistant"></textarea><div><button id="aiVoiceBtn" type="button" title="Voz (próxima capacidad)" aria-label="Voz">◉</button><button class="primary" type="submit">Enviar</button></div></form>
+  </aside>
   <aside id="activityRail" class="activity-rail" aria-label="Actividad y notificaciones" hidden>
     <header><div><small>ACTIVIDAD</small><h2>Notificaciones</h2></div><span id="activityRailPending" class="activity-rail-count">0</span></header>
     <div class="activity-rail-date"><button id="activityTodayBtn" type="button">Hoy</button><input id="activityDate" type="date" aria-label="Fecha del historial"></div>

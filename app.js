@@ -2555,6 +2555,27 @@ function openLeadDetails(id){
  rememberPage(id);$('leadDetailDialog').showModal();
 }
 
+
+function aiContextSnapshot(){
+ const commercial=commercialDataView();
+ const pendingMail=(data.mail||[]).filter(x=>x.status==='NEW').length;
+ const pendingTasks=(commercial.tasks||[]).filter(x=>!['COMPLETED','CANCELLED'].includes(x.status)).length;
+ const openOpp=(commercial.opportunities||[]).filter(x=>!['WON','LOST'].includes(x.stage)).length;
+ return {page,workspace,role:profile?.role||null,pendingMail,pendingTasks,openOpportunities:openOpp,leads:(commercial.leads||[]).length,prospects:(data.prospects||[]).length};
+}
+function renderAiLocalAnswer(prompt){
+ const c=aiContextSnapshot(),q=normalize(prompt);
+ if(q.includes('atencion')||q.includes('urgente'))return 'Ahora veo '+c.pendingMail+' correo(s) nuevo(s), '+c.pendingTasks+' tarea(s) abierta(s) y '+c.openOpportunities+' oportunidad(es) activa(s). Puedo profundizar cuando el motor IA seguro quede conectado.';
+ if(q.includes('mejor')&&q.includes('pantalla'))return 'Estoy observando la pantalla '+page+'. Puedo usar su contexto operativo para detectar fricción y proponer mejoras; la evaluación generativa completa se habilita al conectar el motor IA seguro.';
+ if(q.includes('resum'))return 'Contexto actual: '+c.leads+' prospecto(s) gestionados, '+c.openOpportunities+' oportunidad(es) abiertas, '+c.pendingTasks+' tarea(s) pendientes y '+c.pendingMail+' correo(s) nuevo(s).';
+ return 'Ya recibí tu solicitud y tengo el contexto de esta pantalla. El panel y el motor de contexto están operativos; falta conectar la inferencia segura de OpenAI para responder con análisis generativo completo.';
+}
+function appendAiMessage(kind,text){
+ const box=$('aiAssistantMessages');if(!box)return;const article=document.createElement('article');article.className='ai-message '+kind;const p=document.createElement('p');p.textContent=text;article.appendChild(p);box.appendChild(article);box.scrollTop=box.scrollHeight;
+}
+function openAiAssistant(){const panel=$('aiAssistantPanel'),launcher=$('aiAssistantLauncher');if(!panel)return;panel.hidden=false;launcher?.setAttribute('aria-expanded','true');const c=$('aiAssistantContext');if(c)c.textContent=(workspace===ADMIN?'Dirección':'Ejecutivo comercial')+' · '+(modules[page]?.label||page);setTimeout(()=>$('aiAssistantInput')?.focus(),40);}
+function closeAiAssistant(){const panel=$('aiAssistantPanel'),launcher=$('aiAssistantLauncher');if(panel)panel.hidden=true;launcher?.setAttribute('aria-expanded','false');}
+
 function init(){
  window.setTimeout(hideAppSplash,2500);
  installVersionWatcher();
@@ -2562,6 +2583,11 @@ function init(){
  restoreRememberedEmail();
  try{recovery=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery'||sessionStorage.getItem(RECOVERY_KEY)==='1';}catch(_error){}
  $('rememberEmail').onchange=()=>{if(!$('rememberEmail').checked){try{localStorage.removeItem(REMEMBER_EMAIL_KEY);}catch(_error){}}};
+ const aiLauncher=$('aiAssistantLauncher'),aiClose=$('aiAssistantClose'),aiForm=$('aiAssistantForm'),aiInput=$('aiAssistantInput');
+ if(aiLauncher)aiLauncher.onclick=openAiAssistant;if(aiClose)aiClose.onclick=closeAiAssistant;
+ document.querySelectorAll('[data-ai-prompt]').forEach(button=>button.onclick=()=>{openAiAssistant();if(aiInput)aiInput.value=button.dataset.aiPrompt||'';aiForm?.requestSubmit();});
+ if(aiForm)aiForm.onsubmit=event=>{event.preventDefault();const prompt=aiInput?.value?.trim();if(!prompt)return;appendAiMessage('user',prompt);aiInput.value='';setTimeout(()=>appendAiMessage('assistant',renderAiLocalAnswer(prompt)),120);};
+ if($('aiVoiceBtn'))$('aiVoiceBtn').onclick=()=>appendAiMessage('system','Voz está preparada como siguiente capacidad. El asistente textual/contextual se valida primero.');
  const activityToday=$('activityTodayBtn'),activityDate=$('activityDate');
  if(activityToday)activityToday.onclick=()=>{if(activityDate)activityDate.value=activityDayKey(new Date());renderActivityRail();};
  if(activityDate)activityDate.onchange=renderActivityRail;
