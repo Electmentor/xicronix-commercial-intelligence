@@ -4306,3 +4306,20 @@ html[data-theme="night"] .modern-operator-real-photo{filter:brightness(.78) satu
  html[data-theme="night"] .modern-hero-operator:has(.modern-operator-real-photo)::before{background:linear-gradient(90deg,#10253b 0%,rgba(16,37,59,.72) 10%,rgba(8,27,50,.12) 34%,rgba(4,15,26,.08) 100%)!important}
 }
 @media(max-width:390px){.modern-hero{grid-template-columns:minmax(0,1.16fr) minmax(118px,.84fr)!important}.modern-hero-operator{min-height:340px!important}}
+
+
+/* V2.45.28 · Landscape/mobile hero and true sidebar collapse */
+.app.sidebar-collapsed{grid-template-columns:0 minmax(0,1fr)!important}
+.app.sidebar-collapsed .sidebar{display:none!important;width:0!important;min-width:0!important;padding:0!important;border:0!important;overflow:hidden!important}
+.app.sidebar-collapsed .main{grid-column:2!important}
+.app.sidebar-collapsed .sidebar-toggle{left:12px!important;right:auto!important}
+@media(min-width:1180px){
+ #appView:not([hidden]).sidebar-collapsed{grid-template-columns:0 minmax(0,1fr) 330px!important}
+}
+@media(min-width:701px) and (max-height:760px){
+ .modern-hero{min-height:360px!important;grid-template-columns:minmax(0,1fr) minmax(360px,.95fr)!important}
+ .modern-hero-copy{padding:34px 36px!important}
+ .modern-hero-copy h1{font-size:2.7rem!important}
+ .modern-hero-operator{min-height:360px!important;max-height:none!important}
+ .modern-operator-real-photo{object-position:center 32%!important}
+}
