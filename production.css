@@ -3496,30 +3496,30 @@ dialog[data-ribbon] .dialog-header>button:focus-visible{
 }
 
 /* Seller cockpit · action-first visual hierarchy */
-.app[data-workspace="SELLER"] .seller-story-dashboard{
+.app[data-workspace="seller"] .seller-story-dashboard{
   display:grid;
   gap:18px;
 }
-.app[data-workspace="SELLER"] .seller-command-summary{
+.app[data-workspace="seller"] .seller-command-summary{
   border:0;
   background:transparent;
   padding:0 2px;
   margin:0;
 }
-.app[data-workspace="SELLER"] .seller-command-summary span{
+.app[data-workspace="seller"] .seller-command-summary span{
   font-size:.62rem;
   letter-spacing:.11em;
   font-weight:900;
   color:var(--muted);
 }
-.app[data-workspace="SELLER"] .seller-command-summary strong{
+.app[data-workspace="seller"] .seller-command-summary strong{
   display:block;
   margin-top:4px;
   font-size:.92rem;
   color:var(--muted);
   font-weight:650;
 }
-.app[data-workspace="SELLER"] .seller-today-command{
+.app[data-workspace="seller"] .seller-today-command{
   position:relative;
   overflow:hidden;
   border:1px solid color-mix(in srgb,var(--blue,#2563eb) 42%,var(--line));
@@ -3531,38 +3531,38 @@ dialog[data-ribbon] .dialog-header>button:focus-visible{
       var(--panel));
   box-shadow:0 14px 34px rgba(10,32,58,.10);
 }
-.app[data-workspace="SELLER"] .seller-today-command::before{
+.app[data-workspace="seller"] .seller-today-command::before{
   content:"";
   position:absolute;
   inset:0 auto 0 0;
   width:4px;
   background:linear-gradient(180deg,#2563eb,#60a5fa);
 }
-.app[data-workspace="SELLER"] .seller-today-command header{
+.app[data-workspace="seller"] .seller-today-command header{
   display:flex;
   justify-content:space-between;
   align-items:flex-start;
   gap:16px;
 }
-.app[data-workspace="SELLER"] .seller-today-command header small{
+.app[data-workspace="seller"] .seller-today-command header small{
   display:block;
   font-size:.64rem;
   letter-spacing:.10em;
   font-weight:900;
   color:var(--muted);
 }
-.app[data-workspace="SELLER"] .seller-today-command h2{
+.app[data-workspace="seller"] .seller-today-command h2{
   margin:5px 0 4px;
   font-size:1.55rem;
   line-height:1.18;
 }
-.app[data-workspace="SELLER"] .seller-today-command header p{
+.app[data-workspace="seller"] .seller-today-command header p{
   margin:0;
   color:var(--muted);
   font-size:.92rem;
   line-height:1.4;
 }
-.app[data-workspace="SELLER"] .seller-channel{
+.app[data-workspace="seller"] .seller-channel{
   flex:none;
   border:1px solid color-mix(in srgb,var(--blue,#2563eb) 35%,var(--line));
   border-radius:999px;
@@ -3630,52 +3630,52 @@ dialog[data-ribbon] .dialog-header>button:focus-visible{
   text-transform:uppercase;
   letter-spacing:.05em;
 }
-.app[data-workspace="SELLER"] .seller-priority-stack{
+.app[data-workspace="seller"] .seller-priority-stack{
   display:grid;
   gap:12px;
 }
-.app[data-workspace="SELLER"] .seller-priority-prospect{
+.app[data-workspace="seller"] .seller-priority-prospect{
   border:1px solid var(--line);
   border-radius:15px;
   background:var(--panel);
   box-shadow:0 8px 20px rgba(10,32,58,.05);
 }
-.app[data-workspace="SELLER"] .seller-priority-prospect.primary-focus{
+.app[data-workspace="seller"] .seller-priority-prospect.primary-focus{
   border-color:color-mix(in srgb,var(--blue,#2563eb) 30%,var(--line));
   box-shadow:0 10px 24px rgba(10,32,58,.08);
 }
-.app[data-workspace="SELLER"] .seller-priority-prospect>header{
+.app[data-workspace="seller"] .seller-priority-prospect>header{
   padding:15px 16px 4px;
 }
-.app[data-workspace="SELLER"] .prospect-action-footer{
+.app[data-workspace="seller"] .prospect-action-footer{
   padding:12px 16px 15px;
 }
-.app[data-workspace="SELLER"] .prospect-action-footer .seller-direct-actions{
+.app[data-workspace="seller"] .prospect-action-footer .seller-direct-actions{
   margin:12px 0 8px;
 }
-.app[data-workspace="SELLER"] .prospect-action-footer .seller-open-detail{
+.app[data-workspace="seller"] .prospect-action-footer .seller-open-detail{
   min-height:32px;
   padding:0 8px;
 }
-.app[data-workspace="SELLER"] .seller-secondary-list{
+.app[data-workspace="seller"] .seller-secondary-list{
   border-top:1px solid var(--line);
   padding-top:4px;
 }
-.app[data-workspace="SELLER"] .seller-secondary-list>summary{
+.app[data-workspace="seller"] .seller-secondary-list>summary{
   color:var(--muted);
   font-size:.84rem;
 }
 @media(max-width:700px){
-  .app[data-workspace="SELLER"] .seller-today-command{padding:16px}
-  .app[data-workspace="SELLER"] .seller-today-command h2{font-size:1.3rem}
+  .app[data-workspace="seller"] .seller-today-command{padding:16px}
+  .app[data-workspace="seller"] .seller-today-command h2{font-size:1.3rem}
   .seller-today-context{grid-template-columns:1fr}
   .seller-direct-actions{display:grid;grid-template-columns:1fr 1fr}
   .seller-direct-action,.seller-open-detail{width:100%}
-  .app[data-workspace="SELLER"] .prospect-action-footer .seller-open-detail{width:100%}
+  .app[data-workspace="seller"] .prospect-action-footer .seller-open-detail{width:100%}
 }
 
 /* Seller prospect list · same operational pattern for every prospect */
-.app[data-workspace="SELLER"] .seller-candidate-card.operational{
+.app[data-workspace="seller"] .seller-candidate-card.operational{
   display:block;
   width:100%;
   text-align:left;
@@ -3685,47 +3685,47 @@ dialog[data-ribbon] .dialog-header>button:focus-visible{
   background:var(--panel);
   box-shadow:0 6px 16px rgba(10,32,58,.04);
 }
-.app[data-workspace="SELLER"] .seller-candidate-card.operational:hover{
+.app[data-workspace="seller"] .seller-candidate-card.operational:hover{
   border-color:color-mix(in srgb,var(--blue,#2563eb) 24%,var(--line));
   box-shadow:0 8px 20px rgba(10,32,58,.06);
 }
-.app[data-workspace="SELLER"] .seller-candidate-card.operational .seller-direct-actions{
+.app[data-workspace="seller"] .seller-candidate-card.operational .seller-direct-actions{
   margin:12px 0 8px;
 }
-.app[data-workspace="SELLER"] .seller-candidate-card.operational .seller-open-detail{
+.app[data-workspace="seller"] .seller-candidate-card.operational .seller-open-detail{
   min-height:32px;
   padding:0 8px;
 }
 @media(max-width:700px){
-  .app[data-workspace="SELLER"] .seller-candidate-card.operational .seller-direct-actions{
+  .app[data-workspace="seller"] .seller-candidate-card.operational .seller-direct-actions{
     grid-template-columns:1fr 1fr;
   }
 }
 
 /* Seller hierarchy v2.45.2 · 1 + 3 + rest */
-.app[data-workspace="SELLER"] .seller-section-heading{
+.app[data-workspace="seller"] .seller-section-heading{
   display:flex;
   align-items:baseline;
   gap:10px;
   padding:0 2px 6px;
 }
-.app[data-workspace="SELLER"] .seller-section-heading small{
+.app[data-workspace="seller"] .seller-section-heading small{
   font-size:.62rem;
   letter-spacing:.1em;
   font-weight:900;
   color:var(--muted);
 }
-.app[data-workspace="SELLER"] .seller-section-heading strong{
+.app[data-workspace="seller"] .seller-section-heading strong{
   font-size:.82rem;
   font-weight:650;
   color:var(--muted);
 }
-.app[data-workspace="SELLER"] .seller-secondary-list>summary{
+.app[data-workspace="seller"] .seller-secondary-list>summary{
   display:flex;
   align-items:center;
   gap:8px;
 }
-.app[data-workspace="SELLER"] .seller-secondary-list>summary span{
+.app[data-workspace="seller"] .seller-secondary-list>summary span{
   display:inline-grid;
   place-items:center;
   min-width:24px;
@@ -3735,48 +3735,48 @@ dialog[data-ribbon] .dialog-header>button:focus-visible{
   border-radius:999px;
   font-size:.7rem;
 }
-.app[data-workspace="SELLER"] .seller-candidate-card.operational.compact{
+.app[data-workspace="seller"] .seller-candidate-card.operational.compact{
   padding:12px 13px;
   box-shadow:none;
 }
-.app[data-workspace="SELLER"] .seller-candidate-card.operational.compact .seller-candidate-problem{
+.app[data-workspace="seller"] .seller-candidate-card.operational.compact .seller-candidate-problem{
   display:none;
 }
-.app[data-workspace="SELLER"] .seller-candidate-card.operational.compact .seller-candidate-meta{
+.app[data-workspace="seller"] .seller-candidate-card.operational.compact .seller-candidate-meta{
   margin:8px 0 6px;
 }
-.app[data-workspace="SELLER"] .seller-direct-actions.compact{
+.app[data-workspace="seller"] .seller-direct-actions.compact{
   gap:6px;
   margin:9px 0 6px;
 }
-.app[data-workspace="SELLER"] .seller-direct-actions.compact .seller-direct-action{
+.app[data-workspace="seller"] .seller-direct-actions.compact .seller-direct-action{
   min-height:32px;
   padding:0 10px;
   font-size:.72rem;
   background:transparent;
 }
-.app[data-workspace="SELLER"] .seller-direct-actions.compact .seller-direct-action.primary{
+.app[data-workspace="seller"] .seller-direct-actions.compact .seller-direct-action.primary{
   background:var(--blue,#2563eb);
 }
 @media(max-width:700px){
-  .app[data-workspace="SELLER"] .seller-section-heading{
+  .app[data-workspace="seller"] .seller-section-heading{
     display:grid;
     gap:2px;
   }
-  .app[data-workspace="SELLER"] .seller-direct-actions.compact{
+  .app[data-workspace="seller"] .seller-direct-actions.compact{
     grid-template-columns:1fr 1fr;
   }
 }
 
 /* Inbound mail interrupt · seller cockpit */
-.app[data-workspace="SELLER"] .seller-today-command.inbound-mail{
+.app[data-workspace="seller"] .seller-today-command.inbound-mail{
   border-color:color-mix(in srgb,#f59e0b 52%,var(--line));
   box-shadow:0 14px 34px rgba(245,158,11,.12);
 }
-.app[data-workspace="SELLER"] .seller-today-command.inbound-mail::before{
+.app[data-workspace="seller"] .seller-today-command.inbound-mail::before{
   background:linear-gradient(180deg,#f59e0b,#fbbf24);
 }
-.app[data-workspace="SELLER"] .seller-today-command.inbound-mail .seller-channel{
+.app[data-workspace="seller"] .seller-today-command.inbound-mail .seller-channel{
   border-color:color-mix(in srgb,#f59e0b 48%,var(--line));
   background:color-mix(in srgb,#f59e0b 10%,transparent);
 }
@@ -4482,20 +4482,20 @@ html[data-theme="night"] .opp-risk-badge{background:#54262a!important;color:#ffd
 html[data-theme="night"] button:disabled{opacity:.62;color:#b9c8d9!important}
 
 /* Seller destination identity tokens */
-.app[data-workspace="SELLER"]{--dest-performance:#2f80ed;--dest-portfolio:#19b99a;--dest-tasks:#7c5cff;--dest-agenda:#f59e42}
+.app[data-workspace="seller"]{--dest-performance:#2f80ed;--dest-portfolio:#19b99a;--dest-tasks:#7c5cff;--dest-agenda:#f59e42}
 #mobileNavHome{--dest-color:var(--dest-performance)}#mobileNavLeads{--dest-color:var(--dest-portfolio)}#mobileNavTasks{--dest-color:var(--dest-tasks)}#mobileNavMeetings{--dest-color:var(--dest-agenda)}
-.app[data-workspace="SELLER"] #mobileAppBottomNav button span{color:var(--dest-color)!important;border-color:color-mix(in srgb,var(--dest-color) 42%,var(--line))!important}
-.app[data-workspace="SELLER"] #mobileAppBottomNav button small{color:color-mix(in srgb,var(--dest-color) 72%,var(--ink))!important}
-.app[data-workspace="SELLER"] #mobileAppBottomNav button.active{background:color-mix(in srgb,var(--dest-color) 14%,var(--surface))!important}
-.app[data-workspace="SELLER"] #mobileAppBottomNav button.active span{background:color-mix(in srgb,var(--dest-color) 18%,transparent)!important;box-shadow:0 0 0 1px color-mix(in srgb,var(--dest-color) 32%,transparent),0 0 18px color-mix(in srgb,var(--dest-color) 22%,transparent)!important}
-.app[data-workspace="SELLER"] [data-page="dashboard"]{--dest-color:var(--dest-performance)}
-.app[data-workspace="SELLER"] [data-page="leads"]{--dest-color:var(--dest-portfolio)}
-.app[data-workspace="SELLER"] [data-page="tasks"]{--dest-color:var(--dest-tasks)}
-.app[data-workspace="SELLER"] [data-page="meetings"]{--dest-color:var(--dest-agenda)}
-.app[data-workspace="SELLER"] .seller-dashboard-shortcuts [data-page],
-.app[data-workspace="SELLER"] .seller-execution-stats [data-page]{border-color:color-mix(in srgb,var(--dest-color) 38%,var(--line))!important;box-shadow:inset 3px 0 var(--dest-color)!important}
-.app[data-workspace="SELLER"] .seller-dashboard-shortcuts [data-page]:hover,
-.app[data-workspace="SELLER"] .seller-execution-stats [data-page]:hover{background:color-mix(in srgb,var(--dest-color) 12%,var(--surface))!important}
+.app[data-workspace="seller"] #mobileAppBottomNav button span{color:var(--dest-color)!important;border-color:color-mix(in srgb,var(--dest-color) 42%,var(--line))!important}
+.app[data-workspace="seller"] #mobileAppBottomNav button small{color:color-mix(in srgb,var(--dest-color) 72%,var(--ink))!important}
+.app[data-workspace="seller"] #mobileAppBottomNav button.active{background:color-mix(in srgb,var(--dest-color) 14%,var(--surface))!important}
+.app[data-workspace="seller"] #mobileAppBottomNav button.active span{background:color-mix(in srgb,var(--dest-color) 18%,transparent)!important;box-shadow:0 0 0 1px color-mix(in srgb,var(--dest-color) 32%,transparent),0 0 18px color-mix(in srgb,var(--dest-color) 22%,transparent)!important}
+.app[data-workspace="seller"] [data-page="dashboard"]{--dest-color:var(--dest-performance)}
+.app[data-workspace="seller"] [data-page="leads"]{--dest-color:var(--dest-portfolio)}
+.app[data-workspace="seller"] [data-page="tasks"]{--dest-color:var(--dest-tasks)}
+.app[data-workspace="seller"] [data-page="meetings"]{--dest-color:var(--dest-agenda)}
+.app[data-workspace="seller"] .seller-dashboard-shortcuts [data-page],
+.app[data-workspace="seller"] .seller-execution-stats [data-page]{border-color:color-mix(in srgb,var(--dest-color) 38%,var(--line))!important;box-shadow:inset 3px 0 var(--dest-color)!important}
+.app[data-workspace="seller"] .seller-dashboard-shortcuts [data-page]:hover,
+.app[data-workspace="seller"] .seller-execution-stats [data-page]:hover{background:color-mix(in srgb,var(--dest-color) 12%,var(--surface))!important}
 
 /* V2.45.29 · modern dashboard night skin */
 html[data-theme="night"] .modern-hero{background:linear-gradient(105deg,#101f32 0%,#142b43 52%,#173754 100%)!important;border-color:#31506e!important;color:#eef5ff!important;box-shadow:0 18px 46px rgba(0,0,0,.24)!important}
@@ -4510,11 +4510,20 @@ html[data-theme="night"] .modern-home .seller-performance-kpi:nth-child(4){backg
 html[data-theme="night"] .modern-home .seller-performance-panel,html[data-theme="night"] .modern-home .seller-dashboard-shortcuts button{background:linear-gradient(145deg,#14263a,#101d2d)!important}
 
 /* V2.45.30 · persistent semantic footer colors by actual element IDs */
-.app[data-workspace="SELLER"] #mobileNavHome{--nav-sem:#2f80ed!important}
-.app[data-workspace="SELLER"] #mobileNavPrimary{--nav-sem:#19b99a!important}
-.app[data-workspace="SELLER"] #mobileNavReports{--nav-sem:#8b6cff!important}
-.app[data-workspace="SELLER"] #mobileNavNow{--nav-sem:#f59e42!important}
-.app[data-workspace="SELLER"] #mobileAppBottomNav>button>span{color:var(--nav-sem)!important;border-color:color-mix(in srgb,var(--nav-sem) 58%,#536b83)!important;background:color-mix(in srgb,var(--nav-sem) 10%,#0c1b2c)!important}
-.app[data-workspace="SELLER"] #mobileAppBottomNav>button>small{color:color-mix(in srgb,var(--nav-sem) 76%,#d7e2ef)!important;font-weight:800!important}
-.app[data-workspace="SELLER"] #mobileAppBottomNav>button.active{background:color-mix(in srgb,var(--nav-sem) 15%,#07182a)!important}
-.app[data-workspace="SELLER"] #mobileAppBottomNav>button.active>span{background:color-mix(in srgb,var(--nav-sem) 24%,#0c1b2c)!important;box-shadow:0 0 0 1px color-mix(in srgb,var(--nav-sem) 52%,transparent),0 0 20px color-mix(in srgb,var(--nav-sem) 30%,transparent)!important}
+.app[data-workspace="seller"] #mobileNavHome{--nav-sem:#2f80ed!important}
+.app[data-workspace="seller"] #mobileNavPrimary{--nav-sem:#19b99a!important}
+.app[data-workspace="seller"] #mobileNavReports{--nav-sem:#8b6cff!important}
+.app[data-workspace="seller"] #mobileNavNow{--nav-sem:#f59e42!important}
+.app[data-workspace="seller"] #mobileAppBottomNav>button>span{color:var(--nav-sem)!important;border-color:color-mix(in srgb,var(--nav-sem) 58%,#536b83)!important;background:color-mix(in srgb,var(--nav-sem) 10%,#0c1b2c)!important}
+.app[data-workspace="seller"] #mobileAppBottomNav>button>small{color:color-mix(in srgb,var(--nav-sem) 76%,#d7e2ef)!important;font-weight:800!important}
+.app[data-workspace="seller"] #mobileAppBottomNav>button.active{background:color-mix(in srgb,var(--nav-sem) 15%,#07182a)!important}
+.app[data-workspace="seller"] #mobileAppBottomNav>button.active>span{background:color-mix(in srgb,var(--nav-sem) 24%,#0c1b2c)!important;box-shadow:0 0 0 1px color-mix(in srgb,var(--nav-sem) 52%,transparent),0 0 20px color-mix(in srgb,var(--nav-sem) 30%,transparent)!important}
+
+/* V2.45.31 · root cause: workspace value is lowercase seller */
+.app[data-workspace="seller"] #mobileNavHome{--nav-sem:#2f80ed!important;color:#2f80ed!important}
+.app[data-workspace="seller"] #mobileNavPrimary{--nav-sem:#19b99a!important;color:#19b99a!important}
+.app[data-workspace="seller"] #mobileNavReports{--nav-sem:#8b6cff!important;color:#8b6cff!important}
+.app[data-workspace="seller"] #mobileNavNow{--nav-sem:#f59e42!important;color:#f59e42!important}
+.app[data-workspace="seller"] #mobileAppBottomNav>button>small{color:inherit!important}
+.app[data-workspace="seller"] #mobileAppBottomNav>button.active,
+.app[data-workspace="seller"] #mobileAppBottomNav>button[aria-current="page"]{color:var(--nav-sem)!important;background:color-mix(in srgb,var(--nav-sem) 16%,#07182a)!important}
