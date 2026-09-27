@@ -4539,3 +4539,15 @@ html[data-theme="night"] .modern-home .seller-performance-panel,html[data-theme=
 .app[data-workspace="admin"] #mobileAppBottomNav>button.active,.app[data-workspace="admin"] #mobileAppBottomNav>button[aria-current="page"]{background:color-mix(in srgb,var(--nav-sem) 16%,#07182a)!important;color:var(--nav-sem)!important}
 .app[data-workspace="admin"] [data-page="dashboard"]{--dir-sem:var(--dir-home)}.app[data-workspace="admin"] [data-page="users"]{--dir-sem:var(--dir-team)}.app[data-workspace="admin"] [data-page="opportunities"]{--dir-sem:var(--dir-deals)}.app[data-workspace="admin"] [data-page="goals"]{--dir-sem:var(--dir-goals)}
 .app[data-workspace="admin"] :is(.ceo-dashboard,.director-responsibility-center) button[data-page]{border-color:color-mix(in srgb,var(--dir-sem,currentColor) 42%,var(--line))!important}
+
+/* V2.45.35 · final mobile header shell: menu never overlaps Director identity */
+@media(max-width:700px){
+ .sidebar-toggle,.app.sidebar-collapsed .sidebar-toggle,.app[data-page="dashboard"] .sidebar-toggle,.app[data-page="dashboard"].sidebar-collapsed .sidebar-toggle{
+  position:fixed!important;top:12px!important;right:12px!important;left:auto!important;z-index:9995!important;
+ }
+ .app[data-workspace="admin"] .director-mobile-head{padding-top:10px!important;padding-right:68px!important;min-height:98px!important}
+ .app[data-workspace="admin"] .director-mobile-head>div{min-width:0!important}
+ .app[data-workspace="admin"] .director-greeting-row{display:flex!important;align-items:center!important;gap:10px!important;flex-wrap:wrap!important}
+ .app[data-workspace="admin"] .director-greeting-row h2{margin:0!important}
+ .app[data-workspace="admin"] .mobile-connection-presence{flex:none!important}
+}
