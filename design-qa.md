@@ -38,3 +38,7 @@ Causa corregida: el mínimo intrínseco de la columna de grid permitía que la t
 Controles Anterior/Siguiente verificados: escritorio scrollLeft=71.2, ancho visible840 / contenido912; móvil scrollLeft=225.6, ancho visible301 / contenido900. Página móvil375 <= viewport390, sin desbordamiento global.
 Encabezados sticky; texto multilínea, cantidades tabulares a la derecha, filas alternadas, foco visible. Evidencia: ../performance-review/table-desktop-2461.png y table-mobile-2461.png. Las capturas muestran el desplazamiento activo, por lo que las columnas fuera del área visible se recuperan con los controles.
 36/36 pruebas enfocadas aprobadas. Prueba visual aislada con demostración, sin cambios a datos/backend.
+
+## Encabezado común v2.46.2
+Cabecera única #appHeader fuera de main, abarca contenido y notificaciones. Rail en segunda fila. Título de Rendimiento sincronizado con pageTitle; acciones Crear junto a herramientas del módulo. Se conservan IDs y permisos.
+Validación local aislada: Ventas y Gastos comparten header; en escritorio header.bottom=activity.top=106.6; móvil viewport390/page375, controles completos en dos filas. Evidencias ../performance-review/header-sales-2462.png, header-expenses-2462.png, header-mobile-2462.png. 36 pruebas enfocadas aprobadas. Sin validación autenticada contra producción ni cambios en backend.
