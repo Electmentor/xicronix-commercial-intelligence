@@ -41,7 +41,7 @@ with sync_playwright() as p:
   if page.locator('#dailyBriefingDialog').evaluate("el=>el.open"):
    page.locator('#closeDailyBriefing').click()
   check('actual data is default',lambda:expect(page.locator('#sidebarLiveBtn')).to_have_attribute('aria-pressed','true'))
-  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-27-v2.46.9'))
+  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-27-v2.47.0'))
   page.screenshot(path=str(out/'desktop-v2-fixture.png'),full_page=True)
   pages=['now','users','goals','opportunities','meetings','leads','prospects','radar','supplier_relationships','strategic_alliances','catalog_products','institutions','contacts','mail','documents','cost_profiles','expenses','dashboard']
   for target in pages:

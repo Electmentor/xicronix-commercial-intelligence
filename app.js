@@ -1,20 +1,20 @@
-import {createAssistant,buildAssistantContext} from './assistant.mjs?v=2.46.9';
-import {radarState,radarStateLabels,radarTransition,renderRadarLifecycle} from './radar-lifecycle.mjs?v=2.46.9';
-import {directorGeography} from './director-insights.mjs?v=20260927-v2.46.9';
+import {createAssistant,buildAssistantContext} from './assistant.mjs?v=2.47.0';
+import {radarState,radarStateLabels,radarTransition,renderRadarLifecycle} from './radar-lifecycle.mjs?v=2.47.0';
+import {directorGeography} from './director-insights.mjs?v=20260927-v2.47.0';
 import {escapeHTML as esc, filterRecords, money, metrics, priorities, taskUrgency, sortTasksByUrgency, csv, parseCsv, normalize} from './domain.mjs';
 
 import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWriteModule, assignedUserId, scopeWorkspaceData} from './workspace.mjs';
 
 import {DEMO_VERSION, DEMO_SELLERS, createDemoData, upgradeDemoData, mutateDemo, realOnly, localDay} from './demo.mjs?v=20260924-v2.41.16';
-import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260927-v2.46.9';
+import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260927-v2.47.0';
 import {analyticsCSV} from './analytics.mjs';
-import {renderPerformance, performanceCSV, performancePages} from './performance.mjs?v=2.46.9';
+import {renderPerformance, performanceCSV, performancePages} from './performance.mjs?v=2.47.0';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
 import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.14';
 
 const $ = id => document.getElementById(id);
-const CLIENT_BUILD='v2.46.9';
+const CLIENT_BUILD='v2.47.0';
 const SPLASH_STARTED_AT=performance.now();
 const SPLASH_MIN_MS=450;
 function startLarsonScanner(){
@@ -140,8 +140,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-27-v2.46.9';
-const CRM_VERSION_LABEL='v2.46.9';
+const CRM_RELEASE='2026-09-27-v2.47.0';
+const CRM_VERSION_LABEL='v2.47.0';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -2403,6 +2403,7 @@ function syncEditorRelations(changed){
 }
 
 function openEditor(table,id=null,initialValues={}){
+ assistantEditorOpportunity=null;
  if(!accessible(table)||loading||busy||failures[table])return false; if(table==='users'&&(!id||!canManageUsers()))return false; if(table==='goals'&&!canManageGoals())return false; if(!id&&!writableFor(table))return false;
  const dependencies=fieldsFor(table).filter(f=>f.type==='relation').map(f=>relationTable(f.key));
  if(dependencies.some(k=>failures[k])){notice('Actualiza los módulos vinculados antes de abrir este formulario para conservar las relaciones del registro.',true);return false;}
@@ -2468,7 +2469,7 @@ async function saveRecord(event){
  const original=editId?scopedRows(editTable).find(row=>row.id===editId):null;
  if(typeof $('recordForm').reportValidity==='function'&&!$('recordForm').reportValidity())return;
  for(const field of fieldsFor(editTable)){if(field.transient)continue;let value=field.type==='checkbox'?form.get(field.key)==='on':String(form.get(field.key)??'').trim();
- if(field.required&&!value){$('formMsg').textContent='Completa los campos obligatorios.';return;}
+ if(field.required&&!value&&!(assistantEditorOpportunity&&field.key==='lead_id')){$('formMsg').textContent='Completa los campos obligatorios.';return;}
  if(field.type==='number'){value=value===''?(['estimated_cost','negotiated_unit_price','target_expenses'].includes(field.key)?null:field.key==='quantity'?1:0):Number(value);if(costRateKeys.has(field.key))value=value/100;}
  else if(field.type==='datetime-local'){if(value&&!Number.isFinite(Date.parse(value))){$('formMsg').textContent='Revisa la fecha de '+field.label+'.';return;}value=value?(original?.[field.key]&&value===localDateTime(original[field.key])?original[field.key]:new Date(value).toISOString()):null;}
  else if(field.type!=='checkbox')value=value||null;payload[field.key]=value;
@@ -2487,6 +2488,11 @@ async function saveRecord(event){
  if(editTable==='goals'&&payload.period_start>payload.period_end){$('formMsg').textContent='El fin del periodo debe ser posterior o igual al inicio.';return;}
  if(editTable==='expenses'&&payload.currency!=='PEN'){$('formMsg').textContent='Registra los gastos en soles (PEN).';return;}
  const relationshipError=editorRelationshipError(payload);if(relationshipError){$('formMsg').textContent=relationshipError;return;}
+ if(assistantEditorOpportunity&&!editId&&['tasks','activities'].includes(editTable)){
+  const linked=scopedRows('opportunities').find(r=>r.id===assistantEditorOpportunity);
+  if(!linked||payload.institution_id!==linked.institution_id||payload.lead_id!==linked.lead_id){$('formMsg').textContent='Conserva la institución y el prospecto de la oportunidad activa.';return;}
+  payload.opportunity_id=linked.id;
+ }
  if(editTable==='meetings'&&payload.start_at&&payload.end_at&&Date.parse(payload.end_at)<=Date.parse(payload.start_at)){$('formMsg').textContent='La hora de fin debe ser posterior al inicio.';return;}
  if(editTable==='activities'&&!editId&&!payload.action_code){$('formMsg').textContent='Selecciona la acción realizada antes de guardar el movimiento.';return;}
  if(editTable==='activities'&&Boolean(payload.next_action)!==Boolean(payload.next_action_date)){$('formMsg').textContent='Para programar el seguimiento, completa la próxima acción y su fecha, o deja ambos campos vacíos.';return;}
@@ -2692,7 +2698,20 @@ function openLeadDetails(id){
 }
 
 
-let aiAssistant=null,aiSelected=null;
+let aiAssistant=null,aiSelected=null,assistantEditorOpportunity=null;
+async function openAssistantRecord(action){
+ const allowed=['tasks','activities','opportunities','contacts'];if(!allowed.includes(action.table)||!writableFor(action.table))return;
+ await reload();
+ const opportunityId=action.table==='opportunities'?action.id:action.initial?.opportunity_id;
+ const opportunity=scopedRows('opportunities').find(r=>r.id===opportunityId);if(!opportunity){notice('La oportunidad ya no está disponible. Actualiza el contexto.',true);return;}
+ const initial={...action.initial,institution_id:opportunity.institution_id,contact_id:opportunity.contact_id,lead_id:opportunity.lead_id};
+ if(action.table==='activities')initial.occurred_at=new Date().toISOString();
+ if(openEditor(action.table,action.id||null,initial)===false)return;
+ assistantEditorOpportunity=opportunity.id;
+ if(action.table==='activities'&&!opportunity.lead_id)$('field-lead_id')?.removeAttribute('required');
+ $('fields').insertAdjacentHTML('beforeend','<p class="full muted">Oportunidad vinculada: '+esc(opportunity.name)+'. Revisa los datos y pulsa Guardar para registrarlos.</p>');
+ closeAiAssistant();
+}
 function aiContextSnapshot(){
  const keys=['radar','opportunities','tasks','leads','meetings'];
  const records=dataSource==='demo'?Object.fromEntries(keys.map(k=>[k,scopedRows(k)])):{};
@@ -2710,7 +2729,7 @@ function init(){
  restoreRememberedEmail();
  try{recovery=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery'||sessionStorage.getItem(RECOVERY_KEY)==='1';}catch(_error){}
  $('rememberEmail').onchange=()=>{if(!$('rememberEmail').checked){try{localStorage.removeItem(REMEMBER_EMAIL_KEY);}catch(_error){}}};
- aiAssistant=createAssistant({panel:$('aiAssistantPanel'),messages:$('aiAssistantMessages'),form:$('aiAssistantForm'),input:$('aiAssistantInput'),status:$('aiAssistantStatus'),contextLabel:$('aiAssistantContext'),identity:()=>[session?.user?.id,profile?.organization_id,dataSource,workspace].join(':'),getContext:aiContextSnapshot,send:async(payload,signal)=>{
+ aiAssistant=createAssistant({panel:$('aiAssistantPanel'),messages:$('aiAssistantMessages'),form:$('aiAssistantForm'),input:$('aiAssistantInput'),status:$('aiAssistantStatus'),contextLabel:$('aiAssistantContext'),identity:()=>[session?.user?.id,profile?.organization_id,dataSource,workspace].join(':'),getContext:aiContextSnapshot,onAction:openAssistantRecord,send:async(payload,signal)=>{
   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),55000);
   const cancel=()=>controller.abort();signal.addEventListener('abort',cancel,{once:true});
   try{

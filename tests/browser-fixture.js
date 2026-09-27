@@ -1,11 +1,17 @@
 /* Browser test double only. No real accounts, tokens, customers or network requests. */
 (()=>{
- const config=window.__testConfig||{};
+ const config=window.__testConfig||{};if(new URLSearchParams(location.search).has('opportunity'))config.opportunity=true;
  const originalFetch=window.fetch.bind(window);
  window.fetch=async(url,options)=>{
   if(url!=='/api/assistant')return originalFetch(url,options);
   const body=JSON.parse(options.body);await new Promise(resolve=>setTimeout(resolve,500));
   if(body.message==='SIMULAR ERROR')return Response.json({error:'PROVIDER_ERROR'},{status:502});
+  if(config.opportunity){
+   const {loadOpportunity,opportunityReply}=await import('/assistant-opportunity.mjs');
+   const auth={id:user.id,organization_id:org,role:'ADMIN'};
+   const active=await loadOpportunity(body,auth,'Bearer synthetic',{base:'https://fixture.invalid',key:'synthetic',fetcher:async url=>{const u=new URL(url),table=u.pathname.split('/').at(-1);return Response.json((db[table]||[]).filter(r=>[...u.searchParams].every(([k,v])=>v.startsWith('eq.')?String(r[k])===v.slice(3):v==='is.null'?r[k]==null:true)));}});
+   if(active)return Response.json(opportunityReply(active,body.message,auth));
+  }
   const {buildEvidence,queryIntent,renderEvidence}=await import('/assistant-policy.mjs');
   const evidence=buildEvidence({records:{radar:db.commercial_radar_dashboard,tasks:db.tasks,opportunities:db.opportunities,leads:db.leads,meetings:db.meetings},page:body.context.page,role:'ADMIN',source:'demo',intent:queryIntent(body.message),focus:body.context.focus});
   const plan={evidence_ids:evidence.facts.slice(0,3).map(f=>f.id),recommendation_ids:evidence.recommendations.slice(0,1).map(f=>f.id),insufficient:!evidence.facts.length};
@@ -22,7 +28,7 @@
  institutions:[row('inst-1',{name:'Institución de validación',type:'SCHOOL',city:'Lima',country:'Perú'})],
  contacts:[row('contact-1',{first_name:'Contacto',last_name:'de prueba',email:'contacto@example.invalid',institution_id:'inst-1',decision_level:'UNKNOWN'})],
  leads:[row(leadId,{title:'Institución de validación · Diagnóstico',source:'WEBSITE',status:'NEW',owner_user_id:user.id,institution_id:'inst-1',contact_id:'contact-1',next_action:'Coordinar reunión de diagnóstico',next_action_date:'2026-09-19T14:00:00Z',estimated_value:0,commercial_milestone:'M1',maturity_percent:15,milestone_updated_at:'2026-09-18T12:00:00Z'}),row('demo-lead',{title:'[SIMULADO] Prueba histórica',status:'NEW',owner_user_id:user.id}),row('other-lead',{title:'Prospecto de otro vendedor',status:'NEW',owner_user_id:'someone-else',created_by:'someone-else'})],
- opportunities:[],
+ opportunities:config.opportunity?[row('44444444-4444-4444-8444-444444444444',{name:'Laboratorio de validación',stage:'NEGOTIATION',institution_id:'inst-1',contact_id:'contact-1',lead_id:leadId,owner_user_id:user.id,value:25000,probability:40,next_action:'Validar alcance'})]:[],
  commercial_radar_dashboard:[row('radar-1',{institution_id:'inst-1',lead_id:leadId,institution_name:'Colegio Radar de prueba',city:'Lima',region:'Lima',lab_status:'PLANNED',estimated_value:200000,budget_status:'PROBABLE',signal_date:'2026-09-22',decision_maker_name:'Directora de prueba',decision_maker_title:'Directora',contact_email:'directora@example.invalid',contact_phone:'987654321',contact_whatsapp:'987654321',signal_summary:'Proyecto de laboratorio en evaluación.',next_action:'Validar alcance del proyecto.',principal_risk:'Presupuesto por confirmar.',weighted_score:82,classification:'HIGH',classification_priority:2,geographic_priority:1,source_url:'https://example.invalid/evidence'})],
  commercial_mail_inbox:[row('mail-1',{provider:'ZOHO_MAIL',provider_message_id:'msg-1',sender_name:'Karen Rondón',from_address:'krondon@example.invalid',to_address:'info@xicronix.com',subject:'Diagnóstico del laboratorio',received_at:'2026-09-22T15:00:00Z',classification:'COMMERCIAL',priority:'HIGH',status:'NEW',lead_id:leadId})],
  commercial_mail_webhook_config:[],
@@ -43,6 +49,7 @@
    let rows=(db[this.table]||[]).filter(r=>this.filters.every(([k,v])=>r[k]===v));
    if(this.mine){const key=this.table==='tasks'?'assigned_to':'owner_user_id';rows=rows.filter(r=>r[key]===user.id||!r[key]&&r.created_by===user.id);}
    if(this.op!=='select')window.__testWrites.push({table:this.table,operation:this.op});
+   if(this.op==='insert'){const inserted={...structuredClone(this.payload),id:'fixture-'+Date.now(),created_at:new Date().toISOString()};(db[this.table]||=[]).push(inserted);rows=[inserted];}
    if(this.op==='update')rows.forEach(row=>Object.assign(row,structuredClone(this.payload)));
    return {data:single?(rows[0]||null):structuredClone(rows),error:null};
   }

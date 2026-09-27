@@ -1,6 +1,6 @@
 import {analyticsMetrics, businessDay} from './analytics.mjs';
 import {escapeHTML as esc} from './domain.mjs';
-import {renderAnalytics, salesChart, expenseChart, profitChart} from './analytics-view.mjs?v=2.46.9';
+import {renderAnalytics, salesChart, expenseChart, profitChart} from './analytics-view.mjs?v=2.47.0';
 
 export const performancePages={overview:'Rendimiento del negocio',sales:'Ventas',budget:'Presupuesto',profit:'Rentabilidad',forecast:'Proyecciones'};
 const numeric=v=>v!==null&&v!==undefined&&v!==''&&typeof v!=='boolean'&&Number.isFinite(Number(v))?Number(v):null;

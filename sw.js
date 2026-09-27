@@ -1,5 +1,5 @@
-const CACHE='xicronix-v2-46-9';
-const SHELL=['./assistant.mjs?v=2.46.9','./radar-lifecycle.mjs?v=2.46.9','./performance.mjs?v=2.46.9','./performance.css?v=2.46.9','./analytics-view.mjs?v=2.46.9','./','./index.html','./styles.css?v=2.46.9','./production.css?v=2.46.9','./mobile-now.css?v=2.46.9','./executive.css?v=2.46.9','./app.js?v=2.46.9'];
+const CACHE='xicronix-v2-47-0';
+const SHELL=['./assistant.mjs?v=2.47.0','./radar-lifecycle.mjs?v=2.47.0','./performance.mjs?v=2.47.0','./performance.css?v=2.47.0','./analytics-view.mjs?v=2.47.0','./','./index.html','./styles.css?v=2.47.0','./production.css?v=2.47.0','./mobile-now.css?v=2.47.0','./executive.css?v=2.47.0','./app.js?v=2.47.0'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).catch(()=>{}).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')self.skipWaiting();});
