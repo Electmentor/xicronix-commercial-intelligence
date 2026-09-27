@@ -135,8 +135,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-26-v2.45.19';
-const CRM_VERSION_LABEL='v2.45.19';
+const CRM_RELEASE='2026-09-26-v2.45.20';
+const CRM_VERSION_LABEL='v2.45.20';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -535,10 +535,10 @@ function playXicronixChime(){
   const ctx=xicronixAudioCtx||(xicronixAudioCtx=new AudioCtx());
   if(ctx.state==='suspended')ctx.resume().catch(()=>{});
   const now=ctx.currentTime;
-  [[659.25,0],[783.99,.13],[987.77,.27]].forEach(([freq,delay],i)=>{
-   const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.value=freq;
-   gain.gain.setValueAtTime(.0001,now+delay);gain.gain.exponentialRampToValueAtTime(i===2?.075:.055,now+delay+.018);gain.gain.exponentialRampToValueAtTime(.0001,now+delay+.20);
-   osc.connect(gain);gain.connect(ctx.destination);osc.start(now+delay);osc.stop(now+delay+.22);
+  [[659.25,0,.34],[783.99,.28,.38],[987.77,.58,.52]].forEach(([freq,delay,duration],i)=>{
+   const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=i===2?'triangle':'sine';osc.frequency.value=freq;
+   gain.gain.setValueAtTime(.0001,now+delay);gain.gain.exponentialRampToValueAtTime(i===2?.085:.06,now+delay+.025);gain.gain.setValueAtTime(i===2?.065:.045,now+delay+duration*.52);gain.gain.exponentialRampToValueAtTime(.0001,now+delay+duration);
+   osc.connect(gain);gain.connect(ctx.destination);osc.start(now+delay);osc.stop(now+delay+duration+.03);
   });
  }catch(_error){}
 }
@@ -547,13 +547,14 @@ function flagNewActivity(rows){
  if(rows.length)playXicronixChime();
  setTimeout(()=>{rows.forEach(row=>activityFlashIds.delete(String(row.id)));renderActivityRail();},6500);
 }
+function showAppUpdate(worker){const b=$('appUpdateBtn');if(!b)return;b.hidden=false;b.onclick=()=>{b.disabled=true;b.textContent='Actualizando aplicación…';worker?.postMessage({type:'SKIP_WAITING'});setTimeout(()=>location.reload(),900);};}
 function installVersionWatcher(){
  if(!('serviceWorker' in navigator))return;
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(sessionStorage.getItem('xicronix-sw-reloading')==='1')return;sessionStorage.setItem('xicronix-sw-reloading','1');location.reload();});
  navigator.serviceWorker.ready.then(reg=>{
    const activate=worker=>{if(worker)worker.postMessage({type:'SKIP_WAITING'});};
-   if(reg.waiting)activate(reg.waiting);
-   reg.addEventListener('updatefound',()=>{const worker=reg.installing;if(!worker)return;worker.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)activate(worker);});});
+   if(reg.waiting)showAppUpdate(reg.waiting);
+   reg.addEventListener('updatefound',()=>{const worker=reg.installing;if(!worker)return;worker.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)showAppUpdate(worker);});});
    setInterval(()=>reg.update().catch(()=>{}),60000);
  }).catch(()=>{});
 }
