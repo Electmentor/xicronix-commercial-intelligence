@@ -4323,3 +4323,43 @@ html[data-theme="night"] .modern-operator-real-photo{filter:brightness(.78) satu
  .modern-hero-operator{min-height:360px!important;max-height:none!important}
  .modern-operator-real-photo{object-position:center 32%!important}
 }
+
+
+/* V2.45.29 · Xicronix Space Night hero */
+html[data-theme="night"] .modern-hero{
+ background:linear-gradient(118deg,#061421 0%,#071827 38%,#0a2136 70%,#102a43 100%)!important;
+ border-color:#1b3b58!important;
+ box-shadow:0 18px 48px rgba(0,7,16,.38),inset 0 1px 0 rgba(125,211,252,.04)!important;
+}
+html[data-theme="night"] .modern-hero-copy{
+ background:linear-gradient(90deg,#071827 0%,rgba(7,24,39,.99) 74%,rgba(7,24,39,.88) 88%,rgba(7,24,39,0) 100%)!important;
+ margin-right:-84px!important;
+ padding-right:112px!important;
+}
+html[data-theme="night"] .modern-hero-copy>small{color:#8eb8dc!important}
+html[data-theme="night"] .modern-hero-copy h1{color:#f5f9fd!important;text-shadow:0 1px 18px rgba(0,0,0,.18)}
+html[data-theme="night"] .modern-hero-copy>p{color:#b8ccdf!important}
+html[data-theme="night"] .modern-hero-operator{background:#071827!important}
+html[data-theme="night"] .modern-operator-real-photo{filter:brightness(.72) saturate(.78) contrast(1.08)!important}
+html[data-theme="night"] .modern-hero-operator:has(.modern-operator-real-photo)::before{
+ background:
+  linear-gradient(90deg,#071827 0%,rgba(7,24,39,.98) 8%,rgba(7,24,39,.86) 19%,rgba(7,24,39,.55) 31%,rgba(7,24,39,.20) 44%,rgba(7,24,39,.04) 58%,transparent 72%),
+  linear-gradient(0deg,rgba(4,13,23,.18),rgba(4,13,23,.06))!important;
+}
+html[data-theme="night"] .modern-home .seller-performance-kpi,
+html[data-theme="night"] .modern-home .seller-performance-kpi.primary,
+html[data-theme="night"] .modern-home .seller-performance-panel,
+html[data-theme="night"] .modern-home .seller-dashboard-shortcuts button{
+ background:linear-gradient(145deg,#0a1d30,#071827)!important;
+ border-color:#1b3b58!important;
+ box-shadow:0 8px 24px rgba(0,7,16,.24)!important;
+}
+@media(max-width:700px){
+ html[data-theme="night"] .modern-hero-copy{margin-right:-52px!important;padding-right:62px!important}
+}
+@media(min-width:701px) and (max-height:760px){
+ html[data-theme="night"] .modern-hero-copy{margin-right:-110px!important;padding-right:138px!important}
+ html[data-theme="night"] .modern-hero-operator:has(.modern-operator-real-photo)::before{
+  background:linear-gradient(90deg,#071827 0%,rgba(7,24,39,.98) 10%,rgba(7,24,39,.78) 25%,rgba(7,24,39,.40) 40%,rgba(7,24,39,.10) 55%,transparent 72%)!important;
+ }
+}
