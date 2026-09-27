@@ -84,7 +84,6 @@ html,body{background:#081b32}
   <section id="dashboard"></section>
   <section id="records" hidden><button id="mobileBackDashboard" class="mobile-back-dashboard" type="button">← Atrás</button><div id="sellerSummary" hidden></div><div id="recordContext" class="record-context" hidden><span id="recordContextLabel"></span><button id="clearRecordContext" type="button">Quitar selección</button></div><div class="toolbar"><input id="search" type="search" aria-label="Buscar registros" placeholder="Buscar por nombre, institución o contacto…"><select id="filter" aria-label="Filtrar por estado o tipo"></select><div class="toolbar-actions"><button id="importBtn">Importar CSV</button><button id="exportBtn">Exportar CSV</button><input id="importInput" type="file" accept=".csv,text/csv" hidden></div></div><p id="importHelp" class="muted">Importa un CSV con los encabezados de la exportación de este módulo. La carga se valida antes de guardarse.</p><div id="recordCount" class="muted"></div><div id="recordList"></div><div class="pagination"><button id="previous">Anterior</button><span id="pageNumber"></span><button id="next">Siguiente</button></div></section>
   </main>
-  <button id="aiAssistantLauncher" class="ai-assistant-launcher" type="button" aria-controls="aiAssistantPanel" aria-expanded="false" title="Xicronix Assistant">X</button>
   <aside id="aiAssistantPanel" class="ai-assistant-panel" hidden aria-label="Xicronix Assistant">
     <header><div><small>XICRONIX</small><h2>Assistant</h2><span id="aiAssistantContext">Contexto del CRM</span></div><button id="aiAssistantClose" type="button" aria-label="Cerrar asistente">×</button></header>
     <section id="aiAssistantMessages" class="ai-assistant-messages" aria-live="polite">
@@ -94,7 +93,7 @@ html,body{background:#081b32}
     <form id="aiAssistantForm"><textarea id="aiAssistantInput" rows="2" placeholder="Habla con Xicronix Assistant…" aria-label="Mensaje para Xicronix Assistant"></textarea><div><button id="aiVoiceBtn" type="button" title="Voz (próxima capacidad)" aria-label="Voz">◉</button><button class="primary" type="submit">Enviar</button></div></form>
   </aside>
   <aside id="activityRail" class="activity-rail" aria-label="Actividad y notificaciones" hidden>
-    <header><div><small>ACTIVIDAD</small><h2>Notificaciones</h2></div><span id="activityRailPending" class="activity-rail-count">0</span></header>
+    <header><div><small>ACTIVIDAD</small><h2>Notificaciones</h2></div><div class="activity-rail-head-actions"><span id="activityRailPending" class="activity-rail-count">0</span><button id="aiAssistantLauncher" class="ai-assistant-launcher" type="button" aria-controls="aiAssistantPanel" aria-expanded="false" title="Xicronix Assistant" aria-label="Abrir Xicronix Assistant"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.25 4.1L17 8.5l-3.75 1.4L12 14l-1.25-4.1L7 8.5l3.75-1.4L12 3Z"/><path d="M18.5 13l.75 2.25L21.5 16l-2.25.75L18.5 19l-.75-2.25L15.5 16l2.25-.75L18.5 13Z"/><circle cx="6" cy="17.5" r="1.5"/></svg></button></div></header>
     <div class="activity-rail-date"><button id="activityTodayBtn" type="button">Hoy</button><input id="activityDate" type="date" aria-label="Fecha del historial"></div>
     <section id="activityRailContent" class="activity-rail-content" aria-live="polite"></section>
   </aside>
