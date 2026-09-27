@@ -61,6 +61,14 @@ with sync_playwright() as p:
   check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-27-v2.47.1'))
   page.screenshot(path=str(out/'desktop-v2-fixture.png'),full_page=True)
   pages=['now','users','goals','opportunities','meetings','leads','prospects','radar','supplier_relationships','strategic_alliances','catalog_products','institutions','contacts','mail','documents','cost_profiles','expenses','dashboard']
+  first_nav=page.locator('#navigation [data-page="now"]')
+  if not first_nav.is_visible():
+   diag=first_nav.evaluate("""el=>{
+    const chain=[];let n=el;
+    while(n&&chain.length<6){const s=getComputedStyle(n),r=n.getBoundingClientRect();chain.push({tag:n.tagName,id:n.id,class:n.className,display:s.display,visibility:s.visibility,opacity:s.opacity,position:s.position,overflow:s.overflow,width:r.width,height:r.height,top:r.top,bottom:r.bottom,scrollTop:n.scrollTop,clientHeight:n.clientHeight,scrollHeight:n.scrollHeight});n=n.parentElement;}
+    return {chain,viewport:{w:innerWidth,h:innerHeight},app:document.querySelector('#appView')?.className,workspace:document.querySelector('#appView')?.dataset.workspace};
+   }""")
+   raise AssertionError('Navigation visibility diagnostic: '+json.dumps(diag))
   for target in pages:
    page.locator('#navigation [data-page="'+target+'"]').click()
    check('navigation '+target,lambda t=target:expect(page.locator('#appView')).to_have_attribute('data-page',t))
