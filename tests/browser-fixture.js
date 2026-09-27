@@ -1,12 +1,19 @@
 /* Browser test double only. No real accounts, tokens, customers or network requests. */
 (()=>{
  const config=window.__testConfig||{};
+ const originalFetch=window.fetch.bind(window);
+ window.fetch=async(url,options)=>{
+  if(url!=='/api/assistant')return originalFetch(url,options);
+  const body=JSON.parse(options.body);await new Promise(resolve=>setTimeout(resolve,500));
+  if(body.message==='SIMULAR ERROR')return Response.json({error:'PROVIDER_ERROR'},{status:502});
+  return Response.json({answer:'PRUEBA AISLADA — '+body.context.module+' · '+body.context.page+' · '+body.message});
+ };
  const user={id:'11111111-1111-4111-8111-111111111111',email:'admin@example.invalid'};
  const org='22222222-2222-4222-8222-222222222222';
  const leadId='33333333-3333-4333-8333-333333333333';
  const base={organization_id:org,created_by:user.id,created_at:'2026-09-18T12:00:00Z',updated_at:'2026-09-18T12:00:00Z'};
  const row=(id,extra)=>({...base,id,...extra});
- let session=config.loggedOut?null:{user};let callback=()=>{};
+ let session=config.loggedOut?null:{user,access_token:'isolated-test-token'};let callback=()=>{};
  const db={
  profiles:config.unlinked?[]:[row(user.id,{full_name:'Dirección · PRUEBA AISLADA',role:config.role||'ADMIN'})],
  institutions:[row('inst-1',{name:'Institución de validación',type:'SCHOOL',city:'Lima',country:'Perú'})],
@@ -68,7 +75,7 @@
  auth:{
  onAuthStateChange(fn){callback=fn;setTimeout(()=>fn(config.recovery?'PASSWORD_RECOVERY':'INITIAL_SESSION',session),0);return {data:{subscription:{unsubscribe(){}}}};},
  async getSession(){return {data:{session},error:null};},async getUser(){return {data:{user:session?.user||null},error:null};},
- async signInWithPassword(input){window.__testAuthCalls.push({action:'signIn',email:input.email});session={user};setTimeout(()=>callback('SIGNED_IN',session),0);return {data:{session,user},error:null};},
+ async signInWithPassword(input){window.__testAuthCalls.push({action:'signIn',email:input.email});session={user,access_token:'isolated-test-token'};setTimeout(()=>callback('SIGNED_IN',session),0);return {data:{session,user},error:null};},
  async signUp(){return {data:{session:null},error:null};},
  async resetPasswordForEmail(email,opts){window.__testAuthCalls.push({action:'reset',email,redirectTo:opts.redirectTo});return {data:{},error:null};},
  async updateUser(){window.__testAuthCalls.push({action:'updatePassword'});return {data:{user},error:null};},

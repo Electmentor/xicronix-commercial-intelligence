@@ -1,19 +1,20 @@
-import {radarState,radarStateLabels,radarTransition,renderRadarLifecycle} from './radar-lifecycle.mjs?v=2.46.6';
-import {directorGeography} from './director-insights.mjs?v=20260927-v2.46.6';
+import {createAssistant,buildAssistantContext} from './assistant.mjs?v=2.46.7';
+import {radarState,radarStateLabels,radarTransition,renderRadarLifecycle} from './radar-lifecycle.mjs?v=2.46.7';
+import {directorGeography} from './director-insights.mjs?v=20260927-v2.46.7';
 import {escapeHTML as esc, filterRecords, money, metrics, priorities, taskUrgency, sortTasksByUrgency, csv, parseCsv, normalize} from './domain.mjs';
 
 import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWriteModule, assignedUserId, scopeWorkspaceData} from './workspace.mjs';
 
 import {DEMO_VERSION, DEMO_SELLERS, createDemoData, upgradeDemoData, mutateDemo, realOnly, localDay} from './demo.mjs?v=20260924-v2.41.16';
-import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260927-v2.46.6';
+import {renderExecutive, executivePriority, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260927-v2.46.7';
 import {analyticsCSV} from './analytics.mjs';
-import {renderPerformance, performanceCSV, performancePages} from './performance.mjs?v=2.46.6';
+import {renderPerformance, performanceCSV, performancePages} from './performance.mjs?v=2.46.7';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
 import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.14';
 
 const $ = id => document.getElementById(id);
-const CLIENT_BUILD='v2.46.6';
+const CLIENT_BUILD='v2.46.7';
 const SPLASH_STARTED_AT=performance.now();
 const SPLASH_MIN_MS=450;
 function startLarsonScanner(){
@@ -139,8 +140,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-27-v2.46.6';
-const CRM_VERSION_LABEL='v2.46.6';
+const CRM_RELEASE='2026-09-27-v2.46.7';
+const CRM_VERSION_LABEL='v2.46.7';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -416,6 +417,7 @@ function resetPasswordVisibility(){
  });
 }
 function clearSession(){
+ aiSelected=null;aiAssistant?.reset();closeAiAssistant();
  performancePage=null;performanceFilters={};performanceAdjustment=20;
  dailyBriefingShownForSession=false;
  stopLiveIntelligence();
@@ -812,6 +814,7 @@ function navigate(next,{historyMode='push'}={}){
  if(busy||$('editor').open)return;
  if(!accessible(next))next=canViewDashboard()?'dashboard':'leads';
  const changed=page!==next;
+ if(changed)aiSelected=null;
  page=next;pageIndex=0;executiveFilter='';executiveOwner='';sellerQuickFilter='';if(next!=='leads')sellerManagementSearch='';$('search').value='';
  rememberPage(null,changed?historyMode:'replace');
  const config=modules[page];$('filter').dataset.page=page;
@@ -968,6 +971,7 @@ function renderSellerCompensationNotice(){
    '<button type="button" data-page="dashboard">Ver mi rendimiento</button>';
 }
 function render(){
+ if(aiAssistant&&!$('aiAssistantPanel').hidden)aiAssistant.sync();
  renderWorkspaceControls();
  renderAttentionButton();
  renderSellerCompensationNotice();
@@ -1161,7 +1165,7 @@ function openDirectorRecord(kind,id){
  const rows=kind==='prospects'?liveProspectRows():data.radar||[];
  const row=rows.find(row=>String(row.id)===id);if(!row)return;
  navigate(kind);$('search').value=kind==='prospects'?(row.name||row.institution_name||row.canonical_name||''):(row.institution_name||'');
- pageIndex=0;renderRecords();
+ aiSelected={kind,id};pageIndex=0;renderRecords();
 }
 function setAnalyticsPeriod(period){
  if(!canViewDashboard()||loading||busy||!['month','quarter','year'].includes(period))return;
@@ -2688,25 +2692,17 @@ function openLeadDetails(id){
 }
 
 
+let aiAssistant=null,aiSelected=null;
 function aiContextSnapshot(){
- const commercial=commercialDataView();
- const pendingMail=(data.mail||[]).filter(x=>x.status==='NEW').length;
- const pendingTasks=(commercial.tasks||[]).filter(x=>!['COMPLETED','CANCELLED'].includes(x.status)).length;
- const openOpp=(commercial.opportunities||[]).filter(x=>!['WON','LOST'].includes(x.stage)).length;
- return {page,workspace,role:profile?.role||null,pendingMail,pendingTasks,openOpportunities:openOpp,leads:(commercial.leads||[]).length,prospects:(data.prospects||[]).length};
+ const keys=page==='dashboard'||page==='now'?['radar','opportunities','tasks','leads']:Array.from(new Set([page,'opportunities','tasks','leads','radar']));
+ const records=Object.fromEntries(keys.filter(k=>modules[k]).map(k=>[k,scopedRows(k)]));
+ const region=page==='dashboard'?$('dashboard'):$('recordList');
+ const leadId=new URLSearchParams(location.hash.slice(1)).get('lead');
+ const selected=$('editor')?.open?(data[editTable]||[]).find(r=>r.id===editId):radarActionContext?(data.radar||[]).find(r=>r.id===radarActionContext.id):$('leadDetailDialog')?.open?(records.leads||[]).find(r=>r.id===leadId):aiSelected&&aiSelected.kind===page?(records[page]||[]).find(r=>r.id===aiSelected.id):null;
+ return buildAssistantContext({page:performancePage?'performance:'+performancePage:page,module:performancePage?'Rendimiento del negocio':page==='dashboard'?'Dirección Comercial':modules[page]?.label||page,workspace,role:profile?.role,source:dataSource,records,failures,visibleText:region?.innerText||'',visibleMetrics:[...(region?.querySelectorAll('[aria-label="Indicadores comerciales"] button,[aria-label="Indicadores de rendimiento"] article')||[])].slice(0,8).map(node=>node.innerText.slice(0,300)),selected,priority:canViewDashboard()?executivePriority(records,{failures}):null,filters:{search:$('search')?.value||'',status:$('filter')?.value||''}});
 }
-function renderAiLocalAnswer(prompt){
- const c=aiContextSnapshot(),q=normalize(prompt);
- if(q.includes('atencion')||q.includes('urgente'))return 'Ahora veo '+c.pendingMail+' correo(s) nuevo(s), '+c.pendingTasks+' tarea(s) abierta(s) y '+c.openOpportunities+' oportunidad(es) activa(s). Puedo profundizar cuando el motor IA seguro quede conectado.';
- if(q.includes('mejor')&&q.includes('pantalla'))return 'Estoy observando la pantalla '+page+'. Puedo usar su contexto operativo para detectar fricción y proponer mejoras; la evaluación generativa completa se habilita al conectar el motor IA seguro.';
- if(q.includes('resum'))return 'Contexto actual: '+c.leads+' prospecto(s) gestionados, '+c.openOpportunities+' oportunidad(es) abiertas, '+c.pendingTasks+' tarea(s) pendientes y '+c.pendingMail+' correo(s) nuevo(s).';
- return 'Ya recibí tu solicitud y tengo el contexto de esta pantalla. El panel y el motor de contexto están operativos; falta conectar la inferencia segura de OpenAI para responder con análisis generativo completo.';
-}
-function appendAiMessage(kind,text){
- const box=$('aiAssistantMessages');if(!box)return;const article=document.createElement('article');article.className='ai-message '+kind;const p=document.createElement('p');p.textContent=text;article.appendChild(p);box.appendChild(article);box.scrollTop=box.scrollHeight;
-}
-function openAiAssistant(){const panel=$('aiAssistantPanel'),launcher=$('aiAssistantLauncher');if(!panel)return;panel.hidden=false;launcher?.setAttribute('aria-expanded','true');const c=$('aiAssistantContext');if(c)c.textContent=(workspace===ADMIN?'Dirección':'Ejecutivo comercial')+' · '+(modules[page]?.label||page);setTimeout(()=>$('aiAssistantInput')?.focus(),40);}
-function closeAiAssistant(){const panel=$('aiAssistantPanel'),launcher=$('aiAssistantLauncher');if(panel)panel.hidden=true;launcher?.setAttribute('aria-expanded','false');}
+function openAiAssistant(){aiAssistant?.open();$('aiAssistantLauncher')?.setAttribute('aria-expanded','true');}
+function closeAiAssistant(){aiAssistant?.close();$('aiAssistantLauncher')?.setAttribute('aria-expanded','false');}
 
 function init(){
  window.setTimeout(hideAppSplash,2500);
@@ -2715,11 +2711,19 @@ function init(){
  restoreRememberedEmail();
  try{recovery=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery'||sessionStorage.getItem(RECOVERY_KEY)==='1';}catch(_error){}
  $('rememberEmail').onchange=()=>{if(!$('rememberEmail').checked){try{localStorage.removeItem(REMEMBER_EMAIL_KEY);}catch(_error){}}};
- const aiLauncher=$('aiAssistantLauncher'),aiClose=$('aiAssistantClose'),aiForm=$('aiAssistantForm'),aiInput=$('aiAssistantInput');
- if(aiLauncher)aiLauncher.onclick=openAiAssistant;if(aiClose)aiClose.onclick=closeAiAssistant;
- document.querySelectorAll('[data-ai-prompt]').forEach(button=>button.onclick=()=>{openAiAssistant();if(aiInput)aiInput.value=button.dataset.aiPrompt||'';aiForm?.requestSubmit();});
- if(aiForm)aiForm.onsubmit=event=>{event.preventDefault();const prompt=aiInput?.value?.trim();if(!prompt)return;appendAiMessage('user',prompt);aiInput.value='';setTimeout(()=>appendAiMessage('assistant',renderAiLocalAnswer(prompt)),120);};
- if($('aiVoiceBtn'))$('aiVoiceBtn').onclick=()=>appendAiMessage('system','Voz está preparada como siguiente capacidad. El asistente textual/contextual se valida primero.');
+ aiAssistant=createAssistant({panel:$('aiAssistantPanel'),messages:$('aiAssistantMessages'),form:$('aiAssistantForm'),input:$('aiAssistantInput'),status:$('aiAssistantStatus'),contextLabel:$('aiAssistantContext'),identity:()=>[session?.user?.id,profile?.organization_id,dataSource,workspace].join(':'),getContext:aiContextSnapshot,send:async(payload,signal)=>{
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),40000);
+  const cancel=()=>controller.abort();signal.addEventListener('abort',cancel,{once:true});
+  try{
+   const {data:auth}=await sb.auth.getSession();if(!auth?.session?.access_token)throw Error('AUTH_REQUIRED');
+   const response=await fetch('/api/assistant',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+auth.session.access_token},body:JSON.stringify(payload),signal:controller.signal});
+   const result=await response.json();if(!response.ok)throw Error(result?.error||'ASSISTANT_UNAVAILABLE');
+   if(!result?.answer)throw Error('EMPTY_RESPONSE');return result.answer;
+  }catch(error){if(controller.signal.aborted)throw Error('TIMEOUT');throw error;}
+  finally{clearTimeout(timeout);signal.removeEventListener('abort',cancel);}
+ }});
+ $('aiAssistantLauncher').onclick=openAiAssistant;$('aiAssistantMobileLauncher').onclick=openAiAssistant;$('aiAssistantClose').onclick=closeAiAssistant;
+ $('aiAssistantPanel').addEventListener('keydown',event=>{if(event.key==='Escape')closeAiAssistant();});
  const activityToday=$('activityTodayBtn'),activityDate=$('activityDate');
  if(activityToday)activityToday.onclick=()=>{if(activityDate)activityDate.value=activityDayKey(new Date());renderActivityRail();};
  if(activityDate)activityDate.onchange=renderActivityRail;
