@@ -54,14 +54,14 @@ test('partial loads hide desktop numbers and no target stays unknown rather than
 test('desktop presence follows the existing connection state without changing mobile status',()=>{
  const source=readFileSync(new URL('../app.js',import.meta.url),'utf8');
  const fn=source.match(/function renderConnectionState\(\)\{[\s\S]*?\r?\n\}/)[0];
- const nodes=Object.fromEntries(['userPresence','connectionLabel','mobileConnectionPresence','mobileConnectionLabel','desktopConnectionPresence','desktopConnectionLabel','headerAccountRole'].map(id=>[id,{dataset:{}}]));
+ const nodes=Object.fromEntries(['userPresence','connectionLabel','mobileConnectionPresence','mobileConnectionLabel','headerAccountRole'].map(id=>[id,{dataset:{}}]));
  let state='online';
  const context=vm.createContext({$:id=>nodes[id],connectionState:()=>({state,label:state==='online'?'Conectado':'Desconectado'}),liveIntelligenceLastSync:null,intelligenceFreshness:()=>({}),enums:{role:{}},profile:{role:'ADMIN'}});
  vm.runInContext(fn,context);
  for(state of ['online','offline']){
   vm.runInContext('renderConnectionState()',context);
-  assert.equal(nodes.desktopConnectionPresence.dataset.state,state);
-  assert.equal(nodes.desktopConnectionLabel.textContent,nodes.mobileConnectionLabel.textContent);
+  assert.equal(nodes.userPresence.dataset.state,state);
+  assert.equal(nodes.connectionLabel.textContent,nodes.mobileConnectionLabel.textContent);
  }
 });
 test('release stamps and changed module URL agree while network-first caching remains enabled',()=>{
