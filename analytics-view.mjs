@@ -40,13 +40,15 @@ function emptyChart(message, page, action) {
   return '<div class="analytics-empty"><span class="analytics-empty-icon" aria-hidden="true">↗</span><p>' + esc(message) + '</p>' + (page ? '<button data-page="' + esc(page) + '">' + esc(action) + ' ↗</button>' : '') + '</div>';
 }
 
-function salesChart(m, loaded, goalsLoaded) {
+export function salesChart(m, loaded, goalsLoaded, showForecast = false) {
   if (!loaded) return emptyChart('No se pudieron cargar las ventas. Actualiza los datos para ver la tendencia.');
   const rows = m.salesTimeline, width = 600, height = 310, left = 76, right = 23, top = 28, bottom = 38;
   const start = day(m.period.start) - 1, end = day(m.period.end), cutoff = day(m.period.cutoff);
   const x = date => left + (date - start) / Math.max(1, end - start) * (width - left - right);
   const targetKnown = goalsLoaded && available(m.targets.sales);
-  const max = Math.max(1, m.totals.sales || 0, targetKnown ? m.targets.sales : 0) * 1.16;
+  const forecast=showForecast&&m.period.elapsedDays>=7&&m.totals.sales>0?m.totals.sales/m.period.elapsedDays*m.period.totalDays:null;
+  const scenarios=typeof showForecast==='object'?showForecast:null;
+  const max = Math.max(1, m.totals.sales || 0, forecast||0,...Object.values(scenarios||{}), targetKnown ? m.targets.sales : 0) * 1.16;
   const indexes = tickIndexes(rows.length);
   const labelDate = new Intl.DateTimeFormat('es-PE', {day:'2-digit', month:'short', timeZone:'UTC'});
   const labels = rows.flatMap((row, index) => indexes.has(index) ? [{text: labelDate.format(new Date(row.date + 'T12:00:00Z')), position: (day(row.date) - start) / Math.max(1, end - start), future: row.isFuture}] : []);
@@ -80,12 +82,12 @@ function salesChart(m, loaded, goalsLoaded) {
   return '<svg class="analytics-sales-svg" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-labelledby="analytics-sales-title analytics-sales-desc"><title id="analytics-sales-title">' + title + '</title><desc id="analytics-sales-desc">' + esc(description) + '</desc>' + future + markup + area +
     (targetKnown ? '<path class="analytics-target-line" d="' + pointPath(targetPast) + '"/>' + (targetFuture.length > 1 ? '<path class="analytics-target-line analytics-target-future" d="' + pointPath(targetFuture) + '"/>' : '') : '') +
     '<line class="analytics-cutoff-line" x1="' + fixed(cutoffX) + '" x2="' + fixed(cutoffX) + '" y1="' + top + '" y2="' + (height - bottom) + '"/><text class="analytics-cutoff-text" x="' + fixed(Math.min(width - right - 2, Math.max(left + 18, cutoffX))) + '" y="16" text-anchor="middle">Corte</text>' +
-    '<path class="analytics-sales-line" d="' + pointPath(actual) + '"/>' + points + '</svg>' +
+    '<path class="analytics-sales-line" d="' + pointPath(actual) + '"/>' + (forecast!==null&&cutoff<end?Object.entries(scenarios||{base:forecast}).map(([key,value])=>'<path class="performance-forecast-line performance-scenario-'+key+'" d="M'+fixed(cutoffX)+','+fixed(y(m.totals.sales))+' L'+fixed(x(end))+','+fixed(y(value))+'"><title>Proyección '+key+': '+esc(currency(value))+'</title></path>').join(''):'') + points + '</svg>' +
     (!targetKnown ? '<p class="analytics-chart-note">' + (goalsLoaded ? 'Sin meta completa para este periodo. ' : 'Metas pendientes de carga. ') + '<button data-page="goals">Revisar metas ↗</button></p>' : '') +
     (m.totals.wonCount === 0 ? '<p class="analytics-chart-note">Aún no hay ventas ganadas registradas en este periodo.</p>' : '');
 }
 
-function expenseChart(m, loaded, goalsLoaded) {
+export function expenseChart(m, loaded, goalsLoaded) {
   if (!loaded) return emptyChart('No se pudieron cargar los gastos. No se representan como cero.');
   const rows = m.series, width = 440, height = 194, left = 71, right = 14, top = 13, bottom = 31;
   const values = rows.flatMap(row => [row.expenses, goalsLoaded ? (row.isFuture ? row.targetExpenses : row.plannedExpenses) : null]).filter(available);
@@ -106,10 +108,10 @@ function expenseChart(m, loaded, goalsLoaded) {
     (!goalsLoaded || !available(m.targets.expenses) ? '<p class="analytics-chart-note">' + (goalsLoaded ? 'Presupuesto incompleto para el periodo.' : 'Presupuestos pendientes de carga.') + '</p>' : '');
 }
 
-function profitChart(m, salesLoaded, expensesLoaded) {
+export function profitChart(m, salesLoaded, expensesLoaded, detailed = false) {
   if (!salesLoaded || !expensesLoaded) return emptyChart('El resultado requiere ventas y gastos cargados.');
   const rows = m.series, width = 440, height = 194, left = 71, right = 14, top = 13, bottom = 31;
-  const values = rows.filter(row => !row.isFuture).map(row => row.operatingResult).filter(available);
+  const values = rows.filter(row => !row.isFuture).flatMap(row => detailed?[row.sales,row.directCosts,row.operatingResult]:[row.operatingResult]).filter(available);
   if (!values.length) return emptyChart('Completa los costos de las ventas ganadas para calcular el resultado.', 'opportunities', 'Completar costos');
   const min = Math.min(0, ...values) * 1.2, max = Math.max(1, ...values) * 1.2;
   const step = (width - left - right) / Math.max(1, rows.length), indexes = tickIndexes(rows.length, 6);
@@ -118,6 +120,7 @@ function profitChart(m, salesLoaded, expensesLoaded) {
   const barWidth = Math.min(28, step * .62);
   const bars = rows.map((row, index) => {
     if (row.isFuture) return '';
+    if(detailed){const center=left+(index+.5)*step,w=Math.min(12,step*.23);return [row.sales,row.directCosts,row.operatingResult].map((v,i)=>available(v)?'<rect class="'+['performance-revenue-bar','performance-cost-bar',v<0?'analytics-loss-bar':'analytics-profit-bar'][i]+'" x="'+fixed(center+(i-1.5)*w)+'" y="'+fixed(y(Math.max(0,v)))+'" width="'+fixed(w-1)+'" height="'+fixed(Math.max(1,Math.abs(y(v)-y(0))))+'"><title>'+esc(row.label+' · '+['Ventas','Costos directos','Resultado operativo'][i]+': '+currency(v))+'</title></rect>':'').join('');}
     const center = left + (index + .5) * step, value = row.operatingResult;
     if (!available(value)) return '<text class="analytics-missing-value" x="' + fixed(center) + '" y="' + fixed(y(0) - 8) + '" text-anchor="middle" role="img" tabindex="0" aria-label="' + esc(row.label + ': resultado no disponible; faltan costos') + '">?<title>' + esc(row.label + ': costos pendientes') + '</title></text>';
     const description = row.label + ': resultado operativo estimado ' + currency(value) + (available(row.operatingMarginPercent) ? '; margen operativo ' + percent(row.operatingMarginPercent) : '');

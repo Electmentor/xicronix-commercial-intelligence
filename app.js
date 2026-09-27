@@ -1,17 +1,18 @@
-import {directorGeography} from './director-insights.mjs?v=20260927-v2.45.41';
+import {directorGeography} from './director-insights.mjs?v=20260927-v2.46.0';
 import {escapeHTML as esc, filterRecords, money, metrics, priorities, taskUrgency, sortTasksByUrgency, csv, parseCsv, normalize} from './domain.mjs';
 
 import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWriteModule, assignedUserId, scopeWorkspaceData} from './workspace.mjs';
 
 import {DEMO_VERSION, DEMO_SELLERS, createDemoData, upgradeDemoData, mutateDemo, realOnly, localDay} from './demo.mjs?v=20260924-v2.41.16';
-import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260927-v2.45.41';
+import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260927-v2.46.0';
 import {analyticsCSV} from './analytics.mjs';
+import {renderPerformance, performanceCSV, performancePages} from './performance.mjs?v=2.46.0';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
 import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.14';
 
 const $ = id => document.getElementById(id);
-const CLIENT_BUILD='v2.45.41';
+const CLIENT_BUILD='v2.46.0';
 const SPLASH_STARTED_AT=performance.now();
 const SPLASH_MIN_MS=450;
 function startLarsonScanner(){
@@ -137,8 +138,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-27-v2.45.41';
-const CRM_VERSION_LABEL='v2.45.41';
+const CRM_RELEASE='2026-09-27-v2.46.0';
+const CRM_VERSION_LABEL='v2.46.0';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -149,6 +150,7 @@ let workspace=SELLER, workspaceIdentity=null, workspaceEntryChosen=false, loadin
 let dataSource='live', sourceIdentity=null, demoData=null, demoSeller=DEMO_SELLERS[0].id, demoSaved=true, executiveFilter='', executiveOwner='', sellerQuickFilter='', prospectDashboardFilter='';
 let noticeTimer=null;
 let analyticsPeriod='year';
+let performancePage=null,performanceFilters={},performanceAdjustment=20;
 let sellerManagementSearch='';
 let deferredInstallPrompt=null;
 let criticalPushState='unknown';
@@ -185,6 +187,7 @@ function persistDemo(){
 }
 function demoSavedMessage(){return demoSaved?'Simulación guardada en este navegador; no modifica datos reales.':'Simulación guardada solo en esta sesión: el navegador no permitió conservarla.';}
 function clearWorkspaceViews(){
+ performanceFilters={};performanceAdjustment=20;
  closeLeadDetails(false);
  $('fields').replaceChildren();editTable=null;editId=null;editingVersion=null;
  data=emptyData();failures={};executiveFilter='';executiveOwner='';
@@ -412,6 +415,7 @@ function resetPasswordVisibility(){
  });
 }
 function clearSession(){
+ performancePage=null;performanceFilters={};performanceAdjustment=20;
  dailyBriefingShownForSession=false;
  stopLiveIntelligence();
  stopLiveMailRealtime();
@@ -1065,7 +1069,9 @@ function renderDirectorResponsibilityCenter(viewData){
 function renderDashboard(){
  const admin=canViewDashboard();
  const viewData=commercialDataView();
+ if(admin&&performancePage){$('dashboard').innerHTML=renderPerformance(viewData,{page:performancePage,period:analyticsPeriod,filters:performanceFilters,adjustment:performanceAdjustment,demo:dataSource==='demo',failures});renderConnectionState();return;}
  $('dashboard').innerHTML=admin?renderExecutive(viewData,{demo:dataSource==='demo',failures,analyticsPeriod}):renderSellerDashboard(viewData,{demo:dataSource==='demo',failures});
+ if(admin)$('dashboard').insertAdjacentHTML('afterbegin','<div class="performance-entry"><button type="button" data-performance-page="overview">Rendimiento del negocio</button></div>');
  if(admin&&dataSource==='live'&&Array.isArray(data.territorialMacro)&&data.territorialMacro.length){
    const section=$('dashboard').querySelector('.territorial-intelligence');
    if(section){
@@ -1090,6 +1096,7 @@ function renderDashboard(){
 }
 function openDirectorInsight(target){
  if(!canViewDashboard()||page!=='dashboard')return;
+ if(target==='analytics'){openPerformance('overview');return;}
  const selector=target==='analytics'?'[data-analytics-section]':'.territorial-intelligence';
  const section=document.querySelector(selector);if(!section)return;
  let ancestor=section.parentElement;
@@ -1112,6 +1119,32 @@ function setAnalyticsPeriod(period){
  analyticsPeriod=period;renderDashboard();
  document.querySelector('[data-analytics-period="'+period+'"]')?.focus({preventScroll:true});
 }
+function openPerformance(next){
+ if(!canViewDashboard()||loading||busy)return;
+ if(next!=='direction'&&!Object.hasOwn(performancePages,next))return;
+ performancePage=next==='direction'?null:next;
+ const route=new URL(location.href);if(performancePage)route.searchParams.set('performance',performancePage);else route.searchParams.delete('performance');history.replaceState(history.state,'',route.pathname+route.search+route.hash);
+ renderDashboard();
+ document.querySelector('#performance-heading')?.focus({preventScroll:true});
+ document.querySelector('[data-performance-workspace]')?.scrollIntoView({block:'start'});
+}
+document.addEventListener('click',event=>{
+ const b=event.target.closest('button');if(!b||!canViewDashboard()||loading||busy)return;
+ if(b.dataset.performancePage){openPerformance(b.dataset.performancePage);return;}
+ if(b.hasAttribute('data-performance-calculate')){performanceAdjustment=Math.min(50,Math.max(0,Number(document.querySelector('[data-performance-adjustment]')?.value)||0));renderDashboard();return;}
+ if(b.dataset.performanceRecord){const table=b.dataset.performanceTable;if(['opportunities','expenses','tasks'].includes(table)&&accessible(table)){openEditor(table,b.dataset.performanceRecord);}return;}
+ if(b.hasAttribute('data-performance-export')){
+  const content=performanceCSV(commercialDataView(),{page:performancePage,period:analyticsPeriod,filters:performanceFilters,adjustment:performanceAdjustment,demo:dataSource==='demo',failures});
+  if(content===null)return;
+  const url=URL.createObjectURL(new Blob([content],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download='xicronix-'+performancePage+'-'+analyticsPeriod+'-'+(dataSource==='demo'?'SIMULADO':'REAL')+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ }
+});
+document.addEventListener('change',event=>{
+ if(!canViewDashboard()||loading||busy)return;
+ const target=event.target;
+ if(target.dataset.performanceFilter){performanceFilters[target.dataset.performanceFilter]=target.value;renderDashboard();}
+ if(target.hasAttribute('data-performance-adjustment')){performanceAdjustment=Math.min(50,Math.max(0,Number(target.value)||0));renderDashboard();}
+});
 function exportAnalytics(){
  if(!canViewDashboard()||loading||busy||['opportunities','goals','expenses'].some(key=>failures[key]))return;
  const content=analyticsCSV(data,{period:analyticsPeriod,demo:dataSource==='demo'});
@@ -2532,7 +2565,7 @@ function applyEntryRoute(){
   navigate('leads');
   if(scopedRows('leads').some(row=>row.id===route.lead))openLeadDetails(route.lead);
   else notice('No se encontró esa solicitud en tu cartera visible. Revisa el modo de trabajo y pulsa Actualizar.',true);
- }else if(route.page)navigate(route.page);
+ }else if(route.page){navigate(route.page);const performance=new URLSearchParams(location.search).get('performance');if(page==='dashboard'&&canViewDashboard()&&Object.hasOwn(performancePages,performance))openPerformance(performance);}
 }
 function closeLeadDetails(updateRoute=true){
  if($('leadDetailDialog').open)$('leadDetailDialog').close();
