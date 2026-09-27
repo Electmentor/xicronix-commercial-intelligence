@@ -231,7 +231,7 @@ function sellerPerformanceDashboard(data,{now=new Date(),demo=false,failures={}}
 
   return '<div class="seller-performance-dashboard modern-home">'+
     '<section class="seller-performance-hero modern-hero"><div class="modern-hero-copy"><small>BIENVENIDO A XICRONIX</small><h1>Tu negocio<br>en una sola vista.</h1><p>Clientes, oportunidades, tareas y más.<br>Todo en un solo lugar.</p><div class="modern-hero-pillars"><span><i>●</i><b>Conecta</b><small>con tus clientes</small></span><span><i>▥</i><b>Impulsa</b><small>tus ventas</small></span><span><i>◆</i><b>Automatiza</b><small>tu crecimiento</small></span></div></div>'+
-    '<div class="modern-hero-operator" aria-label="Asistente comercial Xicronix"><div class="modern-operator-photo"><span class="operator-headset" aria-hidden="true"></span><span class="operator-face" aria-hidden="true"></span><span class="operator-hair" aria-hidden="true"></span><span class="operator-body" aria-hidden="true"></span><span class="operator-mic" aria-hidden="true"></span></div></div></section>'+
+    '<div class="modern-hero-operator"><img class="modern-operator-real-photo" src="https://images.unsplash.com/photo-1766066014237-00645c74e9c6?auto=format&fit=crop&fm=webp&q=82&w=1400" alt="Asesora comercial profesional con auriculares" loading="eager" decoding="async"></div></section>'+
 
     '<section class="seller-performance-kpis">'+
       '<article class="seller-performance-kpi primary"><small>VENTAS DEL MES</small><strong>'+money(salesMonth)+'</strong><span>'+wonMonth.length+' venta'+(wonMonth.length===1?'':'s')+' ganada'+(wonMonth.length===1?'':'s')+'</span></article>'+
