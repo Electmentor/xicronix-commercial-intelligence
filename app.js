@@ -135,8 +135,8 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
-const CRM_RELEASE='2026-09-26-v2.45.16';
-const CRM_VERSION_LABEL='v2.45.16';
+const CRM_RELEASE='2026-09-26-v2.45.17';
+const CRM_VERSION_LABEL='v2.45.17';
 
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
@@ -527,6 +527,36 @@ function renderConnectionState(){
  if(mobile&&mobileLabel){mobile.dataset.state=status.state;mobileLabel.textContent=status.label;mobile.title=title;}
 }
 
+
+let activityFlashIds=new Set(),xicronixAudioCtx=null;
+function playXicronixChime(){
+ try{
+  const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)return;
+  const ctx=xicronixAudioCtx||(xicronixAudioCtx=new AudioCtx());
+  if(ctx.state==='suspended')ctx.resume().catch(()=>{});
+  const now=ctx.currentTime;
+  [[659.25,0],[783.99,.13],[987.77,.27]].forEach(([freq,delay],i)=>{
+   const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.value=freq;
+   gain.gain.setValueAtTime(.0001,now+delay);gain.gain.exponentialRampToValueAtTime(i===2?.075:.055,now+delay+.018);gain.gain.exponentialRampToValueAtTime(.0001,now+delay+.20);
+   osc.connect(gain);gain.connect(ctx.destination);osc.start(now+delay);osc.stop(now+delay+.22);
+  });
+ }catch(_error){}
+}
+function flagNewActivity(rows){
+ rows.forEach(row=>activityFlashIds.add(String(row.id)));
+ if(rows.length)playXicronixChime();
+ setTimeout(()=>{rows.forEach(row=>activityFlashIds.delete(String(row.id)));renderActivityRail();},6500);
+}
+function installVersionWatcher(){
+ if(!('serviceWorker' in navigator))return;
+ navigator.serviceWorker.addEventListener('controllerchange',()=>{if(sessionStorage.getItem('xicronix-sw-reloading')==='1')return;sessionStorage.setItem('xicronix-sw-reloading','1');location.reload();});
+ navigator.serviceWorker.ready.then(reg=>{
+   const activate=worker=>{if(worker)worker.postMessage({type:'SKIP_WAITING'});};
+   if(reg.waiting)activate(reg.waiting);
+   reg.addEventListener('updatefound',()=>{const worker=reg.installing;if(!worker)return;worker.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)activate(worker);});});
+   setInterval(()=>reg.update().catch(()=>{}),60000);
+ }).catch(()=>{});
+}
 function activityDayKey(value){
  const d=value?new Date(value):new Date();if(!Number.isFinite(d.getTime()))return '';
  return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
@@ -544,7 +574,7 @@ function renderActivityRail(){
  const card=(row,isPending)=>{
    const stamp=new Date(row.received_at||row.created_at);
    const time=Number.isFinite(stamp.getTime())?stamp.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}):'';
-   const cls=isPending?'pending':row.status==='REVIEWED'?'progress':'done';
+   const cls=(isPending?'pending':row.status==='REVIEWED'?'progress':'done')+(activityFlashIds.has(String(row.id))?' just-arrived':'');
    const sender=row.sender_name||row.from_address||'Remitente';
    const actions=isPending?'<div class="activity-card-actions">'+(row.lead_id?'<button type="button" class="primary" data-mail-lead="'+esc(row.lead_id)+'">Ver y responder</button>':'')+'<button type="button" data-mail-reviewed="'+esc(row.id)+'">En atención</button></div>':'';
    return '<article class="activity-card '+cls+'"><header><h3>'+esc(sender)+'</h3><time>'+esc(time)+'</time></header><small>'+esc(row.subject||'(Sin asunto)')+'</small><p>'+esc(row.summary||'Nuevo correo recibido. Abre el expediente para revisar el mensaje y preparar la respuesta.')+'</p>'+actions+'</article>';
@@ -570,6 +600,7 @@ async function refreshLiveMail(announce=false){
    if(['dashboard','leads','mail'].includes(page))render();
    renderActivityRail();
    if(announce&&newlyArrived.length){
+     flagNewActivity(newlyArrived);
      const first=newlyArrived[0];
      notice('Nuevo correo recibido'+(first.sender_name?' de '+first.sender_name:'')+'. Requiere atención.',false,12000);
    }
@@ -2524,6 +2555,7 @@ function openLeadDetails(id){
 
 function init(){
  window.setTimeout(hideAppSplash,2500);
+ installVersionWatcher();
 
  restoreRememberedEmail();
  try{recovery=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery'||sessionStorage.getItem(RECOVERY_KEY)==='1';}catch(_error){}
