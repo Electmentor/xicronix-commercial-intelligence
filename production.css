@@ -4842,3 +4842,28 @@ html{scroll-padding-top:calc(var(--app-header-height,110px) + 12px)}
     overflow:hidden!important;
   }
 }
+
+
+/* v2.47.6 · Situation first: explain why the seller must act. */
+.lead-situation{
+  border:1px solid var(--line);
+  border-left:4px solid var(--accent,#1f6feb);
+  border-radius:12px;
+  padding:14px;
+  background:color-mix(in srgb,var(--accent,#1f6feb) 5%,var(--panel,#fff));
+  min-width:0;
+}
+.lead-situation header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.lead-situation header div{min-width:0}
+.lead-situation small{display:block;color:var(--muted);font-size:.68rem;font-weight:900;letter-spacing:.08em}
+.lead-situation header strong{display:block;margin-top:4px;font-size:1.05rem;overflow-wrap:anywhere}
+.lead-situation time{flex:0 0 auto;color:var(--muted);font-size:.76rem}
+.lead-situation h3{margin:12px 0 6px;font-size:.96rem;overflow-wrap:anywhere}
+.lead-situation p{margin:0;line-height:1.5;overflow-wrap:anywhere}
+.lead-situation-meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+.lead-situation-meta span{border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-size:.7rem;font-weight:800}
+@media(max-width:700px){
+ #leadDetailDialog .lead-situation{width:100%;max-width:100%;box-sizing:border-box;padding:12px}
+ #leadDetailDialog .lead-situation header{display:grid;grid-template-columns:1fr}
+ #leadDetailDialog .lead-situation time{font-size:.72rem}
+}
