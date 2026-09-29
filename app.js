@@ -2644,6 +2644,8 @@ function openLeadDetails(id){
  const contact=(data.contacts||[]).find(row=>row.id===lead.contact_id);
  const institution=(data.institutions||[]).find(row=>row.id===lead.institution_id);
  const activities=(data.activities||[]).filter(row=>row.lead_id===id).sort((a,b)=>String(b.occurred_at||'').localeCompare(String(a.occurred_at||'')));
+ const relatedMail=(data.mail||[]).filter(row=>row.lead_id===id||(lead.contact_id&&row.contact_id===lead.contact_id)).sort((a,b)=>String(b.received_at||'').localeCompare(String(a.received_at||'')));
+ const latestMail=relatedMail[0]||null;
  const tasks=sortTasksByUrgency((data.tasks||[]).filter(row=>row.lead_id===id),Date.now());
  const meetings=(data.meetings||[]).filter(row=>row.lead_id===id).sort((a,b)=>String(a.start_at||'').localeCompare(String(b.start_at||'')));
  const documents=(data.documents||[]).filter(row=>row.lead_id===id).sort((a,b)=>String(b.updated_at||'').localeCompare(String(a.updated_at||'')));
@@ -2664,6 +2666,7 @@ function openLeadDetails(id){
  const field=(label,value)=>'<div class="lead-detail-row"><dt>'+esc(label)+'</dt><dd>'+esc(value||'Sin registrar')+'</dd></div>';
  const directPhone=String(contact?.phone||institution?.phone||'').trim();
  const directEmail=String(contact?.email||institution?.email||'').trim();
+ const mailContext=latestMail?'<section class="lead-situation"><header><div><small>QUÉ ESTÁ PASANDO</small><strong>'+esc(latestMail.sender_name||contact?nameOf(contact):latestMail.from_address||'Contacto')+' respondió por correo</strong></div><time>'+esc(date(latestMail.received_at))+'</time></header><h3>'+esc(latestMail.subject||'Correo recibido')+'</h3><p>'+esc(latestMail.summary||'Se recibió un correo relacionado con este expediente. Abre el correo para revisar el contenido completo antes de responder.')+'</p><div class="lead-situation-meta"><span>'+esc(latestMail.classification||'COMMERCIAL')+'</span><span>'+esc(latestMail.priority==='HIGH'?'Prioridad alta':'Requiere revisión')+'</span></div></section>':'';
  const quickActions='<section class="lead-action-center"><div class="lead-action-primary"><small>ACCIÓN RECOMENDADA</small><strong>'+esc(action)+'</strong><span>'+(nextDate?'Antes de '+esc(date(nextDate)):'Sin fecha comprometida')+'</span></div><div class="lead-action-buttons">'+
   (directPhone?'<a class="lead-action-button primary" href="'+esc(radarPhoneHref(directPhone))+'">Llamar</a>':'')+
   (directEmail?'<button type="button" class="lead-action-button" data-smart-mail="'+lead.id+'">Correo</button>':'')+
@@ -2675,7 +2678,7 @@ function openLeadDetails(id){
   (contact?field('Cargo',contact.job_title)+field('Correo',contact.email)+field('Teléfono',contact.phone):'')+
   field('Necesidad',need)+field('Canal de origen',enums.leadSource[lead.source]||lead.source)+field('Próxima acción',lead.next_action)+field('Fecha de seguimiento',date(lead.next_action_date))+
  '</dl></div></details>';
- const historyDetails='<details class="executive-detail"><summary>Historial completo <span>'+activities.length+'</span></summary><div class="executive-detail-body">'+
+ const historyDetails='<details class="executive-detail"><summary>Historial completo <span>'+(activities.length+relatedMail.length)+'</span></summary><div class="executive-detail-body">'+
   (activities.length?activities.map(row=>'<article class="lead-note"><div class="movement-note-head"><h4>'+esc(row.subject||MOVEMENT_ACTIONS[row.action_code]||enums.activityType[row.type]||'Movimiento')+'</h4>'+(row.action_code?'<span class="badge">'+esc(MOVEMENT_ACTIONS[row.action_code]||row.action_code)+'</span>':'')+'</div><small>'+esc(enums.activityType[row.type]||row.type)+' · '+esc(date(row.occurred_at))+'</small><p>'+esc(row.notes||row.need_summary||'Sin notas adicionales')+'</p>'+(row.milestone_after?'<p class="milestone-evidence">Hito acreditado: '+esc(milestoneLabel(row.milestone_after))+' · '+Number(row.maturity_after||0)+'%</p>':'')+'</article>').join(''):'<p class="muted">Sin movimientos registrados.</p>')+
  '</div></details>';
  const documentDetails='<details class="executive-detail"><summary>Documentos y material <span>'+documents.length+'</span></summary><div class="executive-detail-body">'+
@@ -2689,7 +2692,7 @@ function openLeadDetails(id){
  $('leadDetailTitle').textContent=institution?.name||lead.title||'Prospecto';
  const leadSubtitle=$('leadDetailSubtitle');if(leadSubtitle)leadSubtitle.textContent=(contact?nameOf(contact):'Contacto decisor pendiente')+(contact?.job_title?' · '+contact.job_title:'');
  $('leadDetailContent').innerHTML='<section class="lead-master commercial-dossier executive-dossier">'+
-  quickActions+
+  mailContext+quickActions+
   '<section class="executive-mini-progress"><div><small>AVANCE</small><strong>'+maturity+'%</strong><span>'+esc(milestoneLabel(lead.commercial_milestone))+'</span></div><div class="dossier-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+maturity+'"><i style="width:'+Math.max(0,Math.min(100,maturity))+'%"></i></div></section>'+
   '<details class="executive-detail executive-indicators"><summary>Indicadores comerciales</summary><div class="executive-detail-body"><section class="executive-snapshot"><article><small>ESTADO</small><strong>'+health.label+'</strong></article><article><small>URGENCIA</small><strong>'+urgency.label+'</strong></article><article><small>POTENCIAL</small><strong>'+potentialState.label+(potentialState.value!==undefined?' · '+potentialState.value+'%':'')+'</strong></article><article><small>VALOR</small><strong>'+esc(budget)+'</strong></article></section><p class="muted">'+esc(evidence)+'</p></div></details>'+
   '<section class="executive-next"><div><small>PRÓXIMO PASO</small><strong>'+esc(action)+'</strong><span>'+(nextDate?esc(date(nextDate)):'Sin fecha definida')+'</span></div><div><small>CONTEXTO DE DECISIÓN</small><strong>'+esc(decisionContext)+'</strong></div></section>'+
