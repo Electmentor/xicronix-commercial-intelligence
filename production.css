@@ -4614,3 +4614,90 @@ html{scroll-padding-top:calc(var(--app-header-height,110px) + 12px)}
 #aiAssistantForm{min-width:0;grid-template-columns:minmax(0,1fr) auto;padding:8px 10px;gap:6px}#aiAssistantForm textarea{box-sizing:border-box;width:100%;min-width:0;min-height:40px;height:44px;font-size:12px;padding:7px}#aiAssistantForm button{font-size:12px;min-height:40px;padding:8px}
 #aiAssistantMobileLauncher{display:none}
 @media(max-width:1179px){#aiAssistantMobileLauncher{display:block;position:fixed;right:12px;bottom:78px;z-index:45;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:18px;padding:9px 13px}.ai-assistant-panel{left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);top:auto;width:auto;height:min(65dvh,560px);max-height:calc(100dvh - 20px);border-radius:18px;z-index:10010;bottom:calc(var(--assistant-keyboard-offset,0px) + env(safe-area-inset-bottom,0px) + 8px);max-height:calc(var(--assistant-viewport-height,100dvh) - 16px)}.ai-assistant-panel>header span{max-width:calc(100vw - 100px)}#aiAssistantForm{padding-bottom:12px}}
+
+
+/* v2.47.2 · Mobile dialog containment
+   Every CRM overlay must fit the viewport. Horizontal scrolling is forbidden. */
+@media (max-width:700px){
+  dialog,
+  #editor,
+  #methodDialog,
+  #dailyBriefingDialog,
+  #attentionDialog,
+  #leadDetailDialog,
+  #smartMailDialog,
+  #radarStateDialog{
+    box-sizing:border-box!important;
+    width:calc(100dvw - 20px)!important;
+    max-width:calc(100dvw - 20px)!important;
+    min-width:0!important;
+    max-height:calc(100dvh - 20px)!important;
+    margin:auto!important;
+    padding-left:12px!important;
+    padding-right:12px!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    overscroll-behavior:contain;
+  }
+  dialog *{box-sizing:border-box;min-width:0}
+  dialog .dialog-header{
+    width:auto!important;
+    max-width:none!important;
+  }
+  dialog input,
+  dialog select,
+  dialog textarea,
+  dialog button,
+  dialog table,
+  dialog .panel,
+  dialog article,
+  dialog section{
+    max-width:100%;
+  }
+  dialog input,
+  dialog select,
+  dialog textarea{width:100%}
+  dialog p,
+  dialog span,
+  dialog strong,
+  dialog small,
+  dialog dd,
+  dialog td,
+  dialog th,
+  dialog a{
+    overflow-wrap:anywhere;
+    word-break:normal;
+  }
+  dialog table{
+    width:100%!important;
+    table-layout:fixed;
+  }
+  dialog .row-actions,
+  dialog .smart-mail-actions,
+  dialog .lead-mobile-quick-actions{
+    width:100%;
+    flex-wrap:wrap;
+  }
+  dialog .row-actions>button,
+  dialog .smart-mail-actions>button{
+    min-width:0!important;
+    max-width:100%;
+  }
+  dialog::backdrop{overscroll-behavior:none}
+}
+@media (max-width:390px){
+  dialog,
+  #editor,
+  #methodDialog,
+  #dailyBriefingDialog,
+  #attentionDialog,
+  #leadDetailDialog,
+  #smartMailDialog,
+  #radarStateDialog{
+    width:calc(100dvw - 12px)!important;
+    max-width:calc(100dvw - 12px)!important;
+    max-height:calc(100dvh - 12px)!important;
+    padding-left:10px!important;
+    padding-right:10px!important;
+  }
+}
