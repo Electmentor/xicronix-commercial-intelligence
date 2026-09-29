@@ -907,9 +907,9 @@ function renderDailyBriefing(){
  const title=$('dailyBriefingTitle');
  if(title)title.textContent=admin?'Briefing de Dirección':'Mi jornada comercial';
  const eyebrow=$('dailyBriefingDialog')?.querySelector('.eyebrow');
- if(eyebrow)eyebrow.textContent=admin?'DECISIONES Y EXCEPCIONES DE HOY':'ACCIONES DE HOY';
+ if(eyebrow)eyebrow.textContent=admin?'DECISIONES Y EXCEPCIONES DE HOY':'ASUNTOS QUE REQUIEREN TU ATENCIÓN';
  if(!rows.length){
-   target.innerHTML='<div class="daily-briefing-empty"><strong>'+(admin?'Sin excepciones ejecutivas pendientes.':'Sin acciones críticas pendientes.')+'</strong><span>'+(admin?'No hay correos nuevos, bloqueos, señales críticas ni decisiones vencidas que requieran Dirección.':'Tu jornada comercial no tiene tareas vencidas, correos nuevos ni seguimientos para hoy.')+'</span></div>';
+   target.innerHTML='<div class="daily-briefing-empty"><strong>'+(admin?'Sin excepciones ejecutivas pendientes.':'Sin asuntos comerciales pendientes.')+'</strong><span>'+(admin?'No hay correos nuevos, bloqueos, señales críticas ni decisiones vencidas que requieran Dirección.':'No hay correos nuevos, seguimientos vencidos ni decisiones que requieran tu intervención ahora.')+'</span></div>';
    return;
  }
  const grouped=new Map();
@@ -918,10 +918,32 @@ function renderDailyBriefing(){
    const item=grouped.get(key)||{leadId:row.leadId,targetPage:row.targetPage,name:row.name,items:[],rank:row.rank};
    item.items.push(row);item.rank=Math.max(item.rank,row.rank);grouped.set(key,item);
  });
- const groups=[...grouped.values()].sort((a,b)=>b.rank-a.rank);
- target.innerHTML='<div class="daily-briefing-summary"><strong>'+rows.length+' '+(admin?'asunto':'acción')+(rows.length===1?'':'s')+' para hoy</strong><span>'+groups.length+' '+(admin?'frente':'prospecto / asunto')+(groups.length===1?'':'s')+'</span></div><div class="daily-briefing-list">'+groups.map(group=>
-   '<article class="daily-briefing-item"><header><div><small>'+esc(group.items[0].type)+'</small><h3>'+esc(group.name)+'</h3></div><span>'+group.items.length+'</span></header><div class="daily-briefing-actions-list">'+group.items.map(item=>'<p><b>'+esc(item.label)+'</b><span>'+esc(item.detail||'')+'</span></p>').join('')+'</div><footer>'+(group.leadId?'<button type="button" class="primary" data-daily-lead="'+esc(group.leadId)+'">Ir al prospecto y actuar</button>':'<button type="button" class="primary" data-daily-page="'+esc(group.targetPage||'meetings')+'">'+(admin?'Abrir frente':'Abrir agenda')+'</button>')+'</footer></article>'
- ).join('')+'</div>';
+ const groups=[...grouped.values()].map(group=>{
+   group.items.sort((a,b)=>b.rank-a.rank||Date.parse(b.when||0)-Date.parse(a.when||0));
+   const mail=group.leadId?(data.mail||[]).filter(row=>row.lead_id===group.leadId&&row.status==='NEW').sort((a,b)=>Date.parse(b.received_at||b.created_at||0)-Date.parse(a.received_at||a.created_at||0))[0]:null;
+   const primary=mail?group.items.find(item=>item.type==='Correo nuevo')||group.items[0]:group.items[0];
+   const latestTime=Math.max(...group.items.map(item=>Date.parse(item.when||0)||0),mail?Date.parse(mail.received_at||mail.created_at||0)||0:0);
+   const obsolete=group.items.filter(item=>item!==primary&&(latestTime>(Date.parse(item.when||0)||0)));
+   group.primary=primary;group.mail=mail;group.obsolete=obsolete;group.related=Math.max(0,group.items.length-1);group.rank=mail?Math.max(105,group.rank):group.rank;
+   return group;
+ }).sort((a,b)=>b.rank-a.rank);
+ const decisionCount=groups.length;
+ const card=group=>{
+   const primary=group.primary;
+   const what=group.mail
+     ?((group.mail.sender_name||group.name)+' respondió por correo'+(group.mail.received_at?' · '+date(group.mail.received_at):''))
+     :(primary.label||primary.type);
+   const detail=group.mail?(group.mail.summary||group.mail.subject||'Correo recibido pendiente de revisión.'):(primary.detail||'');
+   const meaning=group.mail?'La conversación comercial cambió: existe una respuesta nueva que debes revisar antes de continuar con seguimientos anteriores.':(primary.type==='Tarea vencida'||primary.type==='Seguimiento vencido'?'El siguiente paso comprometido está vencido y requiere una decisión.':'Este asunto requiere tu intervención.');
+   const action=group.mail?'Revisar la respuesta y decidir el siguiente paso.':primary.label;
+   const button=group.leadId?'<button type="button" class="primary" data-daily-lead="'+esc(group.leadId)+'">'+(group.mail?'Revisar respuesta y actuar':'Abrir asunto y actuar')+'</button>':'<button type="button" class="primary" data-daily-page="'+esc(group.targetPage||'meetings')+'">'+(admin?'Abrir frente':'Abrir agenda')+'</button>';
+   const related=group.related?'<details class="daily-briefing-related"><summary>'+group.related+' antecedente'+(group.related===1?'':'s')+' relacionado'+(group.related===1?'':'s')+'</summary><div>'+group.items.filter(item=>item!==primary).map(item=>'<p><b>'+esc(item.label)+'</b><span>'+esc(item.detail||'')+'</span></p>').join('')+'</div></details>':'';
+   return '<article class="daily-briefing-item decision"><header><div><small>'+esc(group.mail?'CORREO NUEVO':primary.type)+'</small><h3>'+esc(group.name)+'</h3></div><span class="daily-priority">'+(group.rank>=90?'ALTA':'MEDIA')+'</span></header>'+
+     '<div class="daily-decision"><div><small>QUÉ PASÓ</small><strong>'+esc(what)+'</strong><p>'+esc(detail)+'</p></div>'+
+     '<div><small>QUÉ SIGNIFICA</small><p>'+esc(meaning)+'</p></div>'+
+     '<div class="daily-next"><small>QUÉ HACER AHORA</small><strong>'+esc(action)+'</strong></div></div>'+related+'<footer>'+button+'</footer></article>';
+ };
+ target.innerHTML='<div class="daily-briefing-summary"><strong>'+decisionCount+' asunto'+(decisionCount===1?'':'s')+' requieren tu atención</strong><span>Una decisión principal por asunto · '+rows.length+' registros consolidados</span></div><div class="daily-briefing-list">'+groups.map(card).join('')+'</div>';
 }
 function openDailyBriefing(force=false){
  if(!profile||loading||busy||recovery)return;
