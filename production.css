@@ -4790,3 +4790,21 @@ html{scroll-padding-top:calc(var(--app-header-height,110px) + 12px)}
   #leadDetailDialog{inset:5px!important;padding:10px!important}
   #leadDetailDialog .lead-action-buttons{grid-template-columns:1fr!important}
 }
+
+
+/* v2.47.4 · Keep dossier progress bar inside its mobile card.
+   Overrides the 680px min-width used by the full milestone timeline. */
+@media (max-width:700px){
+  #leadDetailDialog .executive-mini-progress{
+    overflow:hidden!important;
+  }
+  #leadDetailDialog .executive-mini-progress .prospect-progress-track{
+    box-sizing:border-box!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    margin:0!important;
+    overflow:hidden!important;
+    justify-self:stretch!important;
+  }
+}
