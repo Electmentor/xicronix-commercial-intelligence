@@ -2675,7 +2675,12 @@ function openLeadDetails(id){
  const score=(data.scores||[]).find(row=>row.lead_id===id);
  const potential=score?Math.max(0,Math.min(100,Number(score.total_score)||0)):null;
  const urgency=commercialUrgency(tasks,meetings),potentialState=commercialPotential(score),health=commercialHealth(lead,urgency,potentialState);
- const latest=activities[0]||null,action=nextCommercialAction(lead,tasks,meetings);
+ const latest=activities[0]||null;
+ const newestInbound=relatedMail[0]||null;
+ const newestInboundAt=Date.parse(newestInbound?.received_at||newestInbound?.created_at||0)||0;
+ const newestTaskAt=Math.max(0,...pending.map(row=>Date.parse(row.updated_at||row.created_at||row.due_at||0)||0));
+ const inboundIsCurrent=!!newestInbound&&newestInboundAt>=newestTaskAt;
+ const action=inboundIsCurrent?'Revisar la respuesta de '+(contact?nameOf(contact):newestInbound.sender_name||'contacto')+' y responder según su mensaje.':nextCommercialAction(lead,tasks,meetings);
  const nextMeeting=meetings.find(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&Date.parse(row.start_at)>=Date.now())||null;
  const nextTask=pending[0]||null;
  const nextDate=[nextTask?.due_at,nextMeeting?.start_at,lead.next_action_date].filter(Boolean).sort((a,b)=>Date.parse(a)-Date.parse(b))[0]||null;
