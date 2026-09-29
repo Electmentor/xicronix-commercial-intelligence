@@ -4867,3 +4867,28 @@ html{scroll-padding-top:calc(var(--app-header-height,110px) + 12px)}
  #leadDetailDialog .lead-situation header{display:grid;grid-template-columns:1fr}
  #leadDetailDialog .lead-situation time{font-size:.72rem}
 }
+
+
+/* v2.47.7 · Decision-first daily briefing */
+.daily-briefing-item.decision .daily-priority{
+  width:auto;min-width:0;height:auto;padding:5px 8px;border-radius:999px;
+  font-size:.68rem;font-weight:900;letter-spacing:.06em
+}
+.daily-decision{display:grid;gap:10px;margin-top:10px}
+.daily-decision>div{padding:10px 0;border-top:1px solid var(--line)}
+.daily-decision>div:first-child{border-top:0;padding-top:0}
+.daily-decision small{display:block;color:var(--muted);font-size:.66rem;font-weight:900;letter-spacing:.08em;margin-bottom:4px}
+.daily-decision strong{display:block;line-height:1.35;overflow-wrap:anywhere}
+.daily-decision p{margin:5px 0 0;color:var(--muted);line-height:1.42;overflow-wrap:anywhere}
+.daily-decision .daily-next{border:1px solid var(--line);border-radius:10px;padding:11px;background:color-mix(in srgb,var(--accent,#1f6feb) 5%,transparent)}
+.daily-briefing-related{margin-top:10px;border-top:1px solid var(--line);padding-top:9px}
+.daily-briefing-related summary{cursor:pointer;color:var(--muted);font-size:.76rem;font-weight:800}
+.daily-briefing-related div{margin-top:8px}
+.daily-briefing-related p{display:grid;gap:3px;margin:7px 0;padding:7px 0;border-bottom:1px solid var(--line)}
+.daily-briefing-related p:last-child{border-bottom:0}
+.daily-briefing-related span{color:var(--muted);font-size:.8rem}
+@media(max-width:700px){
+ #dailyBriefingDialog .daily-briefing-item.decision{padding:14px}
+ #dailyBriefingDialog .daily-briefing-item.decision header{align-items:flex-start}
+ #dailyBriefingDialog .daily-briefing-summary span{line-height:1.35}
+}
