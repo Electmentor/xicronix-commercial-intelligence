@@ -744,7 +744,7 @@ async function reload(){
  restoreWorkspace();restoreSource();
  $('userRole').textContent='Cuenta: '+(enums.role[profile.role]||'Sin rol');$('welcome').textContent=profile.full_name||session.user.email;
  if(dataSource==='demo'){loadDemo();notice('');render();return;}
- const tables=[...Object.keys(modules).filter(accessible),'scores',...(accessible('documents')?['document_versions']:[])];
+ const tables=[...Object.keys(modules).filter(accessible),'scores',...(accessible('documents')?['document_versions']:[]),'commercial_mail_outbox'];
  const results=await Promise.allSettled(tables.map(k=>allRows(k,profile.organization_id)));
  if(version!==loadVersion)return;
  data=emptyData();failures={};tables.forEach((k,i)=>{if(results[i].status==='fulfilled')data[k]=results[i].value;else failures[k]=true;});
@@ -2722,7 +2722,10 @@ function openLeadDetails(id){
   (contact?field('Cargo',contact.job_title)+field('Correo',contact.email)+field('Teléfono',contact.phone):'')+
   field('Necesidad',need)+field('Canal de origen',enums.leadSource[lead.source]||lead.source)+field('Próxima acción',lead.next_action)+field('Fecha de seguimiento',date(lead.next_action_date))+
  '</dl></div></details>';
- const historyDetails='<details class="executive-detail"><summary>Historial completo <span>'+(activities.length+relatedMail.length)+'</span></summary><div class="executive-detail-body">'+
+ const outboundMail=(data.commercial_mail_outbox||[]).filter(row=>row.lead_id===id&&row.status==='SENT');
+ const conversation=[...relatedMail.map(row=>({direction:'IN',at:row.received_at||row.created_at,subject:row.subject,body:row.summary,actor:row.sender_name||(contact?nameOf(contact):row.from_address)})),...outboundMail.map(row=>({direction:'OUT',at:row.sent_at||row.created_at,subject:row.subject,body:row.body,actor:'Xicronix'}))].sort((a,b)=>String(a.at||'').localeCompare(String(b.at||'')));
+ const conversationDetails='<details class="executive-detail" open><summary>Conversación por correo <span>'+conversation.length+'</span></summary><div class="executive-detail-body mail-thread">'+(conversation.length?conversation.map(row=>'<article class="mail-thread-message '+(row.direction==='OUT'?'outbound':'inbound')+'"><header><strong>'+esc(row.direction==='OUT'?'Xicronix → '+(contact?nameOf(contact):'Contacto'):(row.actor||'Contacto')+' → Xicronix')+'</strong><small>'+esc(date(row.at))+'</small></header><h4>'+esc(row.subject||'Sin asunto')+'</h4><p>'+esc(row.body||'Contenido no disponible')+'</p><span>'+esc(row.direction==='OUT'?'ENVIADO':'RECIBIDO')+'</span></article>').join(''):'<p class="muted">Sin correos registrados.</p>')+'</div></details>';
+ const historyDetails='<details class="executive-detail"><summary>Historial CRM <span>'+activities.length+'</span></summary><div class="executive-detail-body">'+
   (activities.length?activities.map(row=>'<article class="lead-note"><div class="movement-note-head"><h4>'+esc(row.subject||MOVEMENT_ACTIONS[row.action_code]||enums.activityType[row.type]||'Movimiento')+'</h4>'+(row.action_code?'<span class="badge">'+esc(MOVEMENT_ACTIONS[row.action_code]||row.action_code)+'</span>':'')+'</div><small>'+esc(enums.activityType[row.type]||row.type)+' · '+esc(date(row.occurred_at))+'</small><p>'+esc(row.notes||row.need_summary||'Sin notas adicionales')+'</p>'+(row.milestone_after?'<p class="milestone-evidence">Hito acreditado: '+esc(milestoneLabel(row.milestone_after))+' · '+Number(row.maturity_after||0)+'%</p>':'')+'</article>').join(''):'<p class="muted">Sin movimientos registrados.</p>')+
  '</div></details>';
  const documentDetails='<details class="executive-detail"><summary>Documentos y material <span>'+documents.length+'</span></summary><div class="executive-detail-body">'+
@@ -2740,7 +2743,7 @@ function openLeadDetails(id){
   '<section class="executive-mini-progress"><div><small>AVANCE</small><strong>'+maturity+'%</strong><span>'+esc(milestoneLabel(lead.commercial_milestone))+'</span></div><div class="dossier-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+maturity+'"><i style="width:'+Math.max(0,Math.min(100,maturity))+'%"></i></div></section>'+
   '<details class="executive-detail executive-indicators"><summary>Indicadores comerciales</summary><div class="executive-detail-body"><section class="executive-snapshot"><article><small>ESTADO</small><strong>'+health.label+'</strong></article><article><small>URGENCIA</small><strong>'+urgency.label+'</strong></article><article><small>POTENCIAL</small><strong>'+potentialState.label+(potentialState.value!==undefined?' · '+potentialState.value+'%':'')+'</strong></article><article><small>VALOR</small><strong>'+esc(budget)+'</strong></article></section><p class="muted">'+esc(evidence)+'</p></div></details>'+
   '<section class="executive-next"><div><small>PRÓXIMO PASO</small><strong>'+esc(action)+'</strong><span>'+(nextDate?esc(date(nextDate)):'Sin fecha definida')+'</span></div><div><small>CONTEXTO DE DECISIÓN</small><strong>'+esc(decisionContext)+'</strong></div></section>'+
-  '<section class="executive-folders">'+profileDetails+historyDetails+documentDetails+planningDetails+management+'</section>'+
+  '<section class="executive-folders">'+profileDetails+conversationDetails+historyDetails+documentDetails+planningDetails+management+'</section>'+
  '</section>';
  rememberPage(id);$('leadDetailDialog').showModal();
 }
