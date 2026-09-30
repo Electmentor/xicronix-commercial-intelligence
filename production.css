@@ -4914,3 +4914,16 @@ html{scroll-padding-top:calc(var(--app-header-height,110px) + 12px)}
  #leadDetailDialog .lead-original-mail-body{width:100%;max-width:100%;min-width:0;box-sizing:border-box}
  #leadDetailDialog .lead-original-mail-body{max-height:42dvh}
 }
+
+
+/* v2.47.9 · Verified bidirectional email conversation */
+.mail-thread{display:grid;gap:10px}
+.mail-thread-message{border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0}
+.mail-thread-message.inbound{border-left:4px solid #77b9ff}
+.mail-thread-message.outbound{border-right:4px solid #69c58b}
+.mail-thread-message header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.mail-thread-message header small{color:var(--muted);flex:0 0 auto}
+.mail-thread-message h4{margin:8px 0 6px;overflow-wrap:anywhere}
+.mail-thread-message p{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.45;margin:0}
+.mail-thread-message>span{display:inline-block;margin-top:9px;font-size:.66rem;font-weight:900;letter-spacing:.08em;color:var(--muted)}
+@media(max-width:700px){#leadDetailDialog .mail-thread-message header{display:grid;grid-template-columns:1fr}.mail-thread-message{width:100%;max-width:100%;box-sizing:border-box}}
