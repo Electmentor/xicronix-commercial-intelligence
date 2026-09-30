@@ -1494,7 +1494,7 @@ function openSmartMailDraft(leadId){
   '</section>'+
   '<section class="smart-mail-body"><header><div><small>RESPUESTA SUGERIDA</small><h3>Mensaje</h3></div><span class="smart-mail-status">'+(draft.thread?'Continuación de conversación':'Nuevo correo')+'</span></header><textarea id="smartMailBody" rows="14">'+esc(draft.body)+'</textarea></section>'+
   '<section class="smart-mail-assets"><header><div><small>REPOSITORIO COMERCIAL</small><h3>Material sugerido</h3></div><span id="smartMaterialCount">0 adjuntos</span></header><div id="smartAttachmentTray" class="smart-attachment-tray" hidden></div><div class="smart-material-grid">'+materialButtons+'</div><p>'+esc(draft.recommendation)+'</p></section>'+
-  '<footer class="smart-mail-actions"><button type="button" class="primary" data-open-smart-zoho="'+esc(lead.id)+'">'+(draft.thread?'Revisar y responder en Zoho':'Revisar y enviar en Zoho')+'</button></footer>';
+  '<footer class="smart-mail-actions"><button type="button" class="primary" data-send-smart-mail="'+esc(lead.id)+'">'+(draft.thread?'Enviar respuesta':'Enviar correo')+'</button><small>Se enviará desde info@xicronix.com y quedará registrado en este expediente.</small></footer>';
  $('smartMailDialog').showModal();
 }
 function toggleSmartMaterial(id){
@@ -1609,6 +1609,20 @@ async function rememberSmartMailHandoff(lead,draft,to,subject,body,selectedDocs)
  };
  const {data:saved,error}=await sb.from('activities').insert(payload).select('*').single();
  if(!error&&saved){data.activities=data.activities||[];data.activities.unshift(saved);}
+}
+async function sendSmartMailDirect(leadId){
+ const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead||busy||loading)return;
+ const draft=smartMailDraftForLead(lead);
+ const to=$('smartMailTo')?.value?.trim()||draft.email,subject=$('smartMailSubject')?.value?.trim()||draft.subject,body=$('smartMailBody')?.value||draft.body;
+ if(!to||!subject||!body){notice('Revisa destinatario, asunto y mensaje antes de enviar.',true);return;}
+ if(!window.confirm('Enviar ahora desde info@xicronix.com a '+to+'?'))return;
+ busy=true;const button=document.querySelector('[data-send-smart-mail="'+CSS.escape(String(leadId))+'"]');if(button){button.disabled=true;button.textContent='Enviando…';}
+ try{
+  const {data:result,error}=await sb.functions.invoke('commercial-mail-send',{body:{lead_id:leadId,to,subject,body}});
+  if(error)throw error;if(!result?.ok||result?.status!=='SENT')throw new Error(result?.detail||'El proveedor no confirmó el envío.');
+  $('smartMailDialog').close();await reload();notice('Correo enviado y registrado en el expediente.',false,7000);
+ }catch(error){notice('No se envió el correo: '+errorText(error),true,10000);}
+ finally{busy=false;if(button){button.disabled=false;button.textContent='Enviar respuesta';}}
 }
 async function openSmartMailInZoho(leadId){
  const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
