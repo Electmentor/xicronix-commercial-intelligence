@@ -166,7 +166,7 @@ window.addEventListener('online',()=>renderConnectionState());
 window.addEventListener('offline',()=>renderConnectionState());
 window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;if(page==='now')renderNow();});
 window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;if(page==='now')renderNow();});
-if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+if('serviceWorker' in navigator)window.addEventListener('load',async()=>{try{const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(reg=>reg.unregister()));const keys=await caches.keys();await Promise.all(keys.filter(key=>key.startsWith('xicronix-')).map(key=>caches.delete(key)));}catch(_error){/* PROD must prefer the current network build; cache cleanup is best-effort. */}});
 const currentActor=()=>dataSource==='demo'?demoSeller:session?.user?.id;
 const sourceKey=()=>workspaceIdentity+':source-v'+DEMO_VERSION;
 const demoKey=()=>workspaceIdentity+':demo-v'+DEMO_VERSION;
