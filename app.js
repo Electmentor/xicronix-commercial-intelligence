@@ -2830,7 +2830,7 @@ if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('att
  sb=window.supabase.createClient('https://qzfprdhmcaucqcdqgqiz.supabase.co','sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage,storageKey:'xicronix.crm.auth'}});
  sb.auth.onAuthStateChange(handleAuth);
  const params=new URLSearchParams(location.hash.slice(1));if(params.has('error')){setRecovery(false);setMode('reset');$('authMsg').textContent='El enlace de acceso venció o no es válido. Solicita uno nuevo.';history.replaceState(null,'',location.pathname);}
- if(typeof sb.auth.getSession==='function')sb.auth.getSession().then(({data,error})=>{if(!error)handleAuth('INITIAL_SESSION',data.session);}).catch(()=>{$('authMsg').textContent='No se pudo verificar la sesión. Recarga la página.';});
+ if(typeof sb.auth.getSession==='function')sb.auth.getSession().then(async({data,error})=>{if(error)throw error;let current=data.session;if(current){const verified=await sb.auth.getUser();if(verified.error||!verified.data.user){await sb.auth.signOut({scope:'local'}).catch(()=>{});current=null;}}handleAuth('INITIAL_SESSION',current);}).catch(()=>{clearSession();setMode('login');$('authMsg').textContent='La sesión anterior ya no es válida. Ingresa nuevamente una vez para renovarla.';});
 }
 // Both the SDK's defer script and module execution finish before DOMContentLoaded.
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
