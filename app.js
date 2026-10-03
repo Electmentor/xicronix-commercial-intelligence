@@ -114,6 +114,7 @@ const modules={
  institutions:{label:'Instituciones',singular:'institución',filter:'type',options:enums.type,fields:[f('name','Nombre','text',true),f('type','Tipo','select',true,enums.type),f('ruc','RUC'),f('city','Ciudad'),f('country','País','text',true),f('address','Dirección'),f('email','Correo','email'),f('phone','Teléfono','tel'),f('website','Sitio web','url'),f('notes','Notas','textarea')]},
  contacts:{label:'Contactos',singular:'contacto',filter:'decision_level',options:enums.decision_level,fields:[f('first_name','Nombres','text',true),f('last_name','Apellidos'),institution,f('job_title','Cargo'),f('decision_level','Nivel de decisión','select',true,enums.decision_level),f('email','Correo','email'),f('phone','Teléfono','tel'),f('notes','Notas','textarea')]},
  leads:{label:'Prospectos',singular:'prospecto',filter:'status',options:enums.status,fields:[f('title','Título','text',true),institution,contact,f('source','Canal de origen','select',false,enums.leadSource),f('status','Estado','select',true,enums.status),f('estimated_value','Valor estimado (S/)','number'),f('score','Calificación manual (0–100)','number'),owner,...followUp]},
+ quotes:{label:'Cotizaciones',singular:'cotización',filter:'status',options:{DRAFT:'Borrador',REVIEW:'En revisión',APPROVED:'Aprobada',SENT:'Enviada',ACCEPTED:'Aceptada',REJECTED:'Rechazada',EXPIRED:'Vencida'},fields:[f('opportunity_id','Oportunidad','relation',true),f('cost_profile_id','Perfil de costos','relation'),f('status','Estado','select',true,{DRAFT:'Borrador',REVIEW:'En revisión',APPROVED:'Aprobada',SENT:'Enviada',ACCEPTED:'Aceptada',REJECTED:'Rechazada',EXPIRED:'Vencida'}),f('currency','Moneda','select',true,{PEN:'Soles (PEN)'}),f('target_margin_pct','Margen objetivo (%)','number',true),f('minimum_margin_pct','Margen mínimo autorizado (%)','number',true),f('discount_pct','Descuento global (%)','number'),f('notes','Notas','textarea')]},
  opportunities:{label:'Oportunidades',singular:'oportunidad',filter:'stage',options:enums.stage,fields:[f('name','Nombre','text',true),institution,contact,catalogProduct,costProfile,quantity,discount,negotiatedPrice,f('stage','Etapa','select',true,enums.stage),f('value','Valor (S/)','number'),cost,owner,f('probability','Probabilidad manual (%)','number'),f('expected_close_date','Cierre esperado','date'),...followUp]},
  tasks:{label:'Tareas',singular:'tarea',filter:'status',options:enums.taskStatus,fields:[f('title','Título','text',true),f('lead_id','Prospecto','relation'),institution,contact,f('status','Estado','select',true,enums.taskStatus),f('priority','Importancia manual','select',true,enums.priority),f('due_at','Fecha límite','datetime-local'),assignee]},
  meetings:{label:'Agenda',singular:'reunión',filter:'status',options:enums.meetingStatus,fields:[f('title','Título','text',true),f('lead_id','Prospecto','relation'),institution,contact,f('status','Estado','select',true,enums.meetingStatus),f('attendee_status','Confirmación del cliente','select',true,enums.attendeeStatus),f('mode','Modalidad','select',true,enums.meetingMode),f('start_at','Inicio','datetime-local',true),f('end_at','Fin','datetime-local',true),f('location','Lugar / enlace'),owner,f('notes','Notas','textarea')]},
@@ -146,7 +147,7 @@ const CRM_VERSION_LABEL='v2.47.1';
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
 let entryRoute=readEntryRoute();
-const emptyData=()=>Object.fromEntries([...Object.keys(modules),'scores','document_versions'].map(k=>[k,[]]));
+const emptyData=()=>Object.fromEntries([...Object.keys(modules),'scores','document_versions','quote_items','quote_financials'].map(k=>[k,[]]));
 const writable=()=>profile && ['ADMIN','MANAGER','SALES'].includes(profile.role);
 let workspace=SELLER, workspaceIdentity=null, workspaceEntryChosen=false, loading=false;
 let dataSource='live', sourceIdentity=null, demoData=null, demoSeller=DEMO_SELLERS[0].id, demoSaved=true, executiveFilter='', executiveOwner='', sellerQuickFilter='', prospectDashboardFilter='';
@@ -288,13 +289,13 @@ function renderWorkspaceControls(){
   }
  }
  const labels=admin
-  ?{dashboard:'Centro de Dirección',now:'Prioridades y decisiones',users:'Equipo y cumplimiento',goals:'Metas y cumplimiento',opportunities:'Negociaciones y pipeline',meetings:'Agenda y reuniones',leads:'Gestión comercial',prospects:'Inteligencia de prospectos',radar:'Radar Comercial',supplier_relationships:'Proveedores',strategic_alliances:'Alianzas estratégicas',catalog_products:'Catálogo',institutions:'Cuentas',contacts:'Contactos estratégicos',mail:'Correo Zoho',documents:'Repositorio comercial',cost_profiles:'Costos y márgenes',expenses:'Gastos'}
-  :{dashboard:'Mi Dashboard',now:'Ahora',leads:'Mis casos',tasks:'Mis tareas',meetings:'Mi agenda',mail:'Correo Zoho',opportunities:'Mis oportunidades',contacts:'Mis contactos',documents:'Mi repositorio',catalog_products:'Catálogo'};
+  ?{dashboard:'Centro de Dirección',now:'Prioridades y decisiones',users:'Equipo y cumplimiento',goals:'Metas y cumplimiento',opportunities:'Negociaciones y pipeline',quotes:'Cotizaciones',meetings:'Agenda y reuniones',leads:'Gestión comercial',prospects:'Inteligencia de prospectos',radar:'Radar Comercial',supplier_relationships:'Proveedores',strategic_alliances:'Alianzas estratégicas',catalog_products:'Catálogo',institutions:'Cuentas',contacts:'Contactos estratégicos',mail:'Correo Zoho',documents:'Repositorio comercial',cost_profiles:'Costos y márgenes',expenses:'Gastos'}
+  :{dashboard:'Mi Dashboard',now:'Ahora',leads:'Mis casos',tasks:'Mis tareas',meetings:'Mi agenda',mail:'Correo Zoho',opportunities:'Mis oportunidades',quotes:'Mis cotizaciones',contacts:'Mis contactos',documents:'Mi repositorio',catalog_products:'Catálogo'};
  const navButton=(key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen')+'</button>';
  const navSection=(title,keys,start)=>{const visible=keys.filter(accessible);return visible.length?'<p class="nav-section-label">'+title+'</p>'+visible.map((key,index)=>navButton(key,start+index)).join(''):'';};
  if(admin){
   const command=['dashboard','now','users','goals'];
-  const business=['opportunities','meetings','leads'];
+  const business=['opportunities','quotes','meetings','leads'];
   const intelligence=['prospects','radar'];
   const relations=['supplier_relationships','strategic_alliances','catalog_products','institutions','contacts'];
   const support=['mail','documents','cost_profiles','expenses'];
@@ -308,7 +309,7 @@ function renderWorkspaceControls(){
   $('navigation').innerHTML=html;
  }else{
   const day=['dashboard'];
-  const portfolio=['leads','tasks','meetings'];
+  const portfolio=['leads','opportunities','quotes','tasks','meetings'];
   const support=['mail','documents','contacts','catalog_products'];
   let offset=0;
   let html=navSection('HOY',day,offset);offset+=day.filter(accessible).length;
@@ -750,6 +751,14 @@ async function reload(){
  if(version!==loadVersion)return;
  data=emptyData();failures={};tables.forEach((k,i)=>{if(results[i].status==='fulfilled')data[k]=results[i].value;else failures[k]=true;});
  data=scopeWorkspaceData(realOnly(data),profile,userId,workspace);
+ if(accessible('quotes')){
+   const quoteIds=(data.quotes||[]).map(row=>row.id);
+   if(quoteIds.length){
+     const [items,financials]=await Promise.all([sb.from('quote_items').select('*').in('quote_id',quoteIds),sb.from('quote_financials').select('*').in('quote_id',quoteIds)]);
+     if(!items.error)data.quote_items=items.data||[];else failures.quote_items=true;
+     if(!financials.error)data.quote_financials=financials.data||[];else failures.quote_financials=true;
+   }
+ }
  if(canViewDashboard()){
    const territorial=await sb.from('territorial_intelligence_snapshot').select('*').eq('organization_id',profile.organization_id).order('level').order('physical_accounts',{ascending:false});
    if(!territorial.error){
@@ -2338,7 +2347,7 @@ function buildImport(table,rows){
    const value=importValue(source,field);
    if(String(value).startsWith('__missing__:'))errors.push(prefix+'no se encontró '+field.label+' “'+String(value).slice(12)+'”.');
    if(field.required&&!String(value).trim())errors.push(prefix+'falta '+field.label+'.');
-   if(value!==''&&field.type==='number'&&(!Number.isFinite(value)||value<0||(['score','probability','discount_pct'].includes(field.key)&&value>100)||(costRateKeys.has(field.key)&&value>1)||(field.key==='quantity'&&(!Number.isInteger(value)||value<1))||(field.key==='exchange_rate'&&value<=0)))errors.push(prefix+'revisa '+field.label+'.');
+   if(value!==''&&field.type==='number'&&(!Number.isFinite(value)||value<0||(['score','probability','discount_pct','target_margin_pct','minimum_margin_pct'].includes(field.key)&&value>100)||(costRateKeys.has(field.key)&&value>1)||(field.key==='quantity'&&(!Number.isInteger(value)||value<1))||(field.key==='exchange_rate'&&value<=0)))errors.push(prefix+'revisa '+field.label+'.');
    if(value!==''&&field.options&&!Object.hasOwn(field.options,value))errors.push(prefix+'opción inválida en '+field.label+'.');
    if(value!==''&&['date','datetime-local'].includes(field.type)){
     const parsed=new Date(value);
