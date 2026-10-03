@@ -2,7 +2,7 @@
 // The database remains responsible for enforcing the authenticated account's permissions.
 export const ADMIN = 'admin';
 export const SELLER = 'seller';
-const operational = ['prospects', 'radar', 'mail', 'institutions', 'contacts', 'leads', 'opportunities', 'tasks', 'meetings', 'deliverables', 'documents', 'activities', 'catalog_products'];
+const operational = ['prospects', 'radar', 'mail', 'institutions', 'contacts', 'leads', 'opportunities', 'quotes', 'tasks', 'meetings', 'deliverables', 'documents', 'activities', 'catalog_products'];
 const managementOnly = ['users','goals','cost_profiles','expenses','supplier_relationships','strategic_alliances'];
 export function effectiveWorkspace(profile, requested = ADMIN) {
   return profile?.role === 'ADMIN' && requested === ADMIN ? ADMIN : SELLER;
@@ -31,7 +31,7 @@ export function scopeWorkspaceData(source, profile, userId, workspace) {
   ]));
   if (effectiveWorkspace(profile, workspace) === ADMIN) return organization;
   const own = row => assignedUserId(row) === userId;
-  for (const table of ['leads','opportunities','tasks','meetings']) result[table] = (organization[table] || []).filter(own);
+  for (const table of ['leads','opportunities','quotes','tasks','meetings']) result[table] = (organization[table] || []).filter(own);
   // Management cost data is not part of the seller experience.
   result.opportunities = result.opportunities.map(({estimated_cost, ...row}) => row);
   const leadIds = new Set(result.leads.map(row => row.id));
