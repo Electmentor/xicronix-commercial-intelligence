@@ -9,21 +9,27 @@
   "theme_color": "#081b32",
   "icons": [
     {
-      "src": "/xicronix-icon-192.png",
+      "src": "/brand/20260930-v2/favicon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/xicronix-icon-512.png",
+      "src": "/brand/20260930-v2/favicon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/xicronix-splash-maskable.svg?v=20260923-v2.40.73",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/brand/20260930-v2/crm-maskable-192-v20261003.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/brand/20260930-v2/crm-maskable-512-v20261003.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "maskable"
     }
   ]
