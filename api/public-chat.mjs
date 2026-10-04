@@ -44,7 +44,7 @@ export function createHandler({ env = process.env, fetcher = fetch } = {}) {
    const response=await fetcher('https://api.groq.com/openai/v1/chat/completions',{
     method:'POST',redirect:'error',
     headers:{authorization:'Bearer '+env.GROQ_API_KEY,'content-type':'application/json'},
-    body:JSON.stringify({model:env.PUBLIC_CHAT_MODEL||'llama-3.3-70b-versatile',temperature:0.25,max_tokens:500,messages:[{role:'system',content:SYSTEM+'\nNo tienes acceso al CRM ni puedes ejecutar acciones. Nunca afirmes haber registrado, enviado o derivado un caso. Para contacto indica /contacto. Ante una queja, reconoce lo ocurrido y ofrece ese canal sin inventar un registro.'},...messages]}),
+    body:JSON.stringify({model:env.PUBLIC_CHAT_MODEL||'openai/gpt-oss-120b',temperature:0.25,max_completion_tokens:1600,reasoning_effort:'low',messages:[{role:'system',content:SYSTEM+'\nNo tienes acceso al CRM ni puedes ejecutar acciones. Nunca afirmes haber registrado, enviado o derivado un caso. Para contacto indica /contacto. Ante una queja, reconoce lo ocurrido y ofrece ese canal sin inventar un registro.'},...messages]}),
     signal:AbortSignal.timeout(15000)
    });
    if(!response.ok){console.warn('PUBLIC_CHAT_PROVIDER_FAILURE',response.status);return reply(502,{ok:false,reason:'provider_http',status:response.status});}
