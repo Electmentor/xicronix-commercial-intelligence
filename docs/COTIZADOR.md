@@ -51,3 +51,10 @@ Las escrituras directas a cabeceras y partidas están limitadas a Dirección. El
 
 ## Gastos locales agregados — v2.48.2
 El perfil permite indicar gastos locales totales en PEN. Si se registra ese total, sustituye el desglose de gastos en moneda del perfil; si queda vacío, se conserva la suma del desglose. Se evita atribuir un gasto agregado a una categoría sin evidencia. La autorización de uso de una base referencial no sustituye la revisión técnica ni confirma tarifas externas.
+
+## Privacidad comercial — v2.49.0
+Los comerciales reciben exclusivamente datos de venta. No se envían a su navegador precios del proveedor, fuente con precios, costos logísticos, tipo de cambio, margen objetivo/mínimo/real, markup, utilidad ni capital de trabajo. Dirección controla el margen objetivo en el perfil. El servidor ignora intentos del comercial de cambiar ese margen.
+
+RLS restringe la lectura directa de catálogo completo, perfiles, cabeceras con márgenes, partidas y versiones a ADMIN. RPC con autorización por organización y propietario entregan listas explícitas de campos comerciales para catálogo, configuraciones, cotizaciones, cálculo, guardado e historial. Los totales internos permanecen en el servidor. Las versiones históricas del cliente siguen disponibles para su propietario y Dirección.
+
+La vista financiera respeta RLS. Las pruebas SQL verifican ausencia de lecturas directas y de campos sensibles en respuestas, además de guardado, recuperación, descuentos y revisión obligatoria. El job de interfaz verifica que los campos internos no existen en la pantalla comercial.
