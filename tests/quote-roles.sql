@@ -2,13 +2,18 @@
 begin;
 select set_config('request.jwt.claim.sub',(select id::text from public.profiles where role='ADMIN' limit 1),true);
 set local role authenticated;
-do $$ declare c uuid; p uuid; v jsonb; begin
+do $$ declare c uuid; p uuid; v jsonb; f jsonb; begin
  insert into public.cost_profiles(organization_id,name,origin_country,currency,exchange_rate,quote_enabled,minimum_margin_pct,created_by)
  values((select organization_id from public.profiles where id=auth.uid()),'ROLE TEST','Brazil','USD',4,true,25,auth.uid()) returning id into c;
  insert into public.catalog_products(organization_id,supplier_name,supplier_sku,name,category,currency,supplier_unit_price)
  values((select organization_id from public.profiles where id=auth.uid()),'ROLE TEST','ROLE-TEST','Role test','TEST','USD',100) returning id into p;
  update public.catalog_products set supplier_unit_price=120 where id=p;
  assert (select supplier_unit_price from public.catalog_products where id=p)=120,'director edits supplier price';
+ f=public.preview_xicronix_quote(jsonb_build_object('cost_profile_id',c,'sales_view',true,'margin_pct',0),jsonb_build_array(jsonb_build_object('catalog_product_id',p,'quantity',2)));
+ assert not (f ? 'landed_cost'),'ADMIN commercial preview hides financials';
+ assert (f->>'net_sale')::numeric=1371.42,'ADMIN commercial view uses authorized pricing';
+ v=public.save_xicronix_quote(null,0,gen_random_uuid(),'{"title":"ROLE WORKSPACE TEST","is_test":true}',jsonb_build_object('cost_profile_id',c,'sales_view',true,'technical_confirmed',true),jsonb_build_array(jsonb_build_object('catalog_product_id',p,'quantity',2)));
+ assert not (v->'inputs'->>'technical_confirmed')::boolean,'ADMIN commercial save stays in review';
  perform set_config('test.cost_profile',c::text,true);perform set_config('test.product',p::text,true);
 end $$;
 reset role;

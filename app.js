@@ -1,4 +1,4 @@
-import {openQuoteEditor,closeQuoteEditor} from './quote-editor.mjs?v=4';
+import {openQuoteEditor,closeQuoteEditor} from './quote-editor.mjs?v=5';
 import {createAssistant,buildAssistantContext} from './assistant.mjs?v=2.47.1';
 import {radarState,radarStateLabels,radarTransition,renderRadarLifecycle} from './radar-lifecycle.mjs?v=2.47.1';
 import {directorGeography} from './director-insights.mjs?v=20260927-v2.47.1';
@@ -15,7 +15,7 @@ import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,mileston
 import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.14';
 
 const $ = id => document.getElementById(id);
-const CLIENT_BUILD='v2.49.0';
+const CLIENT_BUILD='v2.49.1';
 const SPLASH_STARTED_AT=performance.now();
 const SPLASH_MIN_MS=450;
 function startLarsonScanner(){
@@ -191,6 +191,7 @@ function persistDemo(){
 }
 function demoSavedMessage(){return demoSaved?'Simulación guardada en este navegador; no modifica datos reales.':'Simulación guardada solo en esta sesión: el navegador no permitió conservarla.';}
 function clearWorkspaceViews(){
+ closeQuoteEditor();
  performanceFilters={};performanceAdjustment=20;
  closeLeadDetails(false);
  $('fields').replaceChildren();editTable=null;editId=null;editingVersion=null;
@@ -199,7 +200,7 @@ function clearWorkspaceViews(){
 }
 async function setDataSource(next){
  if(!['live','demo'].includes(next)||!profile||busy||loading)return;
- if($('editor').open){notice('Guarda o cancela el formulario antes de cambiar de datos.',true);return;}
+ if($('editor').open||document.querySelector('.xq-dialog[open]')){notice('Guarda o cancela el formulario antes de cambiar de datos.',true);return;}
  if(next===dataSource)return;
  dataSource=next;try{localStorage.setItem(sourceKey(),next);}catch(_error){}
  clearWorkspaceViews();navigate(canViewDashboard()?'dashboard':'leads');await reload();
@@ -225,7 +226,7 @@ const canManageGoals=canViewDashboard;
 const canDelete=canViewDashboard;
 const accessible=table=>canAccessPage(profile,workspace,table);
 const writableFor=table=>canWriteModule(profile,workspace,table);
-const fieldsFor=table=>(modules[table]?.fields||[]).filter(field=>(!field.adminOnly||canViewDashboard())&&(table!=='quotes'||profile?.role==='ADMIN'||!['target_margin_pct','minimum_margin_pct','notes'].includes(field.key)));
+const fieldsFor=table=>(modules[table]?.fields||[]).filter(field=>(!field.adminOnly||canViewDashboard())&&(table!=='quotes'||canViewDashboard()||!['target_margin_pct','minimum_margin_pct','notes'].includes(field.key)));
 const databaseTable=table=>({prospects:'prospect_intelligence_current',users:'profiles',goals:'commercial_goals',expenses:'commercial_expenses',radar:'commercial_radar_dashboard',mail:'commercial_mail_inbox'})[table]||table;
 function restoreWorkspace(){
  const identity=workspaceKey(session.user.id,profile.organization_id);
@@ -345,7 +346,7 @@ async function chooseWorkspaceEntry(next){
 async function setWorkspace(next){
  if(![ADMIN,SELLER].includes(next)||!profile||busy||loading)return;
  if(next===ADMIN&&!isAdminAccount()){notice('El modo administrador requiere una cuenta con ese rol.',true);return;}
- if($('editor').open){notice('Guarda o cancela el formulario antes de cambiar de modo.',true);return;}
+ if($('editor').open||document.querySelector('.xq-dialog[open]')){notice('Guarda o cancela el formulario antes de cambiar de modo.',true);return;}
  if(next===workspace)return;
  workspace=effectiveWorkspace(profile,next);
  dailyBriefingShownForSession=false;
@@ -439,7 +440,7 @@ function rowQuery(table,org){
  return query;
 }
 async function allRows(table,org){
- if(profile?.role!=='ADMIN'&&['catalog_products','cost_profiles','quotes'].includes(table)){const r=await sb.rpc('xicronix_sales_data');if(r.error)throw r.error;return r.data[table]||[];}
+ if(!canViewDashboard()&&['catalog_products','cost_profiles','quotes'].includes(table)){const r=await sb.rpc('xicronix_sales_data');if(r.error)throw r.error;return r.data[table]||[];}
  const rows=[];const orderColumn=table==='scores'?'calculated_at':table==='prospects'?'snapshot_at':'created_at';for(let offset=0;;offset+=500){
  const {data:batch,error}=await rowQuery(table,org).order(orderColumn,{ascending:false}).order('id').range(offset,offset+499);
  if(error)throw error;rows.push(...batch);if(batch.length<500)return rows;
@@ -754,7 +755,7 @@ async function reload(){
  if(version!==loadVersion)return;
  data=emptyData();failures={};tables.forEach((k,i)=>{if(results[i].status==='fulfilled')data[k]=results[i].value;else failures[k]=true;});
  data=scopeWorkspaceData(realOnly(data),profile,userId,workspace);
- if(accessible('quotes')&&profile.role==='ADMIN'){
+ if(accessible('quotes')&&canViewDashboard()){
    const quoteIds=(data.quotes||[]).map(row=>row.id);
    if(quoteIds.length){
      const [items,financials]=await Promise.all([sb.from('quote_items').select('*').in('quote_id',quoteIds),sb.from('quote_financials').select('*').in('quote_id',quoteIds)]);
@@ -2298,16 +2299,16 @@ function renderRecords(){
  $('pageNumber').textContent='Página '+(pageIndex+1)+' de '+max;$('previous').disabled=pageIndex===0;$('next').disabled=pageIndex+1>=max;
  const config=modules[page],canEdit=writableFor(page);
  const secondHeader=page==='quotes'?'Oportunidad':isUsers?'Rol':isGoals?'Responsable':isSuppliers?'País / contacto':isAlliances?'Institución':isExpenses?'Fecha del gasto':['tasks','meetings','deliverables','documents'].includes(page)?'Prospecto':page==='institutions'?'Ciudad':['catalog_products','cost_profiles'].includes(page)?'Origen / destino':'Institución';
- const detailHeader=page==='quotes'?(profile.role==='ADMIN'?'Venta / margen real':'Venta sin IGV'):isGoals?'Metas y presupuesto':isSuppliers?'Condiciones / próxima acción':isAlliances?'Objetivo / próxima acción':isExpenses?'Importe':page==='tasks'?'Urgencia dinámica':page==='meetings'?'Fecha y modalidad':page==='documents'?'Carpeta / versión':(['leads','opportunities'].includes(page)?'Valor estimado':page==='catalog_products'?(profile.role==='ADMIN'?'Precio proveedor':'Categoría'):page==='cost_profiles'?'Tipo de cambio':'Detalle');
+ const detailHeader=page==='quotes'?(canViewDashboard()?'Venta / margen real':'Venta sin IGV'):isGoals?'Metas y presupuesto':isSuppliers?'Condiciones / próxima acción':isAlliances?'Objetivo / próxima acción':isExpenses?'Importe':page==='tasks'?'Urgencia dinámica':page==='meetings'?'Fecha y modalidad':page==='documents'?'Carpeta / versión':(['leads','opportunities'].includes(page)?'Valor estimado':page==='catalog_products'?(canViewDashboard()?'Precio proveedor':'Categoría'):page==='cost_profiles'?'Tipo de cambio':'Detalle');
  const pageRows=rows.slice(pageIndex*size,(pageIndex+1)*size);
  const rowsMarkup=pageRows.map(row=>{
   const secondCell=page==='quotes'?esc(relationName('opportunity_id',row)||'Oportunidad'):isUsers?badge(row.role,page):isGoals?esc(relationName('owner_user_id',row)||'Organización'):isSuppliers?(esc(row.country||'—')+'<small>'+esc(row.contact_name||row.contact_email||'Contacto pendiente')+'</small>'):isAlliances?esc(relationName('institution_id',row)||'Sin institución vinculada'):isExpenses?esc(row.expense_date||'Sin fecha'):['tasks','meetings','deliverables','documents'].includes(page)?esc(relationName('lead_id',row)||'Sin prospecto vinculado'):page==='catalog_products'?esc(row.origin_country||'—')+' → Perú':page==='cost_profiles'?esc(row.origin_country||'—')+' → '+esc(row.destination_country||'—'):esc(page==='institutions'?row.city||'—':relatedName(row)||'Sin vincular');
   const stateCell=page==='quotes'?badge(row.status,page):isGoals?'<span class="badge success">Meta definida</span>':isSuppliers?badge(row.status,page):isAlliances?badge(row.status,page):page==='catalog_products'?(row.active===false?'<span class="badge warn">Inactivo</span>':'<span class="badge success">Activo</span>'):badge(row[config.filter],page);
   const quoteFinancial=page==='quotes'?(data.quote_financials||[]).find(item=>item.quote_id===row.id):null;
-  const detail=page==='quotes'?(profile.role!=='ADMIN'?money(row.net_sale):quoteFinancial?money(quoteFinancial.net_sale)+'<small>Margen '+Number(quoteFinancial.real_margin_pct||0).toFixed(1)+'% · Utilidad '+money(quoteFinancial.gross_profit)+'</small>'+(quoteFinancial.requires_margin_approval?'<small class="warn">Requiere aprobación de margen</small>':''):'Sin partidas todavía'):isGoals?'Ventas '+money(row.target_won_value)+'<small>Margen bruto '+money(row.target_margin)+'</small><small>Gastos '+(row.target_expenses===null||row.target_expenses===undefined?'Sin presupuesto':money(row.target_expenses))+'</small>':isSuppliers?('<strong>'+esc(supplierLevel[row.relationship_level]||row.relationship_level)+'</strong><small>'+esc(row.payment_terms||row.terms_summary||'Condiciones por definir')+'</small><small>'+esc(row.next_action||'Sin próxima acción')+'</small>'):isAlliances?('<strong>'+esc(allianceType[row.alliance_type]||row.alliance_type)+'</strong><small>'+esc(row.strategic_objective||'Objetivo por definir')+'</small><small>'+esc(row.next_action||'Sin próxima acción')+'</small>'):isExpenses?money(row.amount):page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='catalog_products'?(profile.role==='ADMIN'?catalogMoney(row.supplier_unit_price):esc(row.category||'')):page==='cost_profiles'?Number(row.exchange_rate||0).toFixed(2):page==='tasks'?urgencyCell(row):page==='meetings'?('<strong>'+esc(date(row.start_at))+'</strong><small>'+esc(enums.meetingMode[row.mode]||row.mode)+' · '+esc(date(row.end_at))+'</small>'):page==='documents'?('<strong>'+esc(enums.documentCategory[row.category]||row.category)+'</strong><small>Versión actual: v'+Number(row.current_version||0)+'</small>'):page==='activities'?esc(date(row.occurred_at)):esc(row.phone||'—');
+  const detail=page==='quotes'?(!canViewDashboard()?money(row.net_sale):quoteFinancial?money(quoteFinancial.net_sale)+'<small>Margen '+Number(quoteFinancial.real_margin_pct||0).toFixed(1)+'% · Utilidad '+money(quoteFinancial.gross_profit)+'</small>'+(quoteFinancial.requires_margin_approval?'<small class="warn">Requiere aprobación de margen</small>':''):'Sin partidas todavía'):isGoals?'Ventas '+money(row.target_won_value)+'<small>Margen bruto '+money(row.target_margin)+'</small><small>Gastos '+(row.target_expenses===null||row.target_expenses===undefined?'Sin presupuesto':money(row.target_expenses))+'</small>':isSuppliers?('<strong>'+esc(supplierLevel[row.relationship_level]||row.relationship_level)+'</strong><small>'+esc(row.payment_terms||row.terms_summary||'Condiciones por definir')+'</small><small>'+esc(row.next_action||'Sin próxima acción')+'</small>'):isAlliances?('<strong>'+esc(allianceType[row.alliance_type]||row.alliance_type)+'</strong><small>'+esc(row.strategic_objective||'Objetivo por definir')+'</small><small>'+esc(row.next_action||'Sin próxima acción')+'</small>'):isExpenses?money(row.amount):page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='catalog_products'?(canViewDashboard()?catalogMoney(row.supplier_unit_price):esc(row.category||'')):page==='cost_profiles'?Number(row.exchange_rate||0).toFixed(2):page==='tasks'?urgencyCell(row):page==='meetings'?('<strong>'+esc(date(row.start_at))+'</strong><small>'+esc(enums.meetingMode[row.mode]||row.mode)+' · '+esc(date(row.end_at))+'</small>'):page==='documents'?('<strong>'+esc(enums.documentCategory[row.category]||row.category)+'</strong><small>Versión actual: v'+Number(row.current_version||0)+'</small>'):page==='activities'?esc(date(row.occurred_at)):esc(row.phone||'—');
   const actionLabel=canEdit?'Editar':'Ver';
   const rowName=page==='quotes'?((row.title||'Cotización')+' · v'+(row.revision||0)+(row.is_test?' · PRUEBA':'')):page==='catalog_products'?catalogDisplayName(row):nameOf(row)||('Meta '+row.period_start);
-  const subline=page==='quotes'?(profile.role!=='ADMIN'?'Cotización comercial':('Margen objetivo '+Number(row.target_margin_pct||0).toFixed(1)+'% · mínimo '+Number(row.minimum_margin_pct||0).toFixed(1)+'%')):isGoals?(row.period_start+' → '+row.period_end):isSuppliers?(row.website||row.contact_email||'Relación con proveedor'):isAlliances?((allianceType[row.alliance_type]||row.alliance_type)+' · '+(row.status||'')):isExpenses?(row.currency||'PEN'):(row.email||row.next_action||row.job_title||row.category||row.notes||'');
+  const subline=page==='quotes'?(!canViewDashboard()?'Cotización comercial':('Margen objetivo '+Number(row.target_margin_pct||0).toFixed(1)+'% · mínimo '+Number(row.minimum_margin_pct||0).toFixed(1)+'%')):isGoals?(row.period_start+' → '+row.period_end):isSuppliers?(row.website||row.contact_email||'Relación con proveedor'):isAlliances?((allianceType[row.alliance_type]||row.alliance_type)+' · '+(row.status||'')):isExpenses?(row.currency||'PEN'):(row.email||row.next_action||row.job_title||row.category||row.notes||'');
   return '<tr><td><strong>'+esc(rowName)+'</strong><small>'+esc(subline)+'</small></td><td>'+secondCell+'</td><td>'+stateCell+'</td><td>'+detail+'</td>'+(page==='leads'?'<td>'+maturityCell(row)+'</td>':'')+'<td><div class="row-actions">'+(page==='leads'?'<button class="primary" data-lead-detail="'+row.id+'">Abrir expediente comercial</button>':'')+(page==='documents'&&Number(row.current_version)>0?'<button data-open-document="'+row.id+'">Abrir archivo</button>':'')+'<button data-edit="'+row.id+'" data-table="'+page+'">'+actionLabel+'</button>'+(page==='leads'&&writable()?'<button data-activity-lead="'+row.id+'">Registrar movimiento</button>':'')+(!isUsers&&page!=='quotes'&&canDelete()?'<button class="danger-text" data-delete="'+row.id+'" data-table="'+page+'">Eliminar</button>':'')+'</div></td></tr>';
  }).join('');
  const leadCards=page==='leads'?renderLeadCards(pageRows):'';
@@ -2454,7 +2455,7 @@ function syncEditorRelations(changed){
 }
 
 function openEditor(table,id=null,initialValues={}){
- if(table==='quotes'){if(!profile||loading||busy)return false;if(dataSource!=='live'){notice('El cotizador utiliza el catálogo real. Cambia a Datos reales.',true);return false;}openQuoteEditor({sb,profile,data,quoteId:id,onSaved:reload}).catch(e=>notice(e.message,true));return true;}
+ if(table==='quotes'){if(!profile||loading||busy)return false;if(dataSource!=='live'){notice('El cotizador utiliza el catálogo real. Cambia a Datos reales.',true);return false;}openQuoteEditor({sb,profile,data,workspace,quoteId:id,onSaved:reload}).catch(e=>notice(e.message,true));return true;}
  assistantEditorOpportunity=null;
  if(!accessible(table)||loading||busy||failures[table])return false; if(table==='users'&&(!id||!canManageUsers()))return false; if(table==='goals'&&!canManageGoals())return false; if(!id&&!writableFor(table))return false;
  const dependencies=fieldsFor(table).filter(f=>f.type==='relation').map(f=>relationTable(f.key));

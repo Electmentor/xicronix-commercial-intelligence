@@ -58,3 +58,6 @@ Los comerciales reciben exclusivamente datos de venta. No se envían a su navega
 RLS restringe la lectura directa de catálogo completo, perfiles, cabeceras con márgenes, partidas y versiones a ADMIN. RPC con autorización por organización y propietario entregan listas explícitas de campos comerciales para catálogo, configuraciones, cotizaciones, cálculo, guardado e historial. Los totales internos permanecen en el servidor. Las versiones históricas del cliente siguen disponibles para su propietario y Dirección.
 
 La vista financiera respeta RLS. Las pruebas SQL verifican ausencia de lecturas directas y de campos sensibles en respuestas, además de guardado, recuperación, descuentos y revisión obligatoria. El job de interfaz verifica que los campos internos no existen en la pantalla comercial.
+
+## Área activa — v2.49.1
+El cotizador exige tanto rol ADMIN como área Dirección para mostrar información interna. Una cuenta ADMIN dentro del área Comercial recibe la presentación comercial. El modo comercial solicita cálculo con perfil autorizado y no envía parámetros internos manuales. Cambiar de área limpia el editor; no se permite el cambio con una cotización abierta. La regresión de interfaz cubre ADMIN en Dirección, SALES en Comercial y ADMIN en Comercial, incluyendo reapertura y guardado.
