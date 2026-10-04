@@ -35,6 +35,10 @@ export function enforceOperations(answer,messages,now=new Date()) {
   }
   return {...answer,message:'Nuestro horario de referencia es lunes a sábado, de 8:00 a. m. a 6:00 p. m., hora de Lima. Podemos tomar esa fecha y hora como una preferencia, pero no puedo confirmar disponibilidad ni agendar la llamada desde aquí. Puedes enviar tu solicitud con el botón de contacto para que el equipo confirme un horario. Aún no se ha enviado ninguna solicitud.',options:[],handoff:true};
  }
+ // An explicit complaint must expose the real consent form, never a pretend action option.
+ if(/(?:quiero|necesito|deseo|presentar|registrar|tengo).{0,60}(?:queja|reclamo)|(?:queja|reclamo).{0,40}(?:registr|present)/i.test(last)) {
+  return {...answer,message:'Lamento lo ocurrido. Puedes comunicar tu queja al equipo mediante el formulario que abre el botón de contacto. Revisa el contexto y autoriza el envío; el comprobante confirmará el registro. Si buscas presentar un reclamo formal, utiliza el Libro de Reclamaciones disponible en el pie de la web.',options:[],handoff:true};
+ }
  // Fail closed on claims of actions that this read-only assistant cannot perform.
  if(/(?:vamos a|voy a|te|le)\s+(?:derivar|contactar|llamar)|(?:derivaremos|contactaremos|llamaremos|te contactar[aá]n|te llamar[aá]n)|(?:he|hemos|ya|qued[oó]|est[aá])\s+(?:enviado|registrado|agendad[oa]|confirmad[oa]|derivad[oa])/i.test(answer.message)) {
   return {...answer,message:'Para continuar con el equipo, puedes enviar tu solicitud mediante el botón de contacto. El registro y el envío se confirman en el comprobante del formulario; desde esta conversación no puedo consultar su estado. La atención está sujeta a confirmación.',options:[],handoff:true};
