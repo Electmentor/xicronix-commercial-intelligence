@@ -84,3 +84,24 @@ jobs:
           name: crm-production-evidence
           path: review-artifacts/
           retention-days: 7
+
+  quotation-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install isolated quotation test runtime
+        run: |
+          python -m pip install playwright==1.57.0
+          python -m playwright install --with-deps chromium
+      - name: Verify quotation UI using deployed modules and synthetic data
+        run: python tests/quote-browser.py
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: quotation-ui-evidence
+          path: review-artifacts/quote-browser/
+          retention-days: 7
