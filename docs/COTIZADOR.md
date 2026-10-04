@@ -41,3 +41,10 @@ El DTO comercial se construye con lista explícita de campos. El HTML no contien
 `tests/cotizador.sql`: pruebas reales de funciones/RLS en una transacción con rollback, precios sintéticos; cubre cálculo, descuentos, margen versus markup, recuperabilidad, validación, guardado, idempotencia, conflicto de versión, historia inmutable y documento saneado.
 
 La batería completa antigua tiene 38 fallos preexistentes reproducidos en HEAD 3837846; la nueva revisión conserva esos 38 fallos y añade tres pruebas aprobadas. No se presenta la batería general como aprobada. El job independiente `quotation-ui` verifica los módulos exactos publicados, edición, guardado/reapertura, historial, descarga saneada y tamaño móvil con datos sintéticos; conserva capturas y resultado en GitHub Actions. No sustituye la autenticación real del usuario ni las pruebas SQL. La herramienta de navegador de esta sesión agotó tiempo, por lo que la revisión de interfaz se ejecuta en CI.
+
+## Roles — v2.48.1
+Dirección (`ADMIN`) mantiene precios de proveedor en Catálogo y costos en Costos y márgenes. Para habilitar trabajo comercial, crea un perfil USD, establece costos, margen mínimo y vigencia y marca «Autorizar uso por comerciales». No se habilitan supuestos de prueba automáticamente.
+
+`SALES` y `MANAGER` pueden crear cotizaciones con ese perfil, elegir sus oportunidades, cantidades, margen objetivo, precios de venta y descuentos. Los costos son de solo lectura y el servidor los toma del perfil y catálogo, ignorando cualquier valor forjado. Las versiones comerciales quedan para revisión técnica de Dirección; un margen inferior al mínimo también marca el documento como borrador. Dirección guarda una nueva versión validada para emisión. Cada versión conserva sus costos históricos.
+
+Las escrituras directas a cabeceras y partidas están limitadas a Dirección. El comando de guardado comercial verifica rol, organización y propiedad antes de persistir los valores calculados. `tests/quote-roles.sql` verifica estas restricciones con cambios que se revierten al finalizar.
