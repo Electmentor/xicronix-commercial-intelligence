@@ -1,3 +1,4 @@
+import {openQuoteEditor,closeQuoteEditor} from './quote-editor.mjs?v=1';
 import {createAssistant,buildAssistantContext} from './assistant.mjs?v=2.47.1';
 import {radarState,radarStateLabels,radarTransition,renderRadarLifecycle} from './radar-lifecycle.mjs?v=2.47.1';
 import {directorGeography} from './director-insights.mjs?v=20260927-v2.47.1';
@@ -14,7 +15,7 @@ import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,mileston
 import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.14';
 
 const $ = id => document.getElementById(id);
-const CLIENT_BUILD='v2.47.1';
+const CLIENT_BUILD='v2.48.0';
 const SPLASH_STARTED_AT=performance.now();
 const SPLASH_MIN_MS=450;
 function startLarsonScanner(){
@@ -418,6 +419,7 @@ function resetPasswordVisibility(){
  });
 }
 function clearSession(){
+ closeQuoteEditor();
  aiSelected=null;aiAssistant?.reset();closeAiAssistant();
  performancePage=null;performanceFilters={};performanceAdjustment=20;
  dailyBriefingShownForSession=false;
@@ -2286,7 +2288,7 @@ function renderRecords(){
  $('recordContext').hidden=!executiveFilter&&!executiveOwner&&!sellerQuickFilter;
  const sellerFilterLabel={active:'Prospectos activos',action:'Requieren acción',mature:'Madurez alta',meeting:'Con reunión próxima'}[sellerQuickFilter];
  $('recordContextLabel').textContent=[{won:'Ganadas con cierre previsto este mes',pipeline:'Cartera abierta',risk:'Cartera en riesgo'}[executiveFilter],executiveOwner?'Vendedor: '+(data.users.find(row=>row.id===executiveOwner)?.full_name||'seleccionado'):'',sellerFilterLabel].filter(Boolean).join(' · ');
- $('importBtn').hidden=isUsers||isGoals||!writableFor(page);$('importBtn').disabled=loading||busy||!!failures[page];$('importHelp').hidden=isUsers||isGoals||!writableFor(page);
+ $('importBtn').hidden=page==='quotes'||isUsers||isGoals||!writableFor(page);$('importBtn').disabled=loading||busy||!!failures[page];$('importHelp').hidden=page==='quotes'||isUsers||isGoals||!writableFor(page);
  $('sellerSummary').hidden=canViewDashboard()||!['leads','tasks'].includes(page);$('sellerSummary').innerHTML=page==='tasks'?renderTaskPrioritySummary():renderSellerWorkspaceSummary();
  const rows=filtered();const max=Math.max(1,Math.ceil(rows.length/size));pageIndex=Math.min(pageIndex,max-1);
  const directorCountLabel={quotes:'cotizaciones',users:'miembros del equipo',goals:'metas definidas',meetings:'reuniones',supplier_relationships:'proveedores',strategic_alliances:'alianzas',catalog_products:'productos de catálogo',institutions:'instituciones'}[page];
@@ -2303,9 +2305,9 @@ function renderRecords(){
   const quoteFinancial=page==='quotes'?(data.quote_financials||[]).find(item=>item.quote_id===row.id):null;
   const detail=page==='quotes'?(quoteFinancial?money(quoteFinancial.net_sale)+'<small>Margen '+Number(quoteFinancial.real_margin_pct||0).toFixed(1)+'% · Utilidad '+money(quoteFinancial.gross_profit)+'</small>'+(quoteFinancial.requires_margin_approval?'<small class="warn">Requiere aprobación de margen</small>':''):'Sin partidas todavía'):isGoals?'Ventas '+money(row.target_won_value)+'<small>Margen bruto '+money(row.target_margin)+'</small><small>Gastos '+(row.target_expenses===null||row.target_expenses===undefined?'Sin presupuesto':money(row.target_expenses))+'</small>':isSuppliers?('<strong>'+esc(supplierLevel[row.relationship_level]||row.relationship_level)+'</strong><small>'+esc(row.payment_terms||row.terms_summary||'Condiciones por definir')+'</small><small>'+esc(row.next_action||'Sin próxima acción')+'</small>'):isAlliances?('<strong>'+esc(allianceType[row.alliance_type]||row.alliance_type)+'</strong><small>'+esc(row.strategic_objective||'Objetivo por definir')+'</small><small>'+esc(row.next_action||'Sin próxima acción')+'</small>'):isExpenses?money(row.amount):page==='opportunities'?money(row.value):page==='leads'?money(row.estimated_value):page==='catalog_products'?catalogMoney(row.supplier_unit_price):page==='cost_profiles'?Number(row.exchange_rate||0).toFixed(2):page==='tasks'?urgencyCell(row):page==='meetings'?('<strong>'+esc(date(row.start_at))+'</strong><small>'+esc(enums.meetingMode[row.mode]||row.mode)+' · '+esc(date(row.end_at))+'</small>'):page==='documents'?('<strong>'+esc(enums.documentCategory[row.category]||row.category)+'</strong><small>Versión actual: v'+Number(row.current_version||0)+'</small>'):page==='activities'?esc(date(row.occurred_at)):esc(row.phone||'—');
   const actionLabel=canEdit?'Editar':'Ver';
-  const rowName=page==='quotes'?('Cotización · '+(relationName('opportunity_id',row)||String(row.id).slice(0,8))):page==='catalog_products'?catalogDisplayName(row):nameOf(row)||('Meta '+row.period_start);
+  const rowName=page==='quotes'?((row.title||'Cotización')+' · v'+(row.revision||0)+(row.is_test?' · PRUEBA':'')):page==='catalog_products'?catalogDisplayName(row):nameOf(row)||('Meta '+row.period_start);
   const subline=page==='quotes'?('Margen objetivo '+Number(row.target_margin_pct||0).toFixed(1)+'% · mínimo '+Number(row.minimum_margin_pct||0).toFixed(1)+'%'):isGoals?(row.period_start+' → '+row.period_end):isSuppliers?(row.website||row.contact_email||'Relación con proveedor'):isAlliances?((allianceType[row.alliance_type]||row.alliance_type)+' · '+(row.status||'')):isExpenses?(row.currency||'PEN'):(row.email||row.next_action||row.job_title||row.category||row.notes||'');
-  return '<tr><td><strong>'+esc(rowName)+'</strong><small>'+esc(subline)+'</small></td><td>'+secondCell+'</td><td>'+stateCell+'</td><td>'+detail+'</td>'+(page==='leads'?'<td>'+maturityCell(row)+'</td>':'')+'<td><div class="row-actions">'+(page==='leads'?'<button class="primary" data-lead-detail="'+row.id+'">Abrir expediente comercial</button>':'')+(page==='documents'&&Number(row.current_version)>0?'<button data-open-document="'+row.id+'">Abrir archivo</button>':'')+'<button data-edit="'+row.id+'" data-table="'+page+'">'+actionLabel+'</button>'+(page==='leads'&&writable()?'<button data-activity-lead="'+row.id+'">Registrar movimiento</button>':'')+(!isUsers&&canDelete()?'<button class="danger-text" data-delete="'+row.id+'" data-table="'+page+'">Eliminar</button>':'')+'</div></td></tr>';
+  return '<tr><td><strong>'+esc(rowName)+'</strong><small>'+esc(subline)+'</small></td><td>'+secondCell+'</td><td>'+stateCell+'</td><td>'+detail+'</td>'+(page==='leads'?'<td>'+maturityCell(row)+'</td>':'')+'<td><div class="row-actions">'+(page==='leads'?'<button class="primary" data-lead-detail="'+row.id+'">Abrir expediente comercial</button>':'')+(page==='documents'&&Number(row.current_version)>0?'<button data-open-document="'+row.id+'">Abrir archivo</button>':'')+'<button data-edit="'+row.id+'" data-table="'+page+'">'+actionLabel+'</button>'+(page==='leads'&&writable()?'<button data-activity-lead="'+row.id+'">Registrar movimiento</button>':'')+(!isUsers&&page!=='quotes'&&canDelete()?'<button class="danger-text" data-delete="'+row.id+'" data-table="'+page+'">Eliminar</button>':'')+'</div></td></tr>';
  }).join('');
  const leadCards=page==='leads'?renderLeadCards(pageRows):'';
  const managerHeader=directorManagementHeader(page,rows);
@@ -2451,6 +2453,7 @@ function syncEditorRelations(changed){
 }
 
 function openEditor(table,id=null,initialValues={}){
+ if(table==='quotes'){if(!profile||loading||busy)return false;if(dataSource!=='live'){notice('El cotizador utiliza el catálogo real. Cambia a Datos reales.',true);return false;}openQuoteEditor({sb,profile,data,quoteId:id,onSaved:reload}).catch(e=>notice(e.message,true));return true;}
  assistantEditorOpportunity=null;
  if(!accessible(table)||loading||busy||failures[table])return false; if(table==='users'&&(!id||!canManageUsers()))return false; if(table==='goals'&&!canManageGoals())return false; if(!id&&!writableFor(table))return false;
  const dependencies=fieldsFor(table).filter(f=>f.type==='relation').map(f=>relationTable(f.key));
@@ -2831,7 +2834,7 @@ if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('att
  $('radarStateClose').onclick=()=>{if(!busy){radarActionContext=null;$('radarStateDialog').close();}};
  $('radarStateDialog').addEventListener('cancel',e=>{if(busy)e.preventDefault();else radarActionContext=null;});
  $('authForm').onsubmit=authenticate;$('recordForm').onsubmit=saveRecord;$('importBtn').onclick=()=>$('importInput').click();$('importInput').onchange=importCsvFile;
- $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>{if(canViewDashboard())openEditor(page==='dashboard'?'institutions':page);else openEditor('leads');};
+ $('refreshBtn').onclick=reload;$('newBtn').onclick=()=>{if(page==='quotes'){openEditor('quotes');return;}if(canViewDashboard())openEditor(page==='dashboard'?'institutions':page);else openEditor('leads');};
  $('search').oninput=$('filter').onchange=()=>{pageIndex=0;renderRecords();};
  $('previous').onclick=()=>{pageIndex--;renderRecords();};$('next').onclick=()=>{pageIndex++;renderRecords();};$('mobileBackDashboard').onclick=()=>navigate('dashboard');
  const close=()=>{if(!busy)$('editor').close();};$('closeEditor').onclick=$('cancelEditor').onclick=close;$('editor').addEventListener('cancel',e=>{if(busy)e.preventDefault();});

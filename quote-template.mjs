@@ -1,0 +1,8 @@
+export const LAB_FQBM = {
+ title:'Xicronix Lab FQBM 12/4 — secundaria',
+ items:[{sku:'SCN-F001A',quantity:4},{sku:'EQ003VC',quantity:4},{sku:'SCN-B006',quantity:4},{sku:'EQ377E',quantity:1}],
+ scope:'Propuesta de prueba: secundaria, 4 mesas de trabajo existentes, 12 prácticas/año. Física y Química: 4 conjuntos; Biología: 4 conjuntos de microscopía; Matemática: 1 conjunto para 5 grupos, destinado a 4 mesas. No incluye mobiliario. La selección, accesorios, consumibles y seguridad deben validarse antes de emitir una oferta comercial.\n\nSecuencia propuesta (requiere validación técnica):\n1. Fuerzas y equilibrio.\n2. Elasticidad de resortes.\n3. Composición de fuerzas.\n4. Medición de volúmenes.\n5. Errores de medición y densidad.\n6. Introducción a la titulación.\n7. Uso del microscopio.\n8. Observación de células.\n9. Comparación de muestras biológicas.\n10. Geometría y áreas.\n11. Trigonometría.\n12. Productos notables.',
+ inputs:{exchange_rate:3.75,freight_usd:600,insurance_usd:60,duty_pct:0,local_cost_pen:1800,contingency_pct:3,igv_pct:18,perception_pct:3.5,recoverable_igv:true,margin_pct:30,minimum_margin_pct:20,discount_pct:0,advance_pct:50,supplier_advance_pct:100,costs_confirmed:false,technical_confirmed:false,
+ terms:'Escenario de prueba. Condiciones comerciales, disponibilidad, plazo de entrega y vigencia por confirmar.'}
+};
+export const QUOTE_DEFAULTS={exchange_rate:3.75,freight_usd:0,insurance_usd:0,duty_pct:0,local_cost_pen:0,contingency_pct:0,igv_pct:18,perception_pct:0,recoverable_igv:true,margin_pct:30,minimum_margin_pct:20,discount_pct:0,advance_pct:0,supplier_advance_pct:100,costs_confirmed:false,technical_confirmed:false,scope:'',terms:''};
