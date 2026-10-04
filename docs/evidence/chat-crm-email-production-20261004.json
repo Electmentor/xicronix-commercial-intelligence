@@ -1,0 +1,87 @@
+{
+  "verifiedAt": "2026-10-04T14:46:09.534Z",
+  "a007": {
+    "commit": "199b1d069d47db084a96c1b01d2a6c0cf766df30",
+    "deployment": "dpl_64rGLYZvrr78RgjohrTcdBWWUyKG",
+    "state": "READY"
+  },
+  "a009": {
+    "commit": "d8343d04b1f1360f6c0473e36cd4d911a60a7b14",
+    "deployment": "dpl_8vSnNgLAmyGmy9ciWXdW2T1scaqr",
+    "state": "READY"
+  },
+  "edge": {
+    "function": "xicronix-web-leads",
+    "version": 11
+  },
+  "checks": {
+    "productionBrowser": "Form inside chat, editable conversation, required consent, receipt shown",
+    "noConsentHTTP": 400,
+    "registeredHTTP": 201,
+    "retryHTTP": 201,
+    "sameReferenceOnRetry": true,
+    "crmLeadExists": true,
+    "matchingActivitiesPerRequest": 1,
+    "consentStored": true,
+    "corporateMailboxProviderEvent": "delivered",
+    "emailContains": "Receipt and approved public information links; no transcript or private CRM data",
+    "ai": [
+      {
+        "test": "email",
+        "response": {
+          "ok": true,
+          "message": "Entiendo, te enviaré la información sobre laboratorios para colegios. Por favor, completa el formulario seguro que aparece en el chat para registrar tu correo y datos de contacto.",
+          "options": [],
+          "handoff": true,
+          "intents": [
+            "LABORATORIOS",
+            "CAPACITACIÓN"
+          ],
+          "commercial": true,
+          "provider": "groq",
+          "degraded": false
+        }
+      },
+      {
+        "test": "sunday",
+        "response": {
+          "ok": true,
+          "message": "Los domingos no atendemos llamadas. Nuestro horario de referencia es lunes a sábado, de 8:00 a. m. a 6:00 p. m., hora de Lima. Puedes solicitar otro día con el botón de contacto; la llamada quedará pendiente de confirmación y aún no se ha enviado ninguna solicitud.",
+          "options": [],
+          "handoff": true,
+          "intents": [
+            "OTRO"
+          ],
+          "commercial": false,
+          "provider": "groq",
+          "degraded": false
+        }
+      },
+      {
+        "test": "internal",
+        "response": {
+          "ok": true,
+          "message": "Lo siento, no puedo proporcionar esa información. Si necesitas asistencia oficial, puedes solicitarlo a través del formulario de contacto interno.",
+          "options": [],
+          "handoff": false,
+          "intents": [
+            "OTRO"
+          ],
+          "commercial": false,
+          "provider": "groq",
+          "degraded": false
+        }
+      }
+    ]
+  },
+  "testReferences": [
+    "bcb9087b-2790-493a-a848-0264c83c3608",
+    "9fe08860-0dea-448a-a64e-af8c8e7a6c46"
+  ],
+  "limitations": [
+    "Only reviewed context submitted with consent is saved; no automatic storage of every chat",
+    "Email acceptance shown in UI is not a guarantee of mailbox delivery",
+    "No automatic appointment reservation or personalized quotation",
+    "Failed CRM/email state is preserved; automated retry worker not added"
+  ]
+}
