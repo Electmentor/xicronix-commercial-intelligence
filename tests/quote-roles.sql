@@ -36,6 +36,7 @@ do $$ declare i jsonb; items jsonb; v jsonb; v2 jsonb; f jsonb; n integer; block
  assert (v2->'financials'->>'net_sale')::numeric<(v->'financials'->>'net_sale')::numeric,'seller negotiates sales price';
  assert (v2->'financials'->>'requires_margin_approval')::boolean,'margin violation flagged';
  blocked=false;begin perform public.preview_xicronix_quote(i-'cost_profile_id',items);exception when others then blocked=true;end;assert blocked,'no unauthorized free-form costs';
+ blocked=false;begin perform public.save_xicronix_quote(null,0,gen_random_uuid(),jsonb_build_object('title','ROLE TEST','is_test',true,'opportunity_id',gen_random_uuid()),i,items);exception when others then blocked=sqlerrm='Selecciona una oportunidad del CRM';end;assert blocked,'test quotations must validate optional opportunity links';
  assert not ((public.xicronix_customer_document((v->>'quote_id')::uuid,2)) ?| array['landed_cost','supplier_unit_price','financials','gross_profit']),'client privacy';
 end $$;
 rollback;
