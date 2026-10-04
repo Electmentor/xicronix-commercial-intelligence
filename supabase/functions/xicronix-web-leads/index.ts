@@ -175,12 +175,12 @@ Deno.serve(async (req: Request) => {
     // Check the durable receipt before throttling. Retries never re-send emails.
     async function existingReceipt() {
       const { data, error } = await ctx.supabaseAdmin.from("web_leads")
-        .select("email,name,message,sync_status,acknowledgement_status,internal_alert_status")
+        .select("public_reference,email,name,message,sync_status,acknowledgement_status,internal_alert_status")
         .eq("external_lead_id", leadId).maybeSingle();
       if (error) return json({ ok: false }, 503);
       if (!data) return null;
       if (data.email !== email || data.name !== name || data.message !== message) return json({ ok: false, message: "Request conflict." }, 409);
-      return json({ ok: true, duplicate: true, synced: data.sync_status === "synced", acknowledgement: data.acknowledgement_status, internalAlert: data.internal_alert_status });
+      return json({ ok: true, duplicate: true, reference: data.public_reference, synced: data.sync_status === "synced", acknowledgement: data.acknowledgement_status, internalAlert: data.internal_alert_status });
     }
     const previous = await existingReceipt();
     if (previous) return previous;
@@ -230,7 +230,7 @@ Deno.serve(async (req: Request) => {
     const { data: savedLead, error: insertError } = await ctx.supabaseAdmin
       .from("web_leads")
       .insert(row)
-      .select("id,external_lead_id")
+      .select("id,external_lead_id,public_reference")
       .single();
 
     if (insertError) {
@@ -242,6 +242,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const webLeadRowId = savedLead.id as string;
+    const publicReference = savedLead.public_reference as string;
     let syncStatus = "failed";
     let crmLeadId: string | null = null;
     let syncError: string | null = null;
@@ -286,9 +287,9 @@ Deno.serve(async (req: Request) => {
           const {data:createdContact,error:contactError}=await ctx.supabaseAdmin.from("contacts").insert({organization_id:org.id,institution_id:institutionId,first_name:firstName,last_name:lastName,job_title:row.role,decision_level:"UNKNOWN",email,phone:row.phone,created_by:adminProfile?.id??null}).select("id").single();
           if(contactError) throw contactError; contactId=createdContact.id as string;
         }
-        const {data:crmLead,error:crmError}=await ctx.supabaseAdmin.from("leads").insert({organization_id:org.id,institution_id:institutionId,contact_id:contactId,title:titleParts.join(" · "),source:"WEBSITE",status:"NEW",score:25,next_action:"Revisar la solicitud y realizar la primera respuesta humana.",next_action_date:attentionDueAt,attention_due_at:attentionDueAt,routing_area:routing.area,routing_reason:routing.reason,owner_user_id:adminProfile?.id??null,created_by:adminProfile?.id??null}).select("id").single();
+        const {data:crmLead,error:crmError}=await ctx.supabaseAdmin.from("leads").insert({organization_id:org.id,institution_id:institutionId,contact_id:contactId,title:[...titleParts,publicReference].join(" · "),source:"WEBSITE",status:"NEW",score:25,next_action:"Revisar la solicitud y realizar la primera respuesta humana.",next_action_date:attentionDueAt,attention_due_at:attentionDueAt,routing_area:routing.area,routing_reason:routing.reason,owner_user_id:adminProfile?.id??null,created_by:adminProfile?.id??null}).select("id").single();
         if(crmError) throw crmError; crmLeadId=crmLead.id as string;
-        const {error:activityError}=await ctx.supabaseAdmin.from("activities").insert({organization_id:org.id,institution_id:institutionId,contact_id:contactId,lead_id:crmLeadId,type:"WEB_FORM",subject:context.channel === "web_chat" ? "Solicitud desde el chat · contexto revisado por el visitante" : "Solicitud inicial recibida por formulario web",notes:message,need_summary:row.interest||null,created_by:adminProfile?.id??null,occurred_at:row.submitted_at});
+        const {error:activityError}=await ctx.supabaseAdmin.from("activities").insert({organization_id:org.id,institution_id:institutionId,contact_id:contactId,lead_id:crmLeadId,type:"WEB_FORM",subject:(context.channel === "web_chat" ? "Solicitud desde el chat · contexto revisado por el visitante" : "Solicitud inicial recibida por formulario web") + " · " + publicReference,notes:message,need_summary:row.interest||null,created_by:adminProfile?.id??null,occurred_at:row.submitted_at});
         if(activityError) throw activityError;
         syncStatus="synced";
       } else {
@@ -335,6 +336,7 @@ Deno.serve(async (req: Request) => {
           const alertText = [
             "NUEVO LEAD WEB - XICRONIX",
             "",
+            `Referencia: ${publicReference}`,
             `Nombre: ${name}`,
             `Institución: ${row.institution || "No indicada"}`,
             `Cargo: ${row.role || "No indicado"}`,
@@ -348,7 +350,7 @@ Deno.serve(async (req: Request) => {
             `Gestionar: ${manageUrl}`
           ].join("\n");
 
-          const alertHtml = `<!doctype html><html><body style="font-family:Arial,Helvetica,sans-serif;background:#f6f8fb;color:#13233a"><table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px"><table width="100%" style="max-width:640px;background:#fff;border:1px solid #dde4ec;border-radius:14px"><tr><td style="padding:28px"><p style="font-size:12px;font-weight:700;color:#1677ff">NUEVO LEAD WEB · XICRONIX</p><h1 style="font-size:24px;margin:0 0 18px">${esc(row.institution || name)}</h1><p><strong>Contacto:</strong> ${esc(name)}</p><p><strong>Cargo:</strong> ${esc(row.role || "No indicado")}</p><p><strong>Correo:</strong> ${esc(email)}</p><p><strong>Teléfono:</strong> ${esc(row.phone || "No indicado")}</p><p><strong>Interés:</strong> ${esc(row.interest || "No indicado")}</p><p><strong>Producto:</strong> ${esc(row.product || "No indicado")}</p><p style="margin-top:20px"><strong>Mensaje</strong><br>${esc(message).replaceAll("\n","<br>")}</p><p style="margin-top:24px"><a href="${manageUrl}" style="background:#0a84e8;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;display:inline-block">Abrir Commercial Intelligence</a></p></td></tr></table></td></tr></table></body></html>`;
+          const alertHtml = `<!doctype html><html><body style="font-family:Arial,Helvetica,sans-serif;background:#f6f8fb;color:#13233a"><table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px"><table width="100%" style="max-width:640px;background:#fff;border:1px solid #dde4ec;border-radius:14px"><tr><td style="padding:28px"><p style="font-size:12px;font-weight:700;color:#1677ff">NUEVO LEAD WEB · XICRONIX</p><h1 style="font-size:24px;margin:0 0 18px">${esc(row.institution || name)}</h1><p><strong>Referencia:</strong> ${esc(publicReference)}</p><p><strong>Contacto:</strong> ${esc(name)}</p><p><strong>Cargo:</strong> ${esc(row.role || "No indicado")}</p><p><strong>Correo:</strong> ${esc(email)}</p><p><strong>Teléfono:</strong> ${esc(row.phone || "No indicado")}</p><p><strong>Interés:</strong> ${esc(row.interest || "No indicado")}</p><p><strong>Producto:</strong> ${esc(row.product || "No indicado")}</p><p style="margin-top:20px"><strong>Mensaje</strong><br>${esc(message).replaceAll("\n","<br>")}</p><p style="margin-top:24px"><a href="${manageUrl}" style="background:#0a84e8;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;display:inline-block">Abrir Commercial Intelligence</a></p></td></tr></table></td></tr></table></body></html>`;
 
           const alert = await sendEmail(resendKey, {
             from: `Xicronix <${CONTACT_EMAIL}>`,
@@ -369,7 +371,7 @@ Deno.serve(async (req: Request) => {
         const acknowledgement=acknowledgementCopy({interest:row.interest,area:routing.area});
         const acknowledgementText=[`Hola ${name},`,"",acknowledgement.headline+".",acknowledgement.paragraph,"","No necesitas enviar nuevamente la información.","","Xicronix","Ciencia, tecnología e innovación",CONTACT_EMAIL].join("\n");
         const acknowledgementHtml=`<!doctype html><html><body style="font-family:Arial,Helvetica,sans-serif;background:#f6f8fb;color:#13233a"><table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px"><table width="100%" style="max-width:620px;background:#fff;border:1px solid #dde4ec;border-radius:14px"><tr><td style="padding:30px"><p style="font-size:12px;font-weight:700;color:#1677ff">XICRONIX · CONTACTO</p><h1 style="font-size:24px;margin:0 0 18px">${esc(acknowledgement.headline)}</h1><p>Hola ${esc(name)},</p><p>${esc(acknowledgement.paragraph)}</p><p>No necesitas enviar nuevamente la información.</p><p style="margin-top:28px;padding-top:18px;border-top:1px solid #dde4ec;color:#5c6b7a">Xicronix<br>Ciencia, tecnología e innovación<br>${CONTACT_EMAIL}</p></td></tr></table></td></tr></table></body></html>`;
-        const information = context.emailInformationRequested ? chatInformationEmail(name!, leadId!, routing.area) : null;
+        const information = context.emailInformationRequested ? chatInformationEmail(name!, publicReference, routing.area) : null;
         const ack=await sendEmail(resendKey,{from:`Xicronix <${CONTACT_EMAIL}>`,to:[email],reply_to:CONTACT_EMAIL,subject:information?.subject ?? acknowledgement.subject,text:information?.text ?? acknowledgementText,html:information?.html ?? acknowledgementHtml},`web-lead-ack-${leadId}`);
 
         acknowledgementStatus = ack.ok ? "sent" : "failed";
@@ -394,6 +396,7 @@ Deno.serve(async (req: Request) => {
 
     return json({
       ok: true,
+      reference: publicReference,
       synced: syncStatus === "synced",
       internalAlert: internalAlertStatus,
       acknowledgement: acknowledgementStatus

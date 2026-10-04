@@ -1,0 +1,13 @@
+begin;
+create sequence public.web_lead_reference_seq;
+revoke all on sequence public.web_lead_reference_seq from public, anon, authenticated;
+grant usage on sequence public.web_lead_reference_seq to service_role;
+alter table public.web_leads add column public_reference text;
+update public.web_leads set public_reference = 'XIC-' || to_char(submitted_at at time zone 'America/Lima', 'YYYYMMDD') || '-' || nextval('public.web_lead_reference_seq')::text;
+alter table public.web_leads alter column public_reference set default ('XIC-' || to_char(current_timestamp at time zone 'America/Lima', 'YYYYMMDD') || '-' || nextval('public.web_lead_reference_seq')::text);
+alter table public.web_leads alter column public_reference set not null;
+alter table public.web_leads add constraint web_leads_public_reference_key unique(public_reference);
+comment on column public.web_leads.public_reference is 'Human-readable request reference. Not an authentication credential. External UUID remains canonical for idempotency.';
+update public.leads l set title=l.title || ' · ' || w.public_reference from public.web_leads w where l.id::text=w.crm_record_id;
+update public.activities a set subject=a.subject || ' · ' || w.public_reference from public.web_leads w where a.lead_id::text=w.crm_record_id and a.type='WEB_FORM';
+commit;
