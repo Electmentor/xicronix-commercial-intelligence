@@ -1,5 +1,5 @@
 """Isolated quotation UI regression against deployed modules. No user session or real writes."""
-import json, pathlib, os
+import json, pathlib, os, hashlib, time, urllib.request
 from playwright.sync_api import sync_playwright, expect
 root=pathlib.Path(__file__).resolve().parents[1]
 out=root/'review-artifacts'/'quote-browser';out.mkdir(parents=True,exist_ok=True)
@@ -12,6 +12,17 @@ function calculate(inputs,items){if(!(inputs.exchange_rate>0))throw Error('Indic
 const sb={from(){let filters=[];return {select(){return this},eq(k,v){filters.push([k,v]);return this},order(){return Promise.resolve({data:versions.filter(v=>filters.every(([k,x])=>v[k]===x))})},single(){return Promise.resolve({data:versions.find(v=>filters.every(([k,x])=>v[k]===x))})}}},async rpc(name,args){if(name==='preview_xicronix_quote'){try{return {data:calculate(args.p_inputs,args.p_items)}}catch(e){return {error:{message:e.message}}}}if(name==='save_xicronix_quote'){quoteId='quote-test';let revision=versions.length+1;const financials=calculate(args.p_inputs,args.p_items);const customer_document={issuer:'XICRONIX',quote_number:'XQ-TEST',revision,date:'2026-10-03',title:args.p_header.title,customer:'Synthetic school',is_draft:true,currency:'PEN',scope:args.p_inputs.scope,terms:args.p_inputs.terms,items:financials.items.map(i=>({sku:i.sku,description:i.description,quantity:i.quantity,unit_price:i.unit_price,subtotal:i.line_subtotal})),net_sale:financials.net_sale,sales_igv:financials.sales_igv,total:financials.total,igv_pct:18,discount_pct:args.p_inputs.discount_pct};const v={id:'version-'+revision,quote_id:quoteId,revision,created_at:'2026-10-03',inputs:structuredClone(args.p_inputs),financials,customer_document};versions.push(v);crm.quotes=[{id:quoteId,revision,...args.p_header}];return {data:v};}if(name==='xicronix_customer_document')return {data:versions.find(v=>v.revision===args.p_revision).customer_document};return {error:{message:'Unexpected RPC'}};}};
 const open=()=>openQuoteEditor({sb,profile:{role:'ADMIN'},data:crm,quoteId,onSaved:async()=>{}});document.querySelector('#open').onclick=open;open();
 </script></body></html>'''
+# Wait for the exact candidate assets; testing a prior deployment is not success.
+assets=['quote-editor.mjs','quote-editor.css','quote-document.mjs','quote-template.mjs']
+for attempt in range(24):
+ try:
+  for asset in assets:
+   with urllib.request.urlopen(base+asset+'?quote-verification='+str(time.time()),timeout=20) as response: body=response.read()
+   assert hashlib.sha256(body).digest()==hashlib.sha256((root/asset).read_bytes()).digest(),asset
+  break
+ except Exception:
+  if attempt==23:raise
+  time.sleep(5)
 errors=[]
 with sync_playwright() as p:
  browser=p.chromium.launch(headless=True)
