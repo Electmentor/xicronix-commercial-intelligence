@@ -48,3 +48,6 @@ Dirección (`ADMIN`) mantiene precios de proveedor en Catálogo y costos en Cost
 `SALES` y `MANAGER` pueden crear cotizaciones con ese perfil, elegir sus oportunidades, cantidades, margen objetivo, precios de venta y descuentos. Los costos son de solo lectura y el servidor los toma del perfil y catálogo, ignorando cualquier valor forjado. Las versiones comerciales quedan para revisión técnica de Dirección; un margen inferior al mínimo también marca el documento como borrador. Dirección guarda una nueva versión validada para emisión. Cada versión conserva sus costos históricos.
 
 Las escrituras directas a cabeceras y partidas están limitadas a Dirección. El comando de guardado comercial verifica rol, organización y propiedad antes de persistir los valores calculados. `tests/quote-roles.sql` verifica estas restricciones con cambios que se revierten al finalizar.
+
+## Gastos locales agregados — v2.48.2
+El perfil permite indicar gastos locales totales en PEN. Si se registra ese total, sustituye el desglose de gastos en moneda del perfil; si queda vacío, se conserva la suma del desglose. Se evita atribuir un gasto agregado a una categoría sin evidencia. La autorización de uso de una base referencial no sustituye la revisión técnica ni confirma tarifas externas.

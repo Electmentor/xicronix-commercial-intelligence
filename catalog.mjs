@@ -27,7 +27,8 @@ export function calculateLandedCost(product, profile, quantity=1) {
  const insurance=n(profile?.insurance)/qty;
  const cif=fob+freight+insurance;
  const duty=cif*rate(profile?.ad_valorem_rate);
- const otherPerUnit=(n(profile?.customs_broker_fee)+n(profile?.terminal_fee)+n(profile?.storage_fee)+n(profile?.inland_transport)+n(profile?.installation_fee))/qty;
+ const fx=n(profile?.exchange_rate)||1;
+ const otherPerUnit=profile?.local_cost_pen!=null?n(profile.local_cost_pen)/fx/qty:(n(profile?.customs_broker_fee)+n(profile?.terminal_fee)+n(profile?.storage_fee)+n(profile?.inland_transport)+n(profile?.installation_fee))/qty;
  const igvBase=cif+duty;
  const igv=igvBase*rate(profile?.igv_rate);
  const perceptionBase=cif+duty+igv+otherPerUnit;
@@ -35,7 +36,6 @@ export function calculateLandedCost(product, profile, quantity=1) {
  const contingency=(cif+duty+otherPerUnit)*rate(profile?.contingency_rate);
  const economicForeign=cif+duty+otherPerUnit+contingency;
  const cashForeign=economicForeign+igv+perception;
- const fx=n(profile?.exchange_rate)||1;
  return {quantity:qty,fob,freight,insurance,cif,duty,otherPerUnit,igvBase,igv,perception,contingency,economicForeign,cashForeign,economicPen:economicForeign*fx,cashPen:cashForeign*fx,exchangeRate:fx};
 }
 

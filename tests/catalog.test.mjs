@@ -31,3 +31,5 @@ test('negotiation changes revenue, never supplier cost; total cost includes ever
  assert.throws(()=>calculateQuote(product,profile,1,200,101));
 });
 
+
+test("aggregate local costs in PEN replace the foreign breakdown without double conversion",()=>{const p={supplier_unit_price:100};const c={exchange_rate:4,local_cost_pen:1800,customs_broker_fee:999};const r=calculateLandedCost(p,c,2);assert.equal(r.economicPen*2,2600);});
