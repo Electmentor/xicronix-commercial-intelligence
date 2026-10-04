@@ -28,6 +28,8 @@ do $$ declare i jsonb; items jsonb; v jsonb; v2 jsonb; f jsonb; n integer; block
  assert (select count(*) from public.quote_versions)=0,'raw history blocked';
  assert (select count(*) from public.quote_items)=0,'raw items blocked';
  assert (select count(*) from public.quote_financials)=0,'financial view blocked';
+ assert (public.xicronix_sales_data()->'catalog_products'->0->>'organization_id')::uuid=(select organization_id from public.profiles where id=auth.uid()),'catalog survives workspace organization filtering';
+ blocked=false;begin perform private.calculate_xicronix_quote(i,items);exception when others then blocked=true;end;assert blocked,'internal calculator cannot bypass caller RLS';
  assert (public.xicronix_sales_data()->'catalog_products') @> jsonb_build_array(jsonb_build_object('id',current_setting('test.product'))),'commercial catalog still accessible';
  v=public.save_xicronix_quote(null,0,gen_random_uuid(),'{"title":"ROLE TEST","is_test":true}',i,items);
  assert not ((v->'inputs') ?| array['exchange_rate','minimum_margin_pct','margin_pct','local_cost_pen','technical_confirmed']),'saved response hides internal inputs';
