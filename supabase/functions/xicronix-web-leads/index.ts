@@ -101,10 +101,28 @@ async function sendEmail(apiKey: string, payload: Record<string, unknown>, idemp
       "content-type": "application/json",
       "Idempotency-Key": idempotencyKey
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload), signal: AbortSignal.timeout(10000)
   });
   const result = await response.json().catch(() => ({}));
   return { ok: response.ok, status: response.status, result };
+}
+
+function submissionContext(input: Record<string, unknown>, request: Record<string, unknown>) {
+  const context = request.context && typeof request.context === "object" ? request.context as Record<string, unknown> : {};
+  const privacy = input.privacyNotice && typeof input.privacyNotice === "object" ? input.privacyNotice as Record<string, unknown> : {};
+  const acknowledgedAt = text(privacy.acknowledgedAt, 40);
+  return {
+    sourcePage: text(context.sourcePage, 300) ?? null,
+    cta: text(context.cta, 120) ?? null,
+    channel: context.channel === "web_chat" ? "web_chat" : "web_form",
+    emailInformationRequested: context.channel === "web_chat" && context.emailInformationRequested === true,
+    privacyNotice: {
+      acknowledged: privacy.acknowledged === true,
+      version: text(privacy.version, 40) ?? null,
+      acknowledgedAt: acknowledgedAt && !Number.isNaN(Date.parse(acknowledgedAt)) ? acknowledgedAt : null,
+      purpose: text(privacy.purpose, 500) ?? null
+    }
+  };
 }
 
 Deno.serve(async (req: Request) => {
@@ -149,6 +167,29 @@ Deno.serve(async (req: Request) => {
       return json({ ok: false, message: "Invalid lead content." }, 400);
     }
 
+    const context = submissionContext(input, request);
+    if (!context.privacyNotice.acknowledged || !context.privacyNotice.version || !context.privacyNotice.acknowledgedAt ||
+        (context.channel === "web_chat" && !context.emailInformationRequested)) {
+      return json({ ok: false, message: "Privacy acknowledgement is required." }, 400);
+    }
+    // Check the durable receipt before throttling. Retries never re-send emails.
+    async function existingReceipt() {
+      const { data, error } = await ctx.supabaseAdmin.from("web_leads")
+        .select("email,name,message,sync_status,acknowledgement_status,internal_alert_status")
+        .eq("external_lead_id", leadId).maybeSingle();
+      if (error) return json({ ok: false }, 503);
+      if (!data) return null;
+      if (data.email !== email || data.name !== name || data.message !== message) return json({ ok: false, message: "Request conflict." }, 409);
+      return json({ ok: true, duplicate: true, synced: data.sync_status === "synced", acknowledgement: data.acknowledgement_status, internalAlert: data.internal_alert_status });
+    }
+    const previous = await existingReceipt();
+    if (previous) return previous;
+    const { count, error: countError } = await ctx.supabaseAdmin.from("web_leads")
+      .select("id", { count: "exact", head: true }).eq("email", email)
+      .gte("received_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+    if (countError) return json({ ok: false }, 503);
+    if ((count ?? 0) >= 3) return json({ ok: false, message: "Daily request limit reached." }, 429);
+
     const routing = classifyRouting({
       interest: text(request.interest, 60) ?? null,
       product: text(request.product, 180) ?? null,
@@ -159,6 +200,7 @@ Deno.serve(async (req: Request) => {
       external_lead_id: leadId,
       environment: "production",
       source,
+      submission_context: context,
       submitted_at: new Date(submittedAt).toISOString(),
       name,
       role: text(contact.role, 120) ?? null,
@@ -193,7 +235,7 @@ Deno.serve(async (req: Request) => {
 
     if (insertError) {
       if (insertError.code === "23505") {
-        return json({ ok: true, duplicate: true }, 200);
+        return (await existingReceipt()) || json({ ok: false }, 409);
       }
       console.error("web_lead_insert_failed", { code: insertError.code });
       return json({ ok: false, message: "Could not persist lead." }, 500);
@@ -203,6 +245,7 @@ Deno.serve(async (req: Request) => {
     let syncStatus = "failed";
     let crmLeadId: string | null = null;
     let syncError: string | null = null;
+    let organizationId: string | null = null;
 
     try {
       const { data: org } = await ctx.supabaseAdmin
@@ -220,6 +263,7 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
 
       if (org?.id) {
+        organizationId = org.id;
         const titleParts=[row.institution||name,row.interest||"Consulta web"].filter(Boolean);
         const {data:canonicalTask}=await ctx.supabaseAdmin.from("tasks").select("due_at").eq("organization_id",org.id).eq("automation_key",`cx:web:${webLeadRowId}`).maybeSingle();
         const attentionDueAt=canonicalTask?.due_at||new Date(new Date(row.submitted_at).getTime()+24*60*60*1000).toISOString();
@@ -244,7 +288,7 @@ Deno.serve(async (req: Request) => {
         }
         const {data:crmLead,error:crmError}=await ctx.supabaseAdmin.from("leads").insert({organization_id:org.id,institution_id:institutionId,contact_id:contactId,title:titleParts.join(" · "),source:"WEBSITE",status:"NEW",score:25,next_action:"Revisar la solicitud y realizar la primera respuesta humana.",next_action_date:attentionDueAt,attention_due_at:attentionDueAt,routing_area:routing.area,routing_reason:routing.reason,owner_user_id:adminProfile?.id??null,created_by:adminProfile?.id??null}).select("id").single();
         if(crmError) throw crmError; crmLeadId=crmLead.id as string;
-        const {error:activityError}=await ctx.supabaseAdmin.from("activities").insert({organization_id:org.id,institution_id:institutionId,contact_id:contactId,lead_id:crmLeadId,type:"WEB_FORM",subject:"Solicitud inicial recibida por formulario web",notes:message,need_summary:row.interest||null,created_by:adminProfile?.id??null,occurred_at:row.submitted_at});
+        const {error:activityError}=await ctx.supabaseAdmin.from("activities").insert({organization_id:org.id,institution_id:institutionId,contact_id:contactId,lead_id:crmLeadId,type:"WEB_FORM",subject:context.channel === "web_chat" ? "Solicitud desde el chat · contexto revisado por el visitante" : "Solicitud inicial recibida por formulario web",notes:message,need_summary:row.interest||null,created_by:adminProfile?.id??null,occurred_at:row.submitted_at});
         if(activityError) throw activityError;
         syncStatus="synced";
       } else {
@@ -265,13 +309,14 @@ Deno.serve(async (req: Request) => {
     let internalAlertStatus = "not_required";
     let acknowledgementStatus = "not_required";
     let notificationError: string | null = null;
+    let acknowledgementEmailId: string | null = null;
 
     if (resendKey) {
       try {
         const { data: admins } = await ctx.supabaseAdmin
           .from("profiles")
           .select("id,full_name")
-          .eq("role", "ADMIN");
+          .eq("role", "ADMIN").eq("organization_id", organizationId ?? "00000000-0000-0000-0000-000000000000");
 
         const recipients: string[] = [];
         for (const admin of admins || []) {
@@ -324,9 +369,11 @@ Deno.serve(async (req: Request) => {
         const acknowledgement=acknowledgementCopy({interest:row.interest,area:routing.area});
         const acknowledgementText=[`Hola ${name},`,"",acknowledgement.headline+".",acknowledgement.paragraph,"","No necesitas enviar nuevamente la información.","","Xicronix","Ciencia, tecnología e innovación",CONTACT_EMAIL].join("\n");
         const acknowledgementHtml=`<!doctype html><html><body style="font-family:Arial,Helvetica,sans-serif;background:#f6f8fb;color:#13233a"><table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:28px"><table width="100%" style="max-width:620px;background:#fff;border:1px solid #dde4ec;border-radius:14px"><tr><td style="padding:30px"><p style="font-size:12px;font-weight:700;color:#1677ff">XICRONIX · CONTACTO</p><h1 style="font-size:24px;margin:0 0 18px">${esc(acknowledgement.headline)}</h1><p>Hola ${esc(name)},</p><p>${esc(acknowledgement.paragraph)}</p><p>No necesitas enviar nuevamente la información.</p><p style="margin-top:28px;padding-top:18px;border-top:1px solid #dde4ec;color:#5c6b7a">Xicronix<br>Ciencia, tecnología e innovación<br>${CONTACT_EMAIL}</p></td></tr></table></td></tr></table></body></html>`;
-        const ack=await sendEmail(resendKey,{from:`Xicronix <${CONTACT_EMAIL}>`,to:[email],reply_to:CONTACT_EMAIL,subject:acknowledgement.subject,text:acknowledgementText,html:acknowledgementHtml},`web-lead-ack-${leadId}`);
+        const information = context.emailInformationRequested ? chatInformationEmail(name!, leadId!, routing.area) : null;
+        const ack=await sendEmail(resendKey,{from:`Xicronix <${CONTACT_EMAIL}>`,to:[email],reply_to:CONTACT_EMAIL,subject:information?.subject ?? acknowledgement.subject,text:information?.text ?? acknowledgementText,html:information?.html ?? acknowledgementHtml},`web-lead-ack-${leadId}`);
 
         acknowledgementStatus = ack.ok ? "sent" : "failed";
+        acknowledgementEmailId = ack.ok && typeof ack.result.id === "string" ? ack.result.id : null;
         if (!ack.ok && !notificationError) notificationError = `acknowledgement_${ack.status}`;
       } catch (error) {
         internalAlertStatus = internalAlertStatus === "sent" ? "sent" : "failed";
@@ -342,6 +389,7 @@ Deno.serve(async (req: Request) => {
       acknowledgement_status: acknowledgementStatus,
       notification_error: notificationError,
       notifications_updated_at: new Date().toISOString()
+      ,submission_context: { ...context, acknowledgementEmailId }
     }).eq("id", webLeadRowId);
 
     return json({
@@ -351,3 +399,19 @@ Deno.serve(async (req: Request) => {
       acknowledgement: acknowledgementStatus
     }, 201);
 });
+
+// Only approved public content goes to the visitor; never model text or CRM data.
+function chatInformationEmail(name: string, reference: string, area: string) {
+  const links = area === "LEGAL"
+    ? [["Libro de reclamaciones", "https://www.xicronix.com/libro-de-reclamaciones"], ["Privacidad", "https://www.xicronix.com/politica-de-privacidad"]]
+    : area === "SUPPORT"
+    ? [["Contacto y soporte", "https://www.xicronix.com/contacto"], ["Recursos", "https://www.xicronix.com/recursos"]]
+    : [["Soluciones para tu institución", "https://www.xicronix.com/soluciones"], ["Equipamiento científico", "https://www.xicronix.com/equipamiento"], ["Recursos y orientación", "https://www.xicronix.com/recursos"]];
+  const intro = "Recibimos la solicitud que autorizaste desde nuestro asistente digital. Aquí tienes información oficial para continuar. El equipo podrá revisar el contexto que compartiste; este correo no confirma una cotización, una reserva ni una llamada.";
+  const hours = "Atención humana de referencia: lunes a sábado, de 8:00 a. m. a 6:00 p. m., hora de Lima. Domingos sin atención humana. Feriados y citas sujetos a confirmación.";
+  return {
+    subject: "Tu solicitud e información de Xicronix",
+    text: [`Hola ${name},`, "", intro, "", ...links.map(([label,url]) => `${label}: ${url}`), "", `Referencia: ${reference}`, "", hours, "", "Puedes responder a este correo para ampliar tu consulta. No necesitas registrar la solicitud otra vez.", "Xicronix · info@xicronix.com"].join("\n"),
+    html: `<!doctype html><html lang="es"><head><title>Tu solicitud en Xicronix</title></head><body style="font-family:Arial,sans-serif;background:#f6f8fb;color:#13233a;padding:24px"><main style="max-width:620px;margin:auto;background:#fff;padding:28px;border-radius:14px"><h1 style="font-size:24px">Continuemos con tu consulta</h1><p>Hola ${esc(name)},</p><p>${intro}</p><ul>${links.map(([label,url]) => `<li style="margin:12px 0"><a href="${url}">${label}</a></li>`).join("")}</ul><p><strong>Referencia:</strong> ${esc(reference)}</p><p>${hours}</p><p>Puedes responder a este correo para ampliar tu consulta. No necesitas registrar la solicitud otra vez.</p><p>Xicronix<br>info@xicronix.com</p></main></body></html>`
+  };
+}

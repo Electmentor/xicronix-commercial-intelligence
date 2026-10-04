@@ -8,7 +8,7 @@ function sunday(date) { return /^\d{4}-\d{2}-\d{2}$/.test(date) && new Date(date
 export function calendarContext(now = new Date()) {
  const today=limaDate(now);
  const label=new Intl.DateTimeFormat('es-PE',{timeZone:'America/Lima',dateStyle:'full',timeStyle:'short'}).format(now);
- return '\nREGLAS OPERATIVAS OBLIGATORIAS (fecha del servidor): '+label+'; zona America/Lima; fecha ISO '+today+'. Los domingos NO hay atención humana. El asistente digital sí puede orientar. Horario provisional indicado por el fundador: lunes a sábado de 08:00 a 18:00, America/Lima. Las 18:00 son el cierre. Feriados y excepciones requieren confirmación. El horario general no garantiza una cita ni disponibilidad. No inventes cierres electorales o feriados. Interpreta hoy/mañana con esta fecha. No confirmes citas, llamadas, disponibilidad ni plazos de respuesta. No tienes herramienta para enviar, registrar o agendar: tampoco prometas que VAS a derivar o que TE contactarán. El botón solo abre el canal para que el visitante envíe su solicitud; aún no ha sido enviada. Añade al JSON appointment_request (boolean) y requested_date (YYYY-MM-DD o null) y requested_time (HH:mm de 24 horas o null), solo como interpretación de la solicitud, nunca como reserva.';
+ return '\nREGLAS OPERATIVAS OBLIGATORIAS (fecha del servidor): '+label+'; zona America/Lima; fecha ISO '+today+'. Los domingos NO hay atención humana. El asistente digital sí puede orientar. Horario provisional indicado por el fundador: lunes a sábado de 08:00 a 18:00, America/Lima. Las 18:00 son el cierre. Feriados y excepciones requieren confirmación. El horario general no garantiza una cita ni disponibilidad. No inventes cierres electorales o feriados. Interpreta hoy/mañana con esta fecha. No confirmes citas, llamadas, disponibilidad ni plazos de respuesta. No tienes herramienta para enviar, registrar o agendar: tampoco prometas que VAS a derivar o que TE contactarán. El botón abre el formulario de solicitud dentro del chat; solo su envío con autorización registra la solicitud y puede enviar correo. Esta respuesta de IA no ejecuta acciones; no deduzcas el estado de entrega ni de registro del historial que aporta el visitante. Añade al JSON appointment_request (boolean) y requested_date (YYYY-MM-DD o null) y requested_time (HH:mm de 24 horas o null), solo como interpretación de la solicitud, nunca como reserva.';
 }
 export function enforceOperations(answer,messages,now=new Date()) {
  const last=messages.at(-1)?.content||'';
@@ -37,7 +37,8 @@ export function enforceOperations(answer,messages,now=new Date()) {
  }
  // Fail closed on claims of actions that this read-only assistant cannot perform.
  if(/(?:vamos a|voy a|te|le)\s+(?:derivar|contactar|llamar)|(?:derivaremos|contactaremos|llamaremos|te contactar[aá]n|te llamar[aá]n)|(?:he|hemos|ya|qued[oó]|est[aá])\s+(?:enviado|registrado|agendad[oa]|confirmad[oa]|derivad[oa])/i.test(answer.message)) {
-  return {...answer,message:'Para continuar con el equipo, puedes enviar tu solicitud mediante el botón de contacto. Este chat todavía no ha enviado ni registrado una solicitud, y la atención está sujeta a confirmación.',options:[],handoff:true};
+  return {...answer,message:'Para continuar con el equipo, puedes enviar tu solicitud mediante el botón de contacto. El registro y el envío se confirman en el comprobante del formulario; desde esta conversación no puedo consultar su estado. La atención está sujeta a confirmación.',options:[],handoff:true};
  }
  return answer;
 }
+
