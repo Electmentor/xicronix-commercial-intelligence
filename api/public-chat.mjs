@@ -1,4 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
+import { calendarContext, enforceOperations } from '../public-chat-operations.mjs';
 
 // Public visitor context only. No CRM imports, database clients, tools or internal evidence.
 const SYSTEM = `Eres el asistente digital oficial de Xicronix. Responde en español salvo que el visitante use otro idioma.
@@ -45,14 +46,15 @@ export function createHandler({ env = process.env, fetcher = fetch } = {}) {
    const response=await fetcher('https://api.groq.com/openai/v1/chat/completions',{
     method:'POST',redirect:'error',
     headers:{authorization:'Bearer '+env.GROQ_API_KEY,'content-type':'application/json'},
-    body:JSON.stringify({model:env.PUBLIC_CHAT_MODEL||'openai/gpt-oss-120b',temperature:0.25,max_completion_tokens:1800,reasoning_effort:'low',response_format:{type:'json_object'},messages:[{role:'system',content:SYSTEM+CONVERSATION_GUIDANCE+"\nAJUSTE PRIORITARIO DE FLUIDEZ:\nConversa primero. options=[] es la regla por defecto. No muestres un menú al saludar ni conviertas cada respuesta en una lista o cuestionario. Tras una selección, reconoce lo elegido y continúa con una pregunta abierta natural, SIN nuevas opciones. Ofrece 2-4 opciones breves solo cuando haya una elección concreta útil o el visitante las pida; no en dos turnos consecutivos salvo petición explícita. Si pide marcar una lista ya ofrecida, sí presenta sus opciones pertinentes. No enumeres todas las capacidades por sistema. Las opciones deben completar la conversación y permanecer en su contexto. Puedes responder sin terminar siempre con una pregunta. Habla con calidez, precisión y sencillez, sin fingir ser humano.\n"+'\nNo tienes acceso al CRM ni puedes ejecutar acciones. Nunca afirmes haber registrado, enviado o derivado un caso.'},...messages]}),
+    body:JSON.stringify({model:env.PUBLIC_CHAT_MODEL||'openai/gpt-oss-120b',temperature:0.25,max_completion_tokens:1800,reasoning_effort:'low',response_format:{type:'json_object'},messages:[{role:'system',content:SYSTEM+CONVERSATION_GUIDANCE+"\nAJUSTE PRIORITARIO DE FLUIDEZ:\nConversa primero. options=[] es la regla por defecto. No muestres un menú al saludar ni conviertas cada respuesta en una lista o cuestionario. Tras una selección, reconoce lo elegido y continúa con una pregunta abierta natural, SIN nuevas opciones. Ofrece 2-4 opciones breves solo cuando haya una elección concreta útil o el visitante las pida; no en dos turnos consecutivos salvo petición explícita. Si pide marcar una lista ya ofrecida, sí presenta sus opciones pertinentes. No enumeres todas las capacidades por sistema. Las opciones deben completar la conversación y permanecer en su contexto. Puedes responder sin terminar siempre con una pregunta. Habla con calidez, precisión y sencillez, sin fingir ser humano.\n"+calendarContext()+'\nNo tienes acceso al CRM ni puedes ejecutar acciones. Nunca afirmes haber registrado, enviado o derivado un caso.'},...messages]}),
     signal:AbortSignal.timeout(15000)
    });
    if(!response.ok){console.warn('PUBLIC_CHAT_PROVIDER_FAILURE',response.status);return reply(502,{ok:false,reason:'provider_http',status:response.status});}
    const data=await response.json();const raw=data.choices?.[0]?.message?.content?.trim();
    if(!raw) return reply(502,{ok:false});
-   const answer=JSON.parse(raw);
+   let answer=JSON.parse(raw);
    if(!answer || typeof answer.message!=='string' || !answer.message.trim() || answer.message.length>4000 || !Array.isArray(answer.options) || typeof answer.handoff!=='boolean') return reply(502,{ok:false});
+   answer=enforceOperations(answer,messages);
    const options=[...new Set(answer.options.filter(x=>typeof x==='string' && x.trim() && x.length<=70).map(x=>x.trim()))].slice(0,6);
    return reply(200,{ok:true,message:answer.message.trim(),options,handoff:answer.handoff,provider:'groq',degraded:false});
   } catch (error) { return reply(502,{ok:false,reason:error?.name==='TimeoutError'?'provider_timeout':'request_failed'}); }

@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { enforceOperations,limaDate } from '../public-chat-operations.mjs';
+const now=new Date('2026-10-04T14:19:00Z');
+const answer={message:'Te contactarán pronto.',options:[],handoff:true,appointment_request:true};
+assert.equal(limaDate(new Date('2026-10-05T02:00:00Z')),'2026-10-04');
+assert.match(enforceOperations(answer,[{role:'assistant',content:'¿A qué hora deseas la llamada?'},{role:'user',content:'A las 11am de hoy.'}],now).message,/domingos no atendemos/);
+assert.match(enforceOperations(answer,[{role:'user',content:'Mañana a las 11am'}],new Date('2026-10-03T15:00:00Z')).message,/domingos no atendemos/);
+assert.match(enforceOperations(answer,[{role:'user',content:'El lunes a las 11am'}],now).message,/no puedo confirmar/);
+assert.match(enforceOperations({message:'Vamos a derivar tu solicitud.',options:[],handoff:true},[{role:'user',content:'Gracias'}],now).message,/todavía no ha enviado/);
+console.log('Operational public chat regression passed');
