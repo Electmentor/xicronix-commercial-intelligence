@@ -47,11 +47,11 @@ export function createHandler({ env = process.env, fetcher = fetch } = {}) {
     body:JSON.stringify({model:env.PUBLIC_CHAT_MODEL||'llama-3.3-70b-versatile',temperature:0.25,max_tokens:500,messages:[{role:'system',content:SYSTEM+'\nNo tienes acceso al CRM ni puedes ejecutar acciones. Nunca afirmes haber registrado, enviado o derivado un caso. Para contacto indica /contacto. Ante una queja, reconoce lo ocurrido y ofrece ese canal sin inventar un registro.'},...messages]}),
     signal:AbortSignal.timeout(15000)
    });
-   if(!response.ok){console.warn('PUBLIC_CHAT_PROVIDER_FAILURE',response.status);return reply(502,{ok:false});}
+   if(!response.ok){console.warn('PUBLIC_CHAT_PROVIDER_FAILURE',response.status);return reply(502,{ok:false,reason:'provider_http',status:response.status});}
    const data=await response.json();const message=data.choices?.[0]?.message?.content?.trim();
    if(!message) return reply(502,{ok:false});
    return reply(200,{ok:true,message,provider:'groq',degraded:false});
-  } catch { return reply(502,{ok:false}); }
+  } catch (error) { return reply(502,{ok:false,reason:error?.name==='TimeoutError'?'provider_timeout':'request_failed'}); }
  };
 }
 export default { fetch:createHandler() };
