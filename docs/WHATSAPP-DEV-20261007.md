@@ -1,5 +1,7 @@
 # A009 · WhatsApp: receptor preparado en DEV, recepción real pendiente
 
+**Actualización fase 2:** el fundador autorizó persistencia sintética DEV. Implementación y verificación local en `WHATSAPP-PERSISTENCE-DEV-20261007.md`; esa actualización sustituye los pendientes de código descritos a continuación. Supabase DEV sigue bloqueado por límite de proyectos gratuitos. No hay activación de cuenta real ni producción.
+
 Orden del fundador: integración WhatsApp Xicronix, recibida 6 de octubre de 2026 (Lima).
 No desplegar ni activar con clientes. No se ha conectado una cuenta WhatsApp.
 

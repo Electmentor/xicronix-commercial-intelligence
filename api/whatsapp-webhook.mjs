@@ -1,4 +1,5 @@
 import { MAX_WEBHOOK_BYTES, normalizeWebhook, sameSecret, validSignature } from '../whatsapp-intake.mjs';
+import { createDevStore } from '../whatsapp-store.mjs';
 
 async function readBody(request) {
   if (Number(request.headers.get('content-length')) > MAX_WEBHOOK_BYTES) throw new Error('too_large');
@@ -18,14 +19,15 @@ async function readBody(request) {
 }
 
 /**
- * DEV preparation. No live adapter is installed.
+ * DEV-only adapter; exact development project allowlist, production forbidden.
  * commitBatch must atomically insert/deduplicate ALL events, reject conflicting
  * content hashes and return a durable receipt read from committed storage.
  * Tests inject an in-memory double; that does not establish durable reception.
  */
-export function createHandler({ env = process.env, commitBatch = null } = {}) {
+export function createHandler({ env = process.env, commitBatch = createDevStore({ env })?.commitBatch ?? null } = {}) {
   return async request => {
     const reply = (status, data) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store' } });
+    if (env.VERCEL_ENV === 'production') return reply(503, { ok: false, reason: 'production_not_authorized' });
     if (env.WHATSAPP_INTAKE_ENABLED !== 'true') return reply(503, { ok: false, reason: 'intake_disabled' });
     if (!['GET', 'POST'].includes(request.method)) return reply(405, { ok: false });
     // Subscription itself is blocked until persistence and explicit setup approval.
