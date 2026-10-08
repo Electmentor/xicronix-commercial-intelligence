@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "test:conversations": "node --test tests/conversations.test.mjs",
+    "test:conversations": "node --test tests/conversations*.test.mjs",
     "preview:conversations": "node scripts/preview-conversations.mjs"
   },
   "devDependencies": {

@@ -17,6 +17,7 @@ import * as radarLifecycle from '../radar-lifecycle.mjs';
 import * as directorInsights from '../director-insights.mjs';
 import {openQuoteEditor,closeQuoteEditor} from '../quote-editor.mjs';
 import {createConversationsView} from '../conversations-view.mjs';
+const workspaceSource=readFileSync(new URL('../workspace.mjs',import.meta.url),'utf8').replace(/^export /gm,'');
 const assistantSource=readFileSync(new URL('../assistant.mjs',import.meta.url),'utf8').replace(/^export /gm,'');
 const source=readFileSync(new URL('../app.js',import.meta.url),'utf8').replace(/^import .*;$/gm,'');
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
@@ -95,11 +96,19 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
  const schedule=(fn,delay)=>{const id=++nextTimer;timers.set(id,{fn,delay});return id;};
  const localStorage={getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,String(value)),removeItem:key=>storage.delete(key)};
  const window={supabase:{createClient:()=>sb},confirm:()=>true,addEventListener:(name,fn)=>{listeners['window:'+name]=fn;},setTimeout:schedule,localStorage,matchMedia:()=>({matches:false})};
- const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,...analytics,...sellerDashboard,...commercialCore,...catalog,...performanceView,...radarLifecycle,...directorInsights,openQuoteEditor,closeQuoteEditor,createConversationsView,console,performance:{now:()=>Date.now()},requestAnimationFrame:fn=>fn(),setTimeout:schedule,clearTimeout:id=>timers.delete(id),setInterval:schedule,clearInterval:id=>timers.delete(id),document,window,navigator:{onLine:true},innerHeight:900,localStorage,sessionStorage:{getItem:()=>null,setItem(){},removeItem(){}},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',search:'',hash:''},history:{replaceState(){},pushState(){}},URLSearchParams,URL,Blob,Date,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
+ const context=vm.createContext({...domain,esc:domain.escapeHTML,...demo,...executive,...analytics,...sellerDashboard,...commercialCore,...catalog,...performanceView,...radarLifecycle,...directorInsights,openQuoteEditor,closeQuoteEditor,createConversationsView,console,performance:{now:()=>Date.now()},requestAnimationFrame:fn=>fn(),setTimeout:schedule,clearTimeout:id=>timers.delete(id),setInterval:schedule,clearInterval:id=>timers.delete(id),document,window,navigator:{onLine:true},innerHeight:900,localStorage,sessionStorage:{getItem:()=>null,setItem(){},removeItem(){}},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',search:'',hash:''},history:{replaceState(){},pushState(){}},URLSearchParams,URL,Blob,Date,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
+ // Model module imports as lexical bindings and use the real workspace module in
+ // this realm, preserving all permission checks rather than mocking decisions.
+ const workspaceExports=Object.keys(workspace).join(',');
+ vm.runInContext('const {'+workspaceExports+'}=(()=>{'+workspaceSource+';return {'+workspaceExports+'};})();',context);
  // Run the real assistant UI module inside this DOM realm, rather than stubbing its exports.
  Object.assign(context,vm.runInContext('(()=>{'+assistantSource+';return {createAssistant,buildAssistantContext};})()',context));
- const run=code=>vm.runInContext(code,context);
- run(source);const initialized=run('init()');run('session={user:{id:"me",email:"test@example.invalid"}};');
+ // app.js is an ES module in the browser. Give each instance private module-like
+ // scope here too: running it as a global VM script allowed permission closures to
+ // disagree with direct calls after many contexts. Only trusted test expressions
+ // enter this lexical evaluator; the application source is unchanged.
+ const run=vm.runInContext('(()=>{'+source+';return code=>eval(code);})()',context);
+ const initialized=run('init()');run('session={user:{id:"me",email:"test@example.invalid"}};');
  return {run,nodes,db,queries,storage,downloads,boot:async()=>{await initialized;return run('reload()');},gate:promise=>{profileGate=promise;},click:id=>nodes.get(id).onclick()};
 }
 test('ADMIN starts in executive mode; data is loaded from existing profiles/goals tables',async()=>{
@@ -435,4 +444,22 @@ test('complaints console is linked only for a real administrator workspace',asyn
  const h=harness();await h.boot();assert.equal(h.nodes.get('complaintsLink').hidden,false);
  await h.run("setDataSource(dataSource==='live'?'demo':'live')");assert.equal(h.nodes.get('complaintsLink').hidden,true);
  await h.run("setDataSource(dataSource==='live'?'demo':'live')");await h.click('sellerModeBtn');assert.equal(h.nodes.get('complaintsLink').hidden,true);
+});
+
+test('workspace permission decisions remain consistent across isolated application realms',async()=>{
+ const cases=[['ADMIN','admin',true],['ADMIN','seller',false],['SALES','seller',false],['MANAGER','seller',false],['VIEWER','seller',false]];
+ const applications=[];
+ for(let round=0;round<4;round++)for(const [role,mode,canManage] of cases){
+  const h=harness(role,mode);await h.boot();applications.push({h,role,mode,canManage});
+ }
+ // Revisit earlier realms after later ones have initialized and exercised their permissions.
+ for(const {h,role,mode,canManage} of applications){
+  assert.equal(h.run('profile.role'),role);assert.equal(h.run('workspace'),mode);
+  for(const module of ['users','goals','expenses','cost_profiles']){
+   assert.equal(h.run('accessible('+JSON.stringify(module)+')'),canManage,role+'/'+mode+'/'+module);
+   assert.equal(h.run('writableFor('+JSON.stringify(module)+')'),canManage,role+'/'+mode+'/'+module);
+  }
+  assert.equal(h.run('canViewDashboard()'),canManage);
+  assert.equal(h.run('data.users.length'),canManage?2:0);
+ }
 });
