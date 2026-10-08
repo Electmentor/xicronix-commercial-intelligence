@@ -5,6 +5,7 @@
 <meta name="theme-color" content="#081b32"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="description" content="Xicronix: instituciones, contactos y seguimiento comercial.">
 <meta name="robots" content="noindex,nofollow"><meta name="xicronix-release" content="2026-10-04-v2.49.1">
 <title>Xicronix V2 | Inteligencia comercial</title>
+<link rel="stylesheet" href="conversations.css">
 <link rel="stylesheet" href="styles.css?v=2.47.1">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <link rel="stylesheet" href="executive.css?v=2.47.1">
@@ -84,6 +85,7 @@ html,body{background:#081b32}
   <main class="main">
   <p id="status" class="notice" role="status" aria-live="polite" hidden></p>
   <section id="sellerCompensationNotice" class="seller-compensation-notice" hidden aria-live="polite"></section>
+  <section id="conversationsView" hidden></section>
   <section id="dashboard"></section>
   <section id="records" hidden><button id="mobileBackDashboard" class="mobile-back-dashboard" type="button">← Atrás</button><div id="sellerSummary" hidden></div><div id="recordContext" class="record-context" hidden><span id="recordContextLabel"></span><button id="clearRecordContext" type="button">Quitar selección</button></div><div class="toolbar"><input id="search" type="search" aria-label="Buscar registros" placeholder="Buscar por nombre, institución o contacto…"><select id="filter" aria-label="Filtrar por estado o tipo"></select><div class="toolbar-actions"><button id="newBtn" class="primary">+ Nueva institución</button><button id="importBtn">Importar CSV</button><button id="exportBtn">Exportar CSV</button><input id="importInput" type="file" accept=".csv,text/csv" hidden></div></div><p id="importHelp" class="muted">Importa un CSV con los encabezados de la exportación de este módulo. La carga se valida antes de guardarse.</p><div id="recordCount" class="muted"></div><div id="recordList"></div><div class="pagination"><button id="previous">Anterior</button><span id="pageNumber"></span><button id="next">Siguiente</button></div></section>
   </main>

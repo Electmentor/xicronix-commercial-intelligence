@@ -1,0 +1,24 @@
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+(async()=>{
+ const browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1366,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://127.0.0.1:4173');
+ await page.getByRole('button',{name:'Enviar consulta sintética'}).click();
+ await page.getByRole('button',{name:/Contacto sintético/}).click();
+ await page.getByRole('button',{name:'Tomar atención humana'}).click();
+ await page.locator('#cv-reply textarea:enabled').fill('¿Qué área necesitas equipar?');
+ await page.getByRole('button',{name:'Poner respuesta en cola'}).click();
+ await page.getByText('Pendiente de envío',{exact:false}).waitFor();
+ await page.getByRole('button',{name:'Recibir respuestas de Nexa'}).click();
+ await page.getByText('Entregado al navegador',{exact:false}).waitFor();
+ await page.locator('#cv-edit input[name=next_action]').fill('Seguimiento sintético concluido');
+ await page.locator('#cv-edit input[name=closed_reason]').fill('Consulta respondida');
+ await page.locator('#cv-edit select[name=status]').selectOption('resolved');
+ await page.getByRole('button',{name:'Guardar seguimiento'}).click();
+ await page.getByText('nexa · Resuelta',{exact:false}).waitFor();
+ await page.reload();await page.locator('#cv-pending').uncheck();await page.getByRole('button',{name:/Contacto sintético/}).click();await page.getByText('Consulta respondida',{exact:false}).count();
+ await page.screenshot({path:process.env.SCREENSHOT_PATH||'/tmp/a009-conversations-desktop.png',fullPage:true});
+ await page.setViewportSize({width:390,height:844});
+ const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth);if(overflow)throw Error('mobile_overflow');
+ if(errors.length)throw Error(errors.join(';'));
+ console.log('PASS: browser intake, inbox, takeover, reply, visitor ack, closure, reload, mobile width; no page errors');await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});

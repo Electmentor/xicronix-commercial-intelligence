@@ -1,3 +1,4 @@
+import {createConversationsView} from './conversations-view.mjs';
 import {openQuoteEditor,closeQuoteEditor} from './quote-editor.mjs?v=5';
 import {createAssistant,buildAssistantContext} from './assistant.mjs?v=2.47.1';
 import {radarState,radarStateLabels,radarTransition,renderRadarLifecycle} from './radar-lifecycle.mjs?v=2.47.1';
@@ -109,6 +110,7 @@ const supplierLevel={STANDARD:'Estándar',PREFERRED:'Preferente',STRATEGIC:'Estr
 const allianceStatus={EXPLORING:'Explorando',NEGOTIATING:'Negociando',ACTIVE:'Activa',PAUSED:'Pausada',ENDED:'Finalizada'};
 const allianceType={COMMERCIAL:'Comercial',TECHNOLOGY:'Tecnológica',EDUCATION:'Educación',RESEARCH:'Investigación',DISTRIBUTION:'Distribución',INSTITUTIONAL:'Institucional',OTHER:'Otra'};
 const modules={
+ conversations:{label:'Conversaciones',singular:'conversación',options:{},fields:[]},
  prospects:{label:'Prospectos',singular:'prospecto',filter:'operating_bucket',options:{ACTION_NOW:'Acción ahora',RESEARCH_FIRST:'Investigar primero',STRATEGIC_WATCH:'Vigilancia estratégica',MONITOR:'Monitorear',REVALIDATE:'Revalidar'},fields:[]},
  radar:{label:'Radar Comercial',singular:'señal radar',filter:'classification',options:enums.radarClass,fields:[]},
  mail:{label:'Correo Zoho',singular:'correo',filter:'status',options:enums.mailStatus,fields:[]},
@@ -191,6 +193,7 @@ function persistDemo(){
 }
 function demoSavedMessage(){return demoSaved?'Simulación guardada en este navegador; no modifica datos reales.':'Simulación guardada solo en esta sesión: el navegador no permitió conservarla.';}
 function clearWorkspaceViews(){
+ if(conversationView){conversationView.destroy();conversationView=null;}
  closeQuoteEditor();
  performanceFilters={};performanceAdjustment=20;
  closeLeadDetails(false);
@@ -297,7 +300,7 @@ function renderWorkspaceControls(){
  const navSection=(title,keys,start)=>{const visible=keys.filter(accessible);return visible.length?'<p class="nav-section-label">'+title+'</p>'+visible.map((key,index)=>navButton(key,start+index)).join(''):'';};
  if(admin){
   const command=['dashboard','now','users','goals'];
-  const business=['opportunities','quotes','meetings','leads'];
+  const business=['conversations','opportunities','quotes','meetings','leads'];
   const intelligence=['prospects','radar'];
   const relations=['supplier_relationships','strategic_alliances','catalog_products','institutions','contacts'];
   const support=['mail','documents','cost_profiles','expenses'];
@@ -311,7 +314,7 @@ function renderWorkspaceControls(){
   $('navigation').innerHTML=html;
  }else{
   const day=['dashboard'];
-  const portfolio=['leads','opportunities','quotes','tasks','meetings'];
+  const portfolio=['conversations','leads','opportunities','quotes','tasks','meetings'];
   const support=['mail','documents','contacts','catalog_products'];
   let offset=0;
   let html=navSection('HOY',day,offset);offset+=day.filter(accessible).length;
@@ -427,6 +430,7 @@ function clearSession(){
  stopLiveIntelligence();
  stopLiveMailRealtime();
  closeLeadDetails(false);
+ if(conversationView){conversationView.destroy();conversationView=null;}
  loadVersion++;session=null;profile=null;data=emptyData();failures={};mailWebhookConfig=null;page='dashboard';pageIndex=0;workspace=SELLER;workspaceIdentity=null;workspaceEntryChosen=false;loading=false;dataSource='live';sourceIdentity=null;demoData=null;executiveFilter='';executiveOwner='';editTable=null;editId=null;editingVersion=null;
  $('fields').replaceChildren();$('sellerSummary').replaceChildren();$('navigation').replaceChildren();$('workspaceControls').hidden=true;
  if($('editor').open)$('editor').close();$('appView').hidden=true;$('authView').hidden=false;$('dashboard').replaceChildren();$('recordList').replaceChildren();
@@ -750,7 +754,7 @@ async function reload(){
  restoreWorkspace();restoreSource();
  $('userRole').textContent='Cuenta: '+(enums.role[profile.role]||'Sin rol');$('welcome').textContent=profile.full_name||session.user.email;
  if(dataSource==='demo'){loadDemo();notice('');render();return;}
- const tables=[...Object.keys(modules).filter(accessible),'scores',...(accessible('documents')?['document_versions']:[]),'commercial_mail_outbox'];
+ const tables=[...Object.keys(modules).filter(k=>k!=='conversations'&&accessible(k)),'scores',...(accessible('documents')?['document_versions']:[]),'commercial_mail_outbox'];
  const results=await Promise.allSettled(tables.map(k=>allRows(k,profile.organization_id)));
  if(version!==loadVersion)return;
  data=emptyData();failures={};tables.forEach((k,i)=>{if(results[i].status==='fulfilled')data[k]=results[i].value;else failures[k]=true;});
@@ -1006,7 +1010,20 @@ function renderSellerCompensationNotice(){
  node.innerHTML='<div><small>COMPENSACIÓN PENDIENTE</small><strong>Dirección debe definir tu contrato, sueldo y bono comercial.</strong><span>Tus ventas y desempeño ya se registran. El cálculo de sueldo, comisión o bono se activará únicamente cuando exista una regla contractual formal y aprobada.</span></div>'+
    '<button type="button" data-page="dashboard">Ver mi rendimiento</button>';
 }
+let conversationView=null;
 function render(){
+ if(conversationView){conversationView.destroy();conversationView=null;}
+ $('conversationsView').hidden=page!=='conversations';
+ if(page==='conversations'&&accessible(page)){
+  renderWorkspaceControls();$('dashboard').hidden=true;$('records').hidden=true;$('pageTitle').textContent='Conversaciones';
+  $('appView').dataset.page=page;
+  conversationView=createConversationsView($('conversationsView'),{contacts:data.contacts||[],users:data.users||[],opportunities:data.opportunities||[],request:async(method,payload,id)=>{
+   if(dataSource==='demo')throw Error('Usa la preview sintética dedicada; no se enviarán datos de demostración al CRM');
+   const response=await fetch('/api/conversations'+(id?'?id='+encodeURIComponent(id):''),{method,headers:{authorization:'Bearer '+session.access_token,'content-type':'application/json'},...(payload?{body:JSON.stringify(payload)}:{})});
+   const result=await response.json();if(!response.ok)throw Error(result.error||'Error de conexión');return result;
+  }});return;
+ }
+
  if(aiAssistant&&!$('aiAssistantPanel').hidden)aiAssistant.sync();
  renderWorkspaceControls();
  renderAttentionButton();
@@ -2789,7 +2806,7 @@ function aiContextSnapshot(){
 function openAiAssistant(){aiAssistant?.open();$('aiAssistantLauncher')?.setAttribute('aria-expanded','true');}
 function closeAiAssistant(){aiAssistant?.close();$('aiAssistantLauncher')?.setAttribute('aria-expanded','false');}
 
-function init(){
+async function init(){
  window.setTimeout(hideAppSplash,2500);
  installVersionWatcher();
 
@@ -2843,7 +2860,15 @@ if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('att
  $('logoutBtn').onclick=async()=>{const {error}=await sb.auth.signOut();if(error){notice(errorText(error),true);return;}clearSession();setMode('login');};
  $('exportBtn').onclick=()=>{if(!accessible(page)||loading||busy||failures[page])return;const columns=fieldsFor(page).filter(field=>!field.transient).map(field=>({key:field.key,label:field.label}));const rows=filtered().map(row=>Object.fromEntries(columns.map(c=>{const field=modules[page].fields.find(f=>f.key===c.key);return [c.key,field.type==='relation'?relationName(c.key,row):costRateKeys.has(c.key)?Number(row[c.key])*100:field.options?.[row[c.key]]||row[c.key]];})));const url=URL.createObjectURL(new Blob([csv(rows,columns)],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`xicronix-${dataSource==='demo'?'SIMULADO-':''}${page}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
  if(!window.supabase){$('authMsg').textContent='Xicronix no pudo cargar temporalmente el servicio de acceso. Tu conexión puede estar funcionando con normalidad. Cierra y vuelve a abrir la aplicación; si persiste, usa Actualizar.';$('authBtn').disabled=true;return;}
- sb=window.supabase.createClient('https://qzfprdhmcaucqcdqgqiz.supabase.co','sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage,storageKey:'xicronix.crm.auth'}});
+ let crmConnection={url:'https://qzfprdhmcaucqcdqgqiz.supabase.co',key:'sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK',storageKey:'xicronix.crm.auth'};
+ if(location.hostname.startsWith('xicronix-commercial-intelligence-')&&location.hostname.endsWith('.vercel.app')){
+  try{
+   const response=await fetch('/api/conversations-config',{cache:'no-store',signal:AbortSignal.timeout(8000)});
+   const config=await response.json();if(!response.ok||!config.ok||config.url!=='https://rmximatxuaczhpqbcuho.supabase.co')throw Error('dev_unavailable');
+   crmConnection={url:config.url,key:config.key,storageKey:'xicronix.crm.conversations.dev.auth'};
+  }catch{$('authMsg').textContent='Preview DEV sin conexión disponible. Producción permanece aislada.';$('authBtn').disabled=true;hideAppSplash();return;}
+ }
+ sb=window.supabase.createClient(crmConnection.url,crmConnection.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage,storageKey:crmConnection.storageKey}});
  sb.auth.onAuthStateChange(handleAuth);
  const params=new URLSearchParams(location.hash.slice(1));if(params.has('error')){setRecovery(false);setMode('reset');$('authMsg').textContent='El enlace de acceso venció o no es válido. Solicita uno nuevo.';history.replaceState(null,'',location.pathname);}
  if(typeof sb.auth.getSession==='function')sb.auth.getSession().then(async({data,error})=>{if(error)throw error;let current=data.session;if(current){const verified=await sb.auth.getUser();if(verified.error||!verified.data.user){await sb.auth.signOut({scope:'local'}).catch(()=>{});current=null;}}handleAuth('INITIAL_SESSION',current);}).catch(()=>{clearSession();setMode('login');$('authMsg').textContent='La sesión anterior ya no es válida. Ingresa nuevamente una vez para renovarla.';});
