@@ -94,7 +94,11 @@ with sync_playwright() as p:
   expect(document.locator('.draft')).to_contain_text('BORRADOR COMERCIAL')
   # This catches broken root-relative logo URLs in blob previews and CSP failures.
   expect(document.locator('.brand img')).to_be_visible()
-  document.wait_for_function("document.querySelector('.brand img').complete && document.querySelector('.brand img').naturalWidth > 0")
+  logo = document.locator('.brand img')
+  deadline = time.monotonic() + 10
+  while not logo.evaluate('(image) => image.complete && image.naturalWidth > 0'):
+   assert time.monotonic() < deadline, 'Official logo did not load under the document CSP'
+   time.sleep(0.1)
   # Exercise the real button under the document CSP without opening an OS print dialog.
   document.evaluate('window.__printCalls = 0; window.print = () => window.__printCalls++')
   document.get_by_role('button', name='Imprimir / Guardar PDF', exact=True).click()

@@ -39,14 +39,19 @@ jobs:
           mkdir -p review-artifacts
           npm test 2>&1 | tee review-artifacts/unit-tests.txt
       - name: Install isolated browser runtime
+        id: browser_runtime
+        if: ${{ !cancelled() }}
         run: |
           python -m pip install playwright==1.57.0
           python -m playwright install --with-deps chromium
       - name: Full navigation and access regression with isolated fixtures
+        if: ${{ !cancelled() && steps.browser_runtime.outcome == 'success' }}
         run: python tests/browser-smoke.py
       - name: Editor linked-field regression
+        if: ${{ !cancelled() && steps.browser_runtime.outcome == 'success' }}
         run: python tests/editor-fields.py
       - name: Conversation SQL and browser fixture regression
+        if: ${{ !cancelled() && steps.browser_runtime.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -117,7 +122,7 @@ jobs:
         run: |
           python -m pip install playwright==1.57.0
           python -m playwright install --with-deps chromium
-      - name: Verify quotation UI using deployed modules and synthetic data
+      - name: Verify quotation UI using candidate modules and synthetic data
         run: python tests/quote-browser.py
       - uses: actions/upload-artifact@v7
         if: always()

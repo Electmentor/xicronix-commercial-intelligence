@@ -39,11 +39,18 @@ with sync_playwright() as p:
  def mark(label):checks.append(label)
  def field(name):return page.locator('#field-'+name)
  def nav(name):
+  toggle=page.locator('#sidebarToggle')
+  if toggle.get_attribute('aria-expanded')=='false':toggle.click()
+  expect(toggle).to_have_attribute('aria-expanded','true')
+  expect(page.locator('#mainSidebar')).to_be_visible()
   locator=page.locator('#navigation [data-page="'+name+'"]')
   if locator.count()==0:
+   # Editor-only modules are callable routes but absent from the curated sidebar.
+   assert name in ['activities','tasks'], 'Missing production navigation: '+name
    page.locator('#navigation').evaluate("(node,name)=>node.insertAdjacentHTML('beforeend','<button data-page=\"'+name+'\">test</button>')",name)
    locator=page.locator('#navigation [data-page="'+name+'"]')
-  locator.evaluate("el=>el.click()")
+  locator.click()
+  expect(page.locator('#appView')).to_have_attribute('data-page',name)
  def cancel():page.locator('#cancelEditor').click()
  def saved():expect(page.locator('#editor')).not_to_be_visible();expect(page.locator('#status')).to_contain_text('guardado correctamente')
  try:
@@ -80,6 +87,9 @@ with sync_playwright() as p:
   for width in [390,768,1440]:
    page.set_viewport_size({'width':width,'height':950});nav('leads');page.locator('#recordList tr',has_text='Diagnóstico revisado de prueba').get_by_role('button',name='Registrar movimiento').click();expect(field('type')).to_be_visible();assert page.locator('#editor').evaluate('(el)=>el.scrollWidth<=el.clientWidth+1');cancel();mark('editor fits viewport '+str(width))
   assert not errors,errors;assert not blocked,blocked;mark('no JavaScript errors or real customer requests')
+ except Exception as error:
+  errors.append(str(error));page.screenshot(path=str(out/'failure.png'),full_page=True)
+  raise
  finally:
   (out/'results.json').write_text(json.dumps({'base_url':base,'fixture_only':True,'checks':checks,'count':len(checks),'javascript_errors':errors,'blocked_requests':blocked},ensure_ascii=False,indent=2));browser.close()
   if server:server.shutdown()

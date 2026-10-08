@@ -38,6 +38,17 @@ with sync_playwright() as p:
   return context,page
  def check(name,fn):
   fn();checks.append(name)
+ def open_sidebar():
+  toggle=page.locator('#sidebarToggle')
+  if toggle.get_attribute('aria-expanded')=='false':toggle.click()
+  expect(toggle).to_have_attribute('aria-expanded','true')
+  expect(page.locator('#mainSidebar')).to_be_visible()
+ def sidebar_click(selector):
+  open_sidebar()
+  page.locator(selector).click()
+ def nav(target):
+  sidebar_click('#navigation [data-page="'+target+'"]')
+  expect(page.locator('#appView')).to_have_attribute('data-page',target)
  try:
   context,page=newpage();expect(page.locator('#workspaceControls')).to_be_visible()
   page.locator('#entryDirectionBtn').click();expect(page.locator('#workspaceEntry')).to_be_hidden()
@@ -46,28 +57,29 @@ with sync_playwright() as p:
    page.locator('#closeDailyBriefing').click()
   check('actual data is default',lambda:expect(page.locator('#sidebarLiveBtn')).to_have_attribute('aria-pressed','true'))
   check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content',expected_release))
+  open_sidebar();checks.append('desktop navigation opens through its menu button')
   page.screenshot(path=str(out/'desktop-v2-fixture.png'),full_page=True)
   pages=['now','users','goals','opportunities','meetings','leads','prospects','radar','supplier_relationships','strategic_alliances','catalog_products','institutions','contacts','mail','documents','cost_profiles','expenses','dashboard']
   for target in pages:
-   page.locator('#navigation [data-page="'+target+'"]').click()
+   nav(target)
    check('navigation '+target,lambda t=target:expect(page.locator('#appView')).to_have_attribute('data-page',t))
-  page.locator('#navigation [data-page="now"]').click()
+  nav('now')
   check('mobile command center renders',lambda:expect(page.locator('#recordList')).to_contain_text('XICRONIX AHORA'))
   check('now cards are navigable',lambda:expect(page.locator('.now-kpi-card')).to_have_count(4))
   page.locator('.now-kpi-card').nth(2).click()
   check('potential card opens Radar',lambda:expect(page.locator('#appView')).to_have_attribute('data-page','radar'))
   check('potential card applies Radar filter',lambda:expect(page.locator('#filter')).to_have_value('POTENTIAL'))
-  page.locator('#navigation [data-page="now"]').click()
-  page.locator('#navigation [data-page="mail"]').click()
+  nav('now')
+  nav('mail')
   check('Zoho mail module renders',lambda:expect(page.locator('#recordList')).to_contain_text('Diagnóstico del laboratorio'))
-  page.locator('#navigation [data-page="radar"]').click()
+  nav('radar')
   check('radar module renders safely',lambda:expect(page.locator('#recordList')).to_contain_text('Colegio Radar de prueba'))
   check('Radar call action visible',lambda:expect(page.locator('.radar-quick-actions a[href^="tel:"]')).to_be_visible())
   check('Radar Zoho email action visible',lambda:expect(page.get_by_role('link',name='Correo Zoho')).to_be_visible())
   check('Radar WhatsApp action visible',lambda:expect(page.locator('.radar-quick-actions a[href*="wa.me"]')).to_be_visible())
   check('Radar linked prospect action visible',lambda:expect(page.locator('[data-radar-lead]')).to_be_visible())
   check('Radar register action visible',lambda:expect(page.locator('[data-radar-activity]')).to_be_visible())
-  page.locator('#navigation [data-page="leads"]').click()
+  nav('leads')
   check('real lead visible',lambda:expect(page.locator('#recordList')).to_contain_text('Institución de validación · Diagnóstico'))
   page.get_by_role('button',name='Abrir expediente comercial').first.click();check('commercial dossier opens',lambda:expect(page.locator('.lead-detail-kicker')).to_have_text('EXPEDIENTE COMERCIAL'));check('recommended action visible',lambda:expect(page.locator('#leadDetailContent')).to_contain_text('ACCIÓN RECOMENDADA'));check('planning section visible',lambda:expect(page.locator('#leadDetailContent')).to_contain_text('Agenda y tareas'));check('documents section visible',lambda:expect(page.locator('#leadDetailContent')).to_contain_text('Documentos y material'));page.locator('#closeLeadDetail').click()
   check('historical simulated records excluded',lambda:expect(page.locator('#recordList')).not_to_contain_text('[SIMULADO]'))
@@ -82,7 +94,7 @@ with sync_playwright() as p:
   if page.locator('#dailyBriefingDialog').evaluate("el=>el.open"):
    page.locator('#closeDailyBriefing').click()
   check('night mode persists',lambda:expect(page.locator('html')).to_have_attribute('data-theme','night'))
-  page.locator('#navigation [data-page="radar"]').click()
+  nav('radar')
   page.locator('#recordList').evaluate("""node=>node.insertAdjacentHTML('beforeend','<article id="nightRadarProbe" class="radar-card critical"><header><div><span class="radar-class">Crítica</span><h3>Prueba visual</h3><p>Lima</p></div><div class="radar-score"><b>94</b><span>/100</span></div></header><p class="radar-summary">Texto principal legible</p><div class="radar-facts"><span><b>Laboratorio</b>Confirmado</span></div><footer><a href="#">Fuente</a></footer></article>')""")
   assert page.evaluate("getComputedStyle(document.querySelector('#nightRadarProbe')).backgroundColor")!='rgb(255, 255, 255)';checks.append('night radar card uses dark surface')
   assert page.evaluate("getComputedStyle(document.querySelector('#nightRadarProbe')).color") in ['rgb(238, 245, 255)','rgb(232, 240, 250)'];checks.append('night radar text has strong contrast token')
@@ -91,22 +103,23 @@ with sync_playwright() as p:
   check('mobile footer is visible',lambda:expect(page.locator('#mobileAppBottomNav')).to_be_visible())
   assert page.evaluate("parseFloat(getComputedStyle(document.querySelector('#mobileAppBottomNav button small')).fontSize)>=10");checks.append('mobile footer labels are readable')
 
-  page.locator('#sidebarDemoBtn').evaluate("el=>el.click()");check('explicit demo',lambda:expect(page.locator('#sidebarDemoBtn')).to_have_attribute('aria-pressed','true'))
-  page.locator('#sidebarLiveBtn').evaluate("el=>el.click()");check('return to real',lambda:expect(page.locator('#sidebarLiveBtn')).to_have_attribute('aria-pressed','true'))
+  sidebar_click('#sidebarDemoBtn');check('explicit demo',lambda:expect(page.locator('#sidebarDemoBtn')).to_have_attribute('aria-pressed','true'))
+  sidebar_click('#sidebarLiveBtn');check('return to real',lambda:expect(page.locator('#sidebarLiveBtn')).to_have_attribute('aria-pressed','true'))
   assert page.evaluate('window.__testWrites.length')==0;checks.append('no business writes in browsing')
+  if page.locator('#sidebarToggle').get_attribute('aria-expanded')=='true':page.locator('#sidebarToggle').click()
   page.locator('#mobileNavHome').click()
   for width in [320,390,768,1024,1440]:
    page.set_viewport_size({'width':width,'height':900})
    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),f'horizontal overflow at {width}'
    checks.append('viewport '+str(width))
-   page.locator('#navigation [data-page="leads"]').evaluate("el=>el.click()")
+   nav('leads')
    expect(page.locator('#appView')).to_have_attribute('data-page','leads')
    if width==390:page.screenshot(path=str(out/'mobile-v2-fixture.png'),full_page=True)
   context.close()
   lead='33333333-3333-4333-8333-333333333333'
   context,page=newpage(url='?lead='+lead)
   check('notification link opens request',lambda:expect(page.locator('#leadDetailDialog')).to_be_visible())
-  page.locator('#closeLeadDetail').click();page.locator('#logoutBtn').evaluate("el=>el.click()")
+  page.locator('#closeLeadDetail').click();sidebar_click('#logoutBtn')
   check('logout clears private details',lambda:expect(page.locator('#leadDetailContent')).to_be_empty())
   check('logout returns login',lambda:expect(page.locator('#authView')).to_be_visible());context.close()
   for role in ['SALES','MANAGER','VIEWER']:
@@ -115,12 +128,12 @@ with sync_playwright() as p:
     page.locator('#closeDailyBriefing').click()
    check(role+' cannot select administrator mode',lambda:expect(page.locator('#adminModeBtn')).to_be_hidden())
    check(role+' cannot open admin routes',lambda:expect(page.locator('#navigation [data-page="users"]')).to_have_count(0))
-   check(role+' has seller dashboard',lambda:expect(page.locator('#dashboard')).to_contain_text('Tu negocio, en una sola vista'))
-   page.locator('#navigation [data-page="leads"]').click()
+   check(role+' has seller dashboard',lambda:expect(page.locator('#dashboard')).to_contain_text(re.compile(r'Tu negocio\s*en una sola vista')))
+   nav('leads')
    check(role+' sees prospect progress',lambda:expect(page.locator('#dashboard')).to_contain_text('Institución de validación'))
    check(role+' sees only assigned leads',lambda:expect(page.locator('#dashboard')).not_to_contain_text('Prospecto de otro vendedor'))
    if role=='SALES':
-    page.locator('#navigation [data-page="tasks"]').click()
+    nav('tasks')
     check('seller task cards render',lambda:expect(page.locator('.task-mobile-card')).to_have_count(1))
     check('seller task quick actions visible',lambda:expect(page.locator('.task-mobile-actions').first).to_be_visible())
     check('seller linked task opens prospect',lambda:expect(page.locator('[data-task-lead]').first).to_be_visible())
@@ -142,6 +155,9 @@ with sync_playwright() as p:
   assert not errors,errors
   assert not blocked,blocked
   checks.append('no unhandled JavaScript errors or real backend calls')
+ except Exception as error:
+  errors.append(str(error));page.screenshot(path=str(out/'failure.png'),full_page=True)
+  raise
  finally:
   (out/'results.json').write_text(json.dumps({'base_url':base,'mode':'Chromium with isolated Supabase Auth/Data fixtures; not a real-account end-to-end test','checks':checks,'count':len(checks),'javascript_errors':errors,'blocked_network':blocked},ensure_ascii=False,indent=2))
   browser.close()
