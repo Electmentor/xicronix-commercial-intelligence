@@ -19,6 +19,11 @@ export async function createFixture(){
  insert into organizations values('${IDs.org}'),('${IDs.other}');
  insert into profiles values('${IDs.owner}','${IDs.org}','ADMIN'),('${IDs.seller}','${IDs.org}','SALES'),('${IDs.alien}','${IDs.other}','ADMIN');
  insert into contacts values('${IDs.contact}','${IDs.org}');`);
+ // Match Supabase's permissive defaults without changing existing fixture tables.
+ // Only objects created after this point inherit these grants.
+ await db.exec(`create role supabase_admin;
+ alter default privileges for role postgres,supabase_admin in schema public grant all on tables to anon,authenticated,service_role;
+ alter default privileges for role postgres,supabase_admin in schema public grant all on sequences to anon,authenticated,service_role;`);
  const migration=await readFile(new URL('../../supabase/migrations/20261008143001_conversations_dev.sql',import.meta.url),'utf8');
  // Serialized queue only for the local PGlite connection; remote PostgreSQL concurrency is a separate gate.
  let chain=Promise.resolve();

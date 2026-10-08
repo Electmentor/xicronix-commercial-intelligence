@@ -60,9 +60,12 @@ create policy message_read on public.commercial_messages for select to authentic
 create policy event_read on public.commercial_conversation_events for select to authenticated using (
  exists(select 1 from public.commercial_conversations c where c.id=conversation_id)
 );
-revoke all on public.commercial_conversations,public.commercial_messages,public.commercial_conversation_events from public,anon,authenticated;
+-- Supabase defaults can grant ALL to each API role, including service_role.
+-- Narrow only these new objects; do not change shared default privileges.
+revoke all on public.commercial_conversations,public.commercial_messages,public.commercial_conversation_events from public,anon,authenticated,service_role;
 grant select on public.commercial_conversations,public.commercial_messages,public.commercial_conversation_events to authenticated;
 grant select,insert,update on public.commercial_conversations,public.commercial_messages,public.commercial_conversation_events to service_role;
+revoke all on sequence public.commercial_conversation_events_id_seq from public,anon,authenticated,service_role;
 grant usage,select on sequence public.commercial_conversation_events_id_seq to service_role;
 -- All transitions are serialized on the conversation row. No browser has write grants.
 create function public.conversation_command(p_org uuid,p_actor uuid,p_action text,p_data jsonb)

@@ -6,7 +6,51 @@ import {createHandler as createBridge} from '../api/conversations-bridge.mjs';
 const env={VERCEL_ENV:'preview',CONVERSATIONS_DEV_ENABLED:'true',CONVERSATIONS_SUPABASE_URL:'https://rmximatxuaczhpqbcuho.supabase.co',CONVERSATIONS_BRIDGE_TOKEN:'synthetic-only',CONVERSATIONS_TEST_ORG_ID:IDs.org,CONVERSATIONS_TEST_CONTACT_ID:IDs.contact,CONVERSATIONS_TEST_OWNER_ID:IDs.owner};
 test('Nexa → inbox → human → visitor receipt → closure, durable SQL and permissions',async t=>{
  const f=await createFixture();t.after(()=>f.dispose());
+ const defaultsBefore=(await f.db.query('select defaclrole,defaclnamespace,defaclobjtype,defaclacl::text from pg_default_acl order by 1,2,3')).rows;
+ const existingAclBefore=(await f.db.query("select relname,relacl::text from pg_class where relname in ('organizations','profiles','contacts','opportunities') order by relname")).rows;
  await t.test('migration rejects unmarked environment',async()=>{await assert.rejects(f.db.exec(f.migration),/isolated DEV/);await f.db.exec('rollback');await f.migrate();});
+ await t.test('new objects have exact least-privilege ACLs despite permissive defaults',async()=>{
+  const tables=['commercial_conversations','commercial_messages','commercial_conversation_events'];
+  const expected=[];
+  for(const object of tables){
+   expected.push({object,role:'authenticated',privilege:'SELECT',grantable:false});
+   for(const privilege of ['INSERT','SELECT','UPDATE'])expected.push({object,role:'service_role',privilege,grantable:false});
+  }
+  for(const privilege of ['SELECT','USAGE'])expected.push({object:'commercial_conversation_events_id_seq',role:'service_role',privilege,grantable:false});
+  const actual=(await f.db.query(`select c.relname as object,coalesce(r.rolname,'PUBLIC') as role,a.privilege_type as privilege,a.is_grantable as grantable
+   from pg_class c join pg_namespace n on n.oid=c.relnamespace
+   cross join lateral aclexplode(coalesce(c.relacl,acldefault(case when c.relkind='S' then 'S'::"char" else 'r'::"char" end,c.relowner))) a
+   left join pg_roles r on r.oid=a.grantee
+   where n.nspname='public' and c.relname=any($1) and a.grantee<>c.relowner`,[[...tables,'commercial_conversation_events_id_seq']])).rows;
+  const key=row=>[row.object,row.role,row.privilege,String(row.grantable)].join(':');
+  assert.deepEqual(actual.map(key).sort(),expected.map(key).sort());
+  // Effective checks also cover PUBLIC and inherited role memberships. Derive
+  // the privilege set from PostgreSQL so newer privileges such as MAINTAIN are included.
+  const effective=(await f.db.query(`select c.relname as object,r.rolname as role,a.privilege_type as privilege,
+   case when c.relkind='S' then has_sequence_privilege(r.oid,c.oid,a.privilege_type) else has_table_privilege(r.oid,c.oid,a.privilege_type) end as allowed
+   from pg_class c join pg_namespace n on n.oid=c.relnamespace
+   cross join pg_roles r
+   cross join lateral aclexplode(acldefault(case when c.relkind='S' then 'S'::"char" else 'r'::"char" end,c.relowner)) a
+   where n.nspname='public' and c.relname=any($1) and r.rolname in ('anon','authenticated','service_role')`,[[...tables,'commercial_conversation_events_id_seq']])).rows;
+  for(const row of effective)assert.equal(row.allowed,expected.some(item=>item.object===row.object&&item.role===row.role&&item.privilege===row.privilege),JSON.stringify(row));
+  assert.deepEqual((await f.db.query('select defaclrole,defaclnamespace,defaclobjtype,defaclacl::text from pg_default_acl order by 1,2,3')).rows,defaultsBefore,'global defaults must remain unchanged');
+  assert.deepEqual((await f.db.query("select relname,relacl::text from pg_class where relname in ('organizations','profiles','contacts','opportunities') order by relname")).rows,existingAclBefore,'existing tables must remain unchanged');
+ });
+ await t.test('browser roles cannot use the audit sequence and service cannot reset it or destroy tables',async()=>{
+  try{
+   for(const role of ['anon','authenticated']){
+    await f.db.exec('set role '+role);
+    for(const sql of ["select nextval('public.commercial_conversation_events_id_seq')","select last_value from public.commercial_conversation_events_id_seq","select setval('public.commercial_conversation_events_id_seq',1)"])
+     await assert.rejects(f.db.query(sql),/permission denied/);
+   }
+   await f.db.exec('set role service_role');
+   await assert.rejects(f.db.query("select setval('public.commercial_conversation_events_id_seq',1)"),/permission denied/);
+   for(const table of ['commercial_conversations','commercial_messages','commercial_conversation_events']){
+    await assert.rejects(f.db.query('delete from public.'+table+' where false'),/permission denied/);
+    await assert.rejects(f.db.query('truncate public.'+table+' cascade'),/permission denied/);
+   }
+  }finally{await f.db.exec('reset role');}
+ });
  const api=createHandler({env,store:f.store}),bridge=createBridge({env,store:f.store});
  const input={thread_id:'synthetic-session',event_key:'synthetic-in-1',body:'Consulta sintética sobre laboratorio',occurred_at:'2026-10-08T14:00:00Z',consent:true,consent_version:'dev-v1',source_page:'/colegios'};
  const req=(method,body,token='admin',path='')=>new Request('http://localhost/api/conversations'+path,{method,headers:{authorization:'Bearer '+token,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
