@@ -1,5 +1,5 @@
 import {LAB_FQBM,QUOTE_DEFAULTS} from './quote-template.mjs?v=1';
-import {renderCustomerDocument} from './quote-document.mjs?v=3';
+import {renderCustomerDocument} from './quote-document.mjs?v=4';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>n==null?'—':new Intl.NumberFormat('es-PE',{style:'currency',currency:'PEN'}).format(n);
 const fields=[['exchange_rate','Tipo de cambio · S/ por USD'],['freight_usd','Flete total · USD'],['insurance_usd','Seguro total · USD'],['duty_pct','Ad valorem · %'],['local_cost_pen','Gastos locales y servicios sin IGV recuperable · S/'],['contingency_pct','Contingencia · %'],['igv_pct','IGV · %'],['perception_pct','Percepción importación · %'],['margin_pct','Margen bruto objetivo · %'],['minimum_margin_pct','Margen mínimo · %'],['discount_pct','Descuento global · %'],['advance_pct','Anticipo cliente · %'],['supplier_advance_pct','Anticipo proveedor · %']];

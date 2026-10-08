@@ -1,5 +1,5 @@
-const CACHE='xicronix-v2-49-3';
-const SHELL=['./assistant.mjs?v=2.47.1','./radar-lifecycle.mjs?v=2.47.1','./performance.mjs?v=2.47.1','./performance.css?v=2.47.1','./analytics-view.mjs?v=2.47.1','./','./index.html','./styles.css?v=2.47.1','./production.css?v=2.47.1','./mobile-now.css?v=2.47.1','./executive.css?v=2.47.1','./app.js?v=2.49.3','./quote-editor.mjs?v=7','./quote-editor.css?v=1','./quote-template.mjs?v=1','./quote-document.mjs?v=3'];
+const CACHE='xicronix-v2-49-4';
+const SHELL=['./assistant.mjs?v=2.47.1','./radar-lifecycle.mjs?v=2.47.1','./performance.mjs?v=2.47.1','./performance.css?v=2.47.1','./analytics-view.mjs?v=2.47.1','./','./index.html','./styles.css?v=2.47.1','./production.css?v=2.49.4','./mobile-now.css?v=2.47.1','./executive.css?v=2.47.1','./app.js?v=2.49.4','./quote-editor.mjs?v=8','./quote-editor.css?v=1','./quote-template.mjs?v=1','./quote-document.mjs?v=4'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).catch(()=>{}).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')self.skipWaiting();});

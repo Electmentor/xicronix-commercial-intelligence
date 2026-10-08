@@ -91,7 +91,8 @@ with sync_playwright() as p:
   doc=page.evaluate('window.__testDB.documents.at(-1)');versions=page.evaluate('window.__testDB.document_versions');storage=page.evaluate('window.__testStorage');assert doc['current_version']==1 and doc['status']=='DRAFT';assert len(versions)==1 and versions[0]['file_name']=='diagnostico-prueba.pdf' and versions[0]['is_current'];assert storage[-1]['action']=='upload';mark('private document upload creates version 1 without sending or signing it')
   page.locator('#recordList button[data-edit="'+doc['id']+'"]').click();field('status').select_option('CURRENT');page.locator('#field-_file').set_input_files({'name':'diagnostico-prueba-v2.pdf','mimeType':'application/pdf','buffer':b'%PDF-1.4 fixture v2'});page.locator('#saveBtn').click();saved();versions=page.evaluate('window.__testDB.document_versions');assert len(versions)==2 and versions[-1]['version_number']==2 and versions[-1]['is_current'];assert versions[0]['is_current'] is False;mark('new file appends version 2 and preserves prior version')
   nav('leads');page.locator('#recordList tr',has_text='Diagnóstico revisado de prueba').get_by_role('button',name='Abrir expediente comercial').click();expect(page.locator('#leadDetailContent')).to_contain_text('Documentos y material');expect(page.locator('#leadDetailContent')).to_contain_text('Diagnóstico técnico de prueba');page.locator('#closeLeadDetail').click();mark('commercial dossier summarizes current document and version history')
-  for width in [390,768,1440]:
+  editor_layout=[]
+  for width in [320,390,391,768,1440]:
    page.set_viewport_size({'width':width,'height':950});nav('leads')
    # Mobile renders cards, desktop a table. Both expose the same real dossier action.
    lead_action=page.locator('#recordList [data-lead-detail="33333333-3333-4333-8333-333333333333"]:visible')
@@ -100,7 +101,14 @@ with sync_playwright() as p:
    page.locator('#leadDetailContent [data-activity-lead="33333333-3333-4333-8333-333333333333"]').click()
    expect(field('lead_id')).to_have_value('33333333-3333-4333-8333-333333333333')
    expect(page.locator('#leadDetailDialog')).not_to_be_visible();expect(field('type')).to_be_visible()
-   assert page.locator('#editor').evaluate('(el)=>el.scrollWidth<=el.clientWidth+1')
+   layout=page.locator('#editor').evaluate('''(el)=>{
+    const box=el.getBoundingClientRect(),header=el.querySelector('.dialog-header').getBoundingClientRect();
+    return {viewport:innerWidth,clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,left:box.left,right:box.right,headerLeft:header.left,headerRight:header.right};
+   }''')
+   editor_layout.append(layout);(out/'editor-layout.json').write_text(json.dumps(editor_layout,indent=2))
+   assert layout['scrollWidth']<=layout['clientWidth']+1, layout
+   assert layout['headerLeft']>=layout['left'] and layout['headerRight']<=layout['right'], layout
+   page.locator('#editor').screenshot(path=str(out/('editor-'+str(width)+'.png')))
    cancel();mark('editor fits viewport '+str(width))
   assert not errors,errors;assert not blocked,blocked;mark('no JavaScript errors or real customer requests')
  except Exception as error:

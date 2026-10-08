@@ -49,7 +49,11 @@ test('official logo has an absolute URL permitted by the document CSP for blob a
  const expected=new URL('../brand/xicronix-logo-official.png?v=2',import.meta.url).href;
  assert.equal(image,expected);
  const policy=html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)[1];
- assert.ok(policy.includes(`img-src data: ${expected};`));
+ const allowedImage=new URL(expected);allowedImage.search='';allowedImage.hash='';
+ const imagePolicy=policy.split(';').map(part=>part.trim()).find(part=>part.startsWith('img-src '));
+ assert.equal(imagePolicy,`img-src data: ${allowedImage.href}`);
+ assert.ok(!imagePolicy.includes('?'),'CSP source cannot contain a query string');
+ assert.ok(!imagePolicy.includes('#'),'CSP source cannot contain a fragment');
 });
 
 test('quotation history and product selection do not mark saved inputs dirty',async()=>{
