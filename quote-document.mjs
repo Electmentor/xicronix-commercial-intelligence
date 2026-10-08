@@ -2,7 +2,7 @@
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>'S/ '+Number(n).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
 // Blob previews and downloaded HTML cannot resolve a root-relative image URL.
-const logo=new URL('./brand/xicronix-logo-official.png',import.meta.url).href;
+const logo=new URL('./brand/xicronix-logo-official.png?v=2',import.meta.url).href;
 // Authorize only the fixed print handler, without permitting arbitrary inline scripts.
 const printHandler='window.print()';
 const printHandlerHash='sha256-MguIPR6qNR8D3B+eAlK+bIRTZe8t3wkOY4B/56Me9FU=';

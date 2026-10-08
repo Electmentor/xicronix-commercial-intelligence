@@ -35,7 +35,7 @@ else:
  base = f'http://127.0.0.1:{server.server_port}/'
 
 fixture='''<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="quote-editor.css?v=1"><body><h1>Isolated A009 quotation regression</h1><button id="open">Open saved quotation</button><script type="module">
-import {openQuoteEditor} from './quote-editor.mjs?v=6';
+import {openQuoteEditor} from './quote-editor.mjs?v=7';
 const products=['SCN-F001A','EQ003VC','SCN-B006','EQ377E'].map((sku,n)=>({id:'product-'+n,supplier_sku:sku,name:'Synthetic '+sku,active:true}));
 let versions=[],quoteId=null;const crm={catalog_products:products,opportunities:[{id:'opportunity-test',name:'Synthetic school opportunity'}],quotes:[]};
 function calculate(inputs,items){inputs={exchange_rate:4,margin_pct:30,...inputs};if(!(inputs.exchange_rate>0))throw Error('Indica el tipo de cambio');const landed=items.reduce((s,i)=>s+i.quantity*100,0);const net=Math.round(landed/(1-inputs.margin_pct/100)*(1-inputs.discount_pct/100)*100)/100;return {items:items.map(i=>({...i,sku:products.find(p=>p.id===i.catalog_product_id).supplier_sku,description:'Synthetic',supplier_unit_price:100,landed_unit_cost:100,unit_price:100,line_subtotal:100*i.quantity})),landed_cost:landed,net_sale:net,gross_profit:net-landed,sales_igv:net*.18,total:net*1.18,working_capital:500,import_igv_pen:100,perception_pen:30,cash_need:landed+130,customer_advance:500,initial_supplier_payment:landed,real_margin_pct:30,markup_pct:42.86,requires_margin_approval:false};}

@@ -119,7 +119,17 @@ with sync_playwright() as p:
   lead='33333333-3333-4333-8333-333333333333'
   context,page=newpage(url='?lead='+lead)
   check('notification link opens request',lambda:expect(page.locator('#leadDetailDialog')).to_be_visible())
-  page.locator('#closeLeadDetail').click();sidebar_click('#logoutBtn')
+  page.locator('#closeLeadDetail').click()
+  # A notification opens its dossier before the administrator has chosen a workspace.
+  # Complete the actual selection screen before reaching the sidebar logout control.
+  expect(page.locator('#workspaceEntry')).to_be_visible()
+  page.locator('#entryDirectionBtn').click()
+  expect(page.locator('#workspaceEntry')).to_be_hidden()
+  page.wait_for_timeout(500)
+  if page.locator('#dailyBriefingDialog').evaluate("el=>el.open"):
+   page.locator('#closeDailyBriefing').click()
+  check('notification dismissal allows workspace selection',lambda:expect(page.locator('#appView')).to_have_attribute('data-page','dashboard'))
+  sidebar_click('#logoutBtn')
   check('logout clears private details',lambda:expect(page.locator('#leadDetailContent')).to_be_empty())
   check('logout returns login',lambda:expect(page.locator('#authView')).to_be_visible());context.close()
   for role in ['SALES','MANAGER','VIEWER']:
