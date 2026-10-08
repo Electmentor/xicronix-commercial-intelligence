@@ -2,17 +2,26 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {effectiveWorkspace,workspaceKey,canAccessPage,canWriteModule,scopeWorkspaceData} from '../workspace.mjs';
 const admin={role:'ADMIN',organization_id:'org'};
+const managementPages=['users','goals','cost_profiles','expenses','supplier_relationships','strategic_alliances'];
 test('only a real ADMIN account can select the administrative experience',()=>{
  assert.equal(effectiveWorkspace(admin,'admin'),'admin');
  for(const role of ['SALES','MANAGER','VIEWER','UNKNOWN']){
   const profile={...admin,role};
   assert.equal(effectiveWorkspace(profile,'admin'),'seller');
-  for(const page of ['dashboard','users','goals'])assert.equal(canAccessPage(profile,'admin',page),false);
+  for(const page of managementPages)assert.equal(canAccessPage(profile,'admin',page),false);
+  for(const page of ['dashboard','now','leads'])assert.equal(canAccessPage(profile,'admin',page),role!=='UNKNOWN');
  }
  assert.equal(canAccessPage(null,'admin','leads'),false);
 });
 test('seller mode hides administrative modules even for an ADMIN account',()=>{
- for(const page of ['dashboard','users','goals'])assert.equal(canAccessPage(admin,'seller',page),false);
+ for(const page of managementPages){
+  assert.equal(canAccessPage(admin,'seller',page),false);
+  assert.equal(canAccessPage(admin,'admin',page),true);
+ }
+ for(const page of ['dashboard','now']){
+  assert.equal(canAccessPage(admin,'seller',page),true);
+  assert.equal(canWriteModule(admin,'seller',page),false);
+ }
  assert.equal(canWriteModule(admin,'seller','leads'),true);
  assert.equal(canWriteModule({...admin,role:'VIEWER'},'seller','leads'),false);
  assert.equal(canAccessPage(admin,'admin','unknown'),false);

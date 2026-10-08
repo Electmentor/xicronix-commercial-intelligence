@@ -51,6 +51,27 @@ test('partial loads hide desktop numbers and no target stays unknown rather than
  assert.match(desktop({...data,goals:[]}),/<strong>—<\/strong><small>Sin meta mensual/);
  assert.match(desktop({}),/No hay excepciones según las reglas actuales/);
 });
+test('partial loads also withhold mobile and secondary numbers and record actions',()=>{
+ for(const table of ['opportunities','leads','tasks','users','goals','prospects','radar','meetings','institutions']){
+  const html=renderExecutive(data,{now,failures:{[table]:true}});
+  const mobile=html.split('<section class="director-mobile-dashboard')[1].split('<section class="director-kpis director-desktop-kpis"')[0];
+  const details=html.split('<details class="director-existing-details">')[1];
+  assert.match(html,/INFORMACIÓN PARCIAL/);
+  for(const section of [mobile,details]){
+   assert.match(section,/Datos incompletos/);
+   assert.doesNotMatch(section,/<strong>(?:\d|S\/)|data-edit=|data-ceo-seller=/,table);
+  }
+ }
+ const complete=renderExecutive(data,{now});
+ const mobileKpis=complete.split('<section class="director-mobile-kpis director-mobile-kpis--clone">')[1].split('</section>')[0];
+ assert.deepEqual([...mobileKpis.matchAll(/<strong>(.*?)<\/strong>/g)].map(([,value])=>value),['S/ 10 mil','S/ 50 mil','1','S/ 20 mil']);
+ assert.match(complete.split('<details class="director-existing-details">')[1],/data-edit="open"/);
+ // A failed unrelated module must not discard available historical comparisons.
+ const partial=renderExecutive(data,{now,failures:{tasks:true}});
+ assert.match(partial,/class="director-sales-chart"/);
+ assert.match(partial,/Ver importes mensuales/);
+ assert.doesNotMatch(renderExecutive(data,{now,failures:{opportunities:true}}),/class="director-sales-chart"|data-edit="(?:open|risk)"/);
+});
 test('desktop presence follows the existing connection state without changing mobile status',()=>{
  const source=readFileSync(new URL('../app.js',import.meta.url),'utf8');
  const fn=source.match(/function renderConnectionState\(\)\{[\s\S]*?\r?\n\}/)[0];
@@ -64,15 +85,25 @@ test('desktop presence follows the existing connection state without changing mo
   assert.equal(nodes.connectionLabel.textContent,nodes.mobileConnectionLabel.textContent);
  }
 });
-test('release stamps and changed module URL agree while network-first caching remains enabled',()=>{
+test('release entrypoints and independently versioned assets remain cache-safe',()=>{
  const app=readFileSync(new URL('../app.js',import.meta.url),'utf8');
  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
  const sw=readFileSync(new URL('../sw.js',import.meta.url),'utf8');
  const version=app.match(/const CLIENT_BUILD='v([^']+)'/)[1];
- assert.ok(app.includes('executive.mjs?v=20260927-v'+version));
- assert.ok(html.includes('app.js?v='+version));
- assert.ok(html.includes('executive.css?v='+version));
- assert.ok(sw.includes('xicronix-v'+version.replaceAll('.','-')));
+ assert.match(version,/^\d+\.\d+\.\d+$/);
+ const appUrl=html.match(/<script type="module" src="(app\.js\?v=[^"]+)"/)[1];
+ assert.equal(appUrl,'app.js?v='+version);
+ assert.ok(sw.includes("'./"+appUrl+"'"));
+ assert.equal(sw.match(/const CACHE='([^']+)'/)[1],'xicronix-v'+version.replaceAll('.','-'));
+ assert.equal(html.match(/name="xicronix-release" content="\d{4}-\d{2}-\d{2}-v([^"]+)"/)[1],version);
+ // Unchanged modules/styles retain independent cache stamps across app releases.
+ const executiveUrl=app.match(/from '(\.\/executive\.mjs\?v=[^']+)'/)[1];
+ const cssUrl=html.match(/href="(executive\.css\?v=[^"]+)"/)[1];
+ for(const asset of [executiveUrl,cssUrl]){
+  assert.match(asset.split('?v=')[1],/^(?:\d{8}-v)?\d+\.\d+\.\d+$/);
+  assert.ok(readFileSync(new URL('../'+asset.split('?')[0],import.meta.url)).length>0);
+ }
+ assert.ok(sw.includes("'./"+cssUrl+"'"),'cached executive styles must match the HTML URL');
  assert.match(sw,/fetch\(event.request,\{cache:'no-store'\}\)/);
  assert.doesNotMatch(app,/if\(admin&&window.matchMedia[^\n]+renderDirectorResponsibilityCenter/);
 });

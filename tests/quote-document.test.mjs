@@ -5,3 +5,40 @@ const doc={issuer:'XICRONIX E.I.R.L.',quote_number:'XQ-TEST',revision:1,date:'20
 test('client document uses a commercial allowlist; no embedded internal payload',()=>{const html=renderCustomerDocument(doc);for(const x of ['999','888','777','INTERNAL','supplier_unit_price','gross_profit','landed_cost','markup'])assert.ok(!html.includes(x),x);assert.match(html,/BORRADOR/);assert.match(html,/424[.,]80/);assert.ok(!html.includes('<script>'));assert.match(html,/&lt;script&gt;/);});
 test('confirmed document has no draft banner',()=>assert.ok(!renderCustomerDocument({...doc,is_draft:false}).includes('BORRADOR')));
 test('template has twelve proposed practices and requires commercial/technical validation',()=>{assert.equal(LAB_FQBM.items.length,4);assert.equal((LAB_FQBM.scope.match(/\n\d+\./g)||[]).length,12);assert.equal(LAB_FQBM.inputs.costs_confirmed,false);assert.equal(LAB_FQBM.inputs.technical_confirmed,false);});
+
+test('print action is allowed by its exact CSP hash without enabling arbitrary inline script',async()=>{
+ const {createHash}=await import('node:crypto');
+ const html=renderCustomerDocument(doc);
+ const policy=html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)[1];
+ const handler=html.match(/<button onclick="([^"]+)">Imprimir/)[1];
+ const scriptPolicy=policy.split(';').map(part=>part.trim()).find(part=>part.startsWith('script-src '));
+ assert.equal(handler,'window.print()');
+ assert.equal(scriptPolicy,`script-src 'unsafe-hashes' 'sha256-${createHash('sha256').update(handler).digest('base64')}'`);
+ assert.match(policy,/^default-src 'none';/);
+ assert.ok(!scriptPolicy.includes("'unsafe-inline'"));
+});
+
+test('official logo has an absolute URL permitted by the document CSP for blob and downloaded HTML',()=>{
+ const html=renderCustomerDocument(doc);
+ const image=html.match(/<img src="([^"]+)"/)[1];
+ const expected=new URL('../brand/xicronix-logo-official.png',import.meta.url).href;
+ assert.equal(image,expected);
+ const policy=html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)[1];
+ assert.ok(policy.includes(`img-src data: ${expected};`));
+});
+
+test('quotation history and product selection do not mark saved inputs dirty',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const source=readFileSync(new URL('../quote-editor.mjs',import.meta.url),'utf8');
+ const handlerSource=source.match(/form\.oninput=(e=>\{[^\n]+\});/)[1];
+ let reads=0,changes=0;
+ const handler=new Function('read','changed',`return (${handlerSource});`)(()=>reads++,()=>changes++);
+ for(const selector of ['[data-search]','[data-product]','[data-history]']){
+  handler({target:{matches:selectors=>selectors.split(',').includes(selector)}});
+ }
+ assert.equal(reads,0);
+ assert.equal(changes,0);
+ handler({target:{matches:()=>false}});
+ assert.equal(reads,1);
+ assert.equal(changes,1);
+});

@@ -1,11 +1,11 @@
-import {readFile,mkdtemp} from 'node:fs/promises';
+import {readFile,mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 export const IDs={org:'00000000-0000-4000-8000-000000000001',other:'00000000-0000-4000-8000-000000000002',contact:'00000000-0000-4000-8000-000000000003',owner:'00000000-0000-4000-8000-000000000004',seller:'00000000-0000-4000-8000-000000000005',alien:'00000000-0000-4000-8000-000000000006'};
 export async function createFixture(){
- if(!process.env.PGLITE_MODULE)throw Error('Set PGLITE_MODULE to pglite 0.3.14 dist/index.js');
- const {PGlite}=await import(pathToFileURL(resolve(process.env.PGLITE_MODULE)).href);
+ // npm ci provides the pinned runtime; an explicit external path remains useful for isolated tooling.
+ const {PGlite}=await import(process.env.PGLITE_MODULE?pathToFileURL(resolve(process.env.PGLITE_MODULE)).href:'@electric-sql/pglite');
  const directory=await mkdtemp(join(tmpdir(),'a009-conversations-'));
  let db=new PGlite(directory);
  await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;
@@ -27,6 +27,7 @@ export async function createFixture(){
   get db(){return db;},directory,migration,
   async migrate(){await db.exec("set app.conversations_environment='dev'");await db.exec(migration);},
   async reopen(){await db.close();db=new PGlite(directory);},
+  async dispose(){await db.close();await rm(directory,{recursive:true,force:true});},
   store:{
    async authenticate(token){return ({admin:{id:IDs.owner,organization_id:IDs.org,role:'ADMIN'},seller:{id:IDs.seller,organization_id:IDs.org,role:'SALES'},alien:{id:IDs.alien,organization_id:IDs.other,role:'ADMIN'}})[token]||null;},
    async list(token){return serial(async()=>{await identity(token);return (await db.query('select * from commercial_conversations order by updated_at desc')).rows;});},

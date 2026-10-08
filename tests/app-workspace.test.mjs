@@ -11,12 +11,19 @@ import * as executive from '../executive.mjs';
 import * as analytics from '../analytics.mjs';
 import * as sellerDashboard from '../seller-dashboard.mjs';
 import * as commercialCore from '../commercial-core.mjs';
+import * as catalog from '../catalog.mjs';
+import * as performanceView from '../performance.mjs';
+import * as radarLifecycle from '../radar-lifecycle.mjs';
+import * as directorInsights from '../director-insights.mjs';
+import {openQuoteEditor,closeQuoteEditor} from '../quote-editor.mjs';
+import {createConversationsView} from '../conversations-view.mjs';
+const assistantSource=readFileSync(new URL('../assistant.mjs',import.meta.url),'utf8').replace(/^export /gm,'');
 const source=readFileSync(new URL('../app.js',import.meta.url),'utf8').replace(/^import .*;$/gm,'');
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 function harness(role='ADMIN',saved=null,sourceChoice='live'){
  const nodes=new Map(),listeners={},storage=new Map(),downloads=[];
  class Element{
-  constructor(id){this.id=id;this.dataset={};this.attributes={};this.value='';this.hidden=false;this.disabled=false;this.open=false;this._html='';this.textContent='';this.classList={toggle(){}};}
+  constructor(id){this.id=id;this.dataset={};this.attributes={};this.value='';this.hidden=false;this.disabled=false;this.open=false;this._html='';this.textContent='';this.style={setProperty(){}};const classes=new Set();this.classList={add:(...names)=>names.forEach(name=>classes.add(name)),remove:(...names)=>names.forEach(name=>classes.delete(name)),contains:name=>classes.has(name),toggle:(name,force)=>{const enabled=force??!classes.has(name);if(enabled)classes.add(name);else classes.delete(name);return enabled;}};}
   set innerHTML(value){this._html=value;for(const match of value.matchAll(/id="([^"]+)"/g))nodes.set(match[1],new Element(match[1]));}
   get innerHTML(){return this._html;}
   setAttribute(k,v){this.attributes[k]=v;}
@@ -30,10 +37,15 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
   reset(){}
   click(){if(this.download)downloads.push({filename:this.download,url:this.href});}
   querySelectorAll(){return [];}
+  querySelector(){return null;}
+  insertBefore(child){child.parentElement=this;return child;}
+  appendChild(child){child.parentElement=this;return child;}
+  focus(){}
+  scrollIntoView(){}
   closest(){return this;}
  }
  for(const match of html.matchAll(/id="([^"]+)"/g))nodes.set(match[1],new Element(match[1]));
- const document={readyState:'loading',documentElement:{dataset:{}},getElementById:id=>{if(!nodes.has(id))throw Error('Unknown element '+id);return nodes.get(id);},addEventListener:(name,fn)=>{listeners[name]=fn;},querySelectorAll:()=>[],querySelector:()=>null,createElement:()=>new Element('created')};
+ const document={readyState:'loading',documentElement:{dataset:{},style:{setProperty(){}}},getElementById:id=>nodes.get(id)??null,addEventListener:(name,fn)=>{listeners[name]=fn;},querySelectorAll:()=>[],querySelector:()=>null,createElement:()=>new Element('created')};
  const base={organization_id:'org',created_by:'me',created_at:'2026-09-09',updated_at:'2026-09-09'};
  const row=(id,extra={})=>({...base,id,...extra});
  const db={
@@ -43,7 +55,9 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
   leads:[row('own-lead',{title:'Prospecto propio',owner_user_id:'me',institution_id:'institution',contact_id:'contact',status:'NEW'}),row('other-lead',{title:'Prospecto ajeno',created_by:'colleague',owner_user_id:'colleague',status:'NEW'})],
   opportunities:[row('own-opp',{name:'Oportunidad propia',value:1000,estimated_cost:500,owner_user_id:'me',stage:'WON'}),row('other-opp',{name:'Oportunidad ajena',created_by:'colleague',owner_user_id:'colleague',value:2000,stage:'PROPOSAL'})],
   tasks:[row('own-task',{title:'Tarea propia',assigned_to:'me',status:'PENDING'})],
-  meetings:[],deliverables:[],documents:[],document_versions:[],
+  meetings:[],deliverables:[],documents:[],document_versions:[],quotes:[],
+  prospect_intelligence_current:[],commercial_radar_dashboard:[],commercial_mail_inbox:[],commercial_mail_outbox:[],
+  supplier_relationships:[],strategic_alliances:[],territorial_intelligence_snapshot:[],commercial_mail_webhook_config:[],
   activities:[row('activity',{lead_id:'own-lead',subject:'Interacción propia',type:'CALL',occurred_at:'2026-09-09T12:00:00Z'})],
   catalog_products:[row('catalog-product',{supplier_name:'Proveedor demo',supplier_sku:'SKU-001',name:'Kit demo',category:'Fisica',currency:'USD',supplier_unit_price:680,origin_country:'Brasil',active:true})],
   cost_profiles:[row('cost-profile',{name:'Perfil demo',origin_country:'Brasil',destination_country:'Peru',currency:'USD',exchange_rate:3.78,igv_rate:.18})],
@@ -73,21 +87,28 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
   async range(){return this.result();}
   then(resolve,reject){return Promise.resolve(this.result()).then(resolve,reject);}
  }
- const sb={from:table=>new Query(table),auth:{onAuthStateChange(){},signOut:async()=>({error:null})}};
+ const sb={from:table=>new Query(table),rpc:async name=>{assert.equal(name,'xicronix_sales_data');return {data:{catalog_products:db.catalog_products.map(({supplier_unit_price,...row})=>row),cost_profiles:[],quotes:db.quotes},error:null};},auth:{onAuthStateChange(){},signOut:async()=>({error:null})}};
  if(saved)storage.set(workspace.workspaceKey('me','org'),saved);
  if(sourceChoice)storage.set(workspace.workspaceKey('me','org')+':source-v'+demo.DEMO_VERSION,sourceChoice);
- const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,...analytics,...sellerDashboard,...commercialCore,console,performance:{now:()=>Date.now()},requestAnimationFrame:fn=>fn(),setTimeout,clearTimeout,setInterval,clearInterval,document,window:{supabase:{createClient:()=>sb},confirm:()=>true},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
+ // Timers are deterministic and do not leave background pollers running after a test.
+ const timers=new Map();let nextTimer=0;
+ const schedule=(fn,delay)=>{const id=++nextTimer;timers.set(id,{fn,delay});return id;};
+ const localStorage={getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,String(value)),removeItem:key=>storage.delete(key)};
+ const window={supabase:{createClient:()=>sb},confirm:()=>true,addEventListener:(name,fn)=>{listeners['window:'+name]=fn;},setTimeout:schedule,localStorage,matchMedia:()=>({matches:false})};
+ const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,...analytics,...sellerDashboard,...commercialCore,...catalog,...performanceView,...radarLifecycle,...directorInsights,openQuoteEditor,closeQuoteEditor,createConversationsView,console,performance:{now:()=>Date.now()},requestAnimationFrame:fn=>fn(),setTimeout:schedule,clearTimeout:id=>timers.delete(id),setInterval:schedule,clearInterval:id=>timers.delete(id),document,window,navigator:{onLine:true},innerHeight:900,localStorage,sessionStorage:{getItem:()=>null,setItem(){},removeItem(){}},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',search:'',hash:''},history:{replaceState(){},pushState(){}},URLSearchParams,URL,Blob,Date,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
+ // Run the real assistant UI module inside this DOM realm, rather than stubbing its exports.
+ Object.assign(context,vm.runInContext('(()=>{'+assistantSource+';return {createAssistant,buildAssistantContext};})()',context));
  const run=code=>vm.runInContext(code,context);
- run(source);run('init();session={user:{id:"me",email:"test@example.invalid"}};');
- return {run,nodes,db,queries,storage,downloads,boot:()=>run('reload()'),gate:promise=>{profileGate=promise;},click:id=>nodes.get(id).onclick()};
+ run(source);const initialized=run('init()');run('session={user:{id:"me",email:"test@example.invalid"}};');
+ return {run,nodes,db,queries,storage,downloads,boot:async()=>{await initialized;return run('reload()');},gate:promise=>{profileGate=promise;},click:id=>nodes.get(id).onclick()};
 }
 test('ADMIN starts in executive mode; data is loaded from existing profiles/goals tables',async()=>{
  const h=harness();await h.boot();
  assert.equal(h.run('workspace'),'admin');
- assert.equal(h.nodes.get('pageTitle').textContent,'Centro de decisiones');
+ assert.equal(h.nodes.get('pageTitle').textContent,'Dirección Comercial');
  assert.equal(h.nodes.get('adminModeBtn').hidden,false);
  assert.equal(h.nodes.get('adminModeBtn').getAttribute('aria-pressed'),'true');
- assert.match(h.nodes.get('dashboard').innerHTML,/LECTURA EJECUTIVA/);
+ assert.match(h.nodes.get('dashboard').innerHTML,/director-dashboard/);
  assert.match(h.nodes.get('navigation').innerHTML,/data-page="goals"/);
  assert.ok(h.queries.some(q=>q.table==='profiles'));
  assert.ok(h.queries.some(q=>q.table==='commercial_goals'));
@@ -100,10 +121,12 @@ test('mode buttons switch both experiences, clear management data, reset filters
  assert.equal(h.run('workspace'),'seller');
  assert.equal(h.run('profile.role'),'ADMIN','never mutate the real account role');
  assert.equal(h.nodes.get('sellerModeBtn').getAttribute('aria-pressed'),'true');
- assert.match(h.nodes.get('dashboard').innerHTML,/Tu negocio, en una sola vista/);
+ assert.match(h.nodes.get('dashboard').innerHTML,/Tu negocio<br>en una sola vista\./);
  assert.equal(h.nodes.get('search').value,'');
- assert.match(h.nodes.get('pageTitle').textContent,/Mi Dashboard Comercial/);
- assert.match(h.nodes.get('dashboard').innerHTML,/Prospecto propio/);
+ assert.match(h.nodes.get('pageTitle').textContent,/Mi rendimiento/);
+ assert.equal(h.run('data.leads.length'),1);
+ assert.equal(h.run('data.leads[0].id'),'own-lead');
+ assert.match(h.nodes.get('dashboard').innerHTML,/data-page="leads"><b>1<\/b>/);
  assert.doesNotMatch(h.nodes.get('dashboard').innerHTML,/Prospecto ajeno|Eliminar/);
  assert.match(h.nodes.get('navigation').innerHTML,/data-page="dashboard"/);
  assert.doesNotMatch(h.nodes.get('navigation').innerHTML,/data-page="users"|data-page="goals"/);
@@ -112,7 +135,7 @@ test('mode buttons switch both experiences, clear management data, reset filters
  assert.equal(h.storage.get(workspace.workspaceKey('me','org')),'seller');
  await h.click('adminModeBtn');
  assert.equal(h.run('workspace'),'admin');
- assert.match(h.nodes.get('dashboard').innerHTML,/LECTURA EJECUTIVA/);
+ assert.match(h.nodes.get('dashboard').innerHTML,/director-dashboard/);
  assert.equal(h.run('data.leads.length'),2);
  assert.equal(h.run('data.opportunities[0].estimated_cost'),500);
 });
@@ -124,10 +147,10 @@ for(const role of ['SALES','MANAGER','VIEWER']){
   await h.run('setWorkspace("admin")');
   h.run('navigate("dashboard")');
   assert.equal(h.run('page'),'dashboard');
-  assert.match(h.nodes.get('dashboard').innerHTML,/Tu negocio, en una sola vista/);
+  assert.match(h.nodes.get('dashboard').innerHTML,/Tu negocio<br>en una sola vista\./);
   for(const page of ['users','goals','unknown']){
    h.run('navigate('+JSON.stringify(page)+')');
-   assert.equal(h.run('page'),'dashboard');
+   assert.equal(h.run('page'),'leads');
   }
   assert.equal(h.run('workspace'),'seller');
   assert.equal(h.queries.some(q=>q.table==='commercial_goals'),false);
@@ -136,9 +159,12 @@ for(const role of ['SALES','MANAGER','VIEWER']){
    h.run('openEditor("leads","own-lead")');
    assert.equal(h.nodes.get('saveBtn').hidden,true);
    assert.equal(h.nodes.get('newBtn').hidden,true);
-   assert.equal(h.nodes.get('importBtn').hidden,true);
+   assert.equal(h.nodes.get('records').hidden,true,'seller portfolio hides the records toolbar');
    await h.run('saveRecord({preventDefault(){}})');
    assert.equal(h.queries.some(q=>q.operation!=='select'),false);
+   h.nodes.get('editor').close();h.run('navigate("tasks")');
+   assert.equal(h.nodes.get('importBtn').hidden,true,'read-only tasks cannot offer import');
+   assert.equal(h.nodes.get('importHelp').hidden,true);
   }
  });
 }
@@ -242,6 +268,9 @@ test('demo save and import never issue Data API writes and survive refresh',asyn
  assert.equal(h.nodes.get('editor').open,false);
  assert.equal(h.queries.some(q=>q.operation!=='select'),false);
  await h.boot();assert.equal(h.run('data.institutions.length'),21);
+ const reopened=harness('ADMIN',null,'demo');for(const [key,value] of h.storage)reopened.storage.set(key,value);
+ await reopened.boot();assert.equal(reopened.run('data.institutions.length'),21);
+ assert.ok(reopened.run('data.institutions.some(row=>row.name==="Institución creada en demo")'));
  h.run('navigate("institutions")');
  await h.run('importCsvFile({target:{files:[{text:async()=>"name,type,country\\nCSV demo,SCHOOL,Perú"}],value:""}})');
  assert.equal(h.run('data.institutions.length'),22);
@@ -276,9 +305,12 @@ test('KPI drilldown applies a removable executive filter and clears when navigat
 });
 test('converted leads keep their historical score but show conversion-aware guidance',async()=>{
  const h=harness('ADMIN',null,'live');await h.boot();
- h.run('data.leads[0].status="CONVERTED";data.opportunities[0].lead_id="own-lead";navigate("leads");');
+ h.run('data.leads[0].status="CONVERTED";data.opportunities[0].lead_id="own-lead";data.opportunities[0].next_action="Preparar entrega <validada>";navigate("leads");');
  assert.match(h.nodes.get('recordList').innerHTML,/Potencial al convertir/);
  assert.match(h.nodes.get('recordList').innerHTML,/Lead convertido/);
+ assert.match(h.nodes.get('recordList').innerHTML,/Preparar entrega &lt;validada&gt;/);
+ assert.doesNotMatch(h.nodes.get('recordList').innerHTML,/<validada>/);
+ assert.equal(h.run('data.scores[0].total_score'),88);
  h.run('openEditor("leads","own-lead")');
  assert.match(h.nodes.get('fields').innerHTML,/Potencial al convertir/);
  assert.doesNotMatch(h.nodes.get('fields').innerHTML,/Convertir en oportunidad/);
@@ -350,6 +382,18 @@ test('legacy local demos gain history without overwriting edits or issuing remot
  assert.equal(h.queries.some(q=>q.operation!=='select'),false);
 });
 
+
+test('saved demo validates organization and row collections before reuse',async()=>{
+ for(const corrupt of [data=>{data.contacts[0].organization_id='another-org';},data=>{data.quotes={id:'malformed'};}]){
+  const h=harness('ADMIN',null,'demo'),saved=demo.createDemoData('org');
+  saved.institutions[0].name='Do not restore invalid demo';corrupt(saved);
+  h.storage.set(workspace.workspaceKey('me','org')+':demo-v'+demo.DEMO_VERSION,JSON.stringify(saved));
+  await h.boot();assert.notEqual(h.run('data.institutions[0].name'),'Do not restore invalid demo');
+  assert.equal(h.run('data.contacts.every(row=>row.organization_id==="org")'),true);
+  assert.equal(h.queries.some(q=>q.operation!=='select'),false);
+ }
+});
+
 test('financial export generates a downloadable CSV and blocks seller or partial-data exports',async()=>{
  const h=harness('ADMIN',null,'demo');await h.boot();
  h.run('exportAnalytics()');assert.equal(h.downloads.length,1);
@@ -365,7 +409,8 @@ test('financial export generates a downloadable CSV and blocks seller or partial
 test('production uses one canonical recovery destination and keeps original session namespace',()=>{
  const h=harness();
  assert.equal(h.run('authRedirectUrl()'),'https://xicronix-commercial-intelligence.vercel.app/');
- assert.match(html,/xicronix-release.*2026-09-18-v2.2/);
+ assert.equal(html.match(/name="xicronix-release" content="[^"]*-(v[^"]+)"/)[1],h.run('CLIENT_BUILD'));
+ assert.match(source,/storageKey:'xicronix\.crm\.auth'/);
  assert.doesNotMatch(source,/git-improvemen-2952f5/);
  assert.doesNotMatch(html,/src=".*(?:auth-access|workspace-navigation)\.js/);
 });

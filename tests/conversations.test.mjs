@@ -5,7 +5,7 @@ import {createHandler} from '../api/conversations.mjs';
 import {createHandler as createBridge} from '../api/conversations-bridge.mjs';
 const env={VERCEL_ENV:'preview',CONVERSATIONS_DEV_ENABLED:'true',CONVERSATIONS_SUPABASE_URL:'https://rmximatxuaczhpqbcuho.supabase.co',CONVERSATIONS_BRIDGE_TOKEN:'synthetic-only',CONVERSATIONS_TEST_ORG_ID:IDs.org,CONVERSATIONS_TEST_CONTACT_ID:IDs.contact,CONVERSATIONS_TEST_OWNER_ID:IDs.owner};
 test('Nexa → inbox → human → visitor receipt → closure, durable SQL and permissions',async t=>{
- const f=await createFixture();t.after(()=>f.db.close());
+ const f=await createFixture();t.after(()=>f.dispose());
  await t.test('migration rejects unmarked environment',async()=>{await assert.rejects(f.db.exec(f.migration),/isolated DEV/);await f.db.exec('rollback');await f.migrate();});
  const api=createHandler({env,store:f.store}),bridge=createBridge({env,store:f.store});
  const input={thread_id:'synthetic-session',event_key:'synthetic-in-1',body:'Consulta sintética sobre laboratorio',occurred_at:'2026-10-08T14:00:00Z',consent:true,consent_version:'dev-v1',source_page:'/colegios'};

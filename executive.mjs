@@ -113,6 +113,7 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
    m.attainment>=100?'Meta alcanzada. Protege el margen del siguiente cierre.':'Faltan '+compactMoney(m.gap)+' para alcanzar la meta.';
  const kpi=(label,value,hint,view,tone='')=>'<button class="ceo-kpi '+tone+'" data-ceo-view="'+view+'"><span>'+label+'</span><strong>'+value+'</strong><small>'+esc(hint)+'</small></button>';
  const statusTitle=incomplete?'INFORMACIÓN PARCIAL':demo?'ESCENARIO SIMULADO':'LECTURA EJECUTIVA';
+ const statusNotice=incomplete||demo?'<p class="ceo-empty" role="status"><strong>'+statusTitle+'</strong> · '+(incomplete?'Datos incompletos: actualiza antes de interpretar el desempeño.': 'Datos ficticios para explorar el sistema; no representan ventas ni pagos reales.')+'</p>':'';
  const storyItems=incomplete?[
   {label:'SITUACIÓN',text:'Hay módulos incompletos; actualiza antes de interpretar el desempeño.',action:'Actualizar antes de decidir',target:'dashboard'}
  ]:[
@@ -201,7 +202,7 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  const iconPipeline='<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v5c0 1.7 3.1 3 7 3s7-1.3 7-3V5M5 10v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/></svg>';
  const iconRisk='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.7 20h18.6L12 3Z"/><path d="M12 9v5M12 17.3v.1"/></svg>';
  const iconForecast='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16M6 16l4-5 3 2 5-7M16 6h2v2"/></svg>';
- const mobileClone='<section class="director-mobile-dashboard director-mobile-clone" aria-label="Dashboard de dirección móvil">'+
+ const mobileClone=incomplete?'<section class="director-mobile-dashboard director-mobile-clone" aria-label="Dashboard de dirección móvil"><p class="director-empty">Datos incompletos: actualiza antes de interpretar los indicadores y prioridades.</p></section>':'<section class="director-mobile-dashboard director-mobile-clone" aria-label="Dashboard de dirección móvil">'+
 
   '<section class="director-mobile-kpis director-mobile-kpis--clone">'+
    '<article class="director-mobile-kpi sales"><span class="director-kpi-icon">'+iconSales+'</span><div><small>Ventas mes</small><strong>'+compactMoney(m.revenue)+'</strong><span>'+progress+'</span></div></article>'+
@@ -240,7 +241,7 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  }).join('')+'</tbody></table></div>';
  const iconTeam='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 14a4 4 0 0 1 4 4v3"/></svg>';
  const iconTasks='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13v7H4V4h12M9 11l3 3 9-10"/></svg>';
- return '<div class="ceo-dashboard director-dashboard">'+renderExecutivePriority(data,{now,failures})+mobileClone+
+ return '<div class="ceo-dashboard director-dashboard">'+renderExecutivePriority(data,{now,failures})+statusNotice+mobileClone+
 
  '<section class="director-kpis director-desktop-kpis" aria-label="Indicadores comerciales">'+
   desktopKpi('Ventas mes',compactMoney(m.revenue),m.wonCount+' cierres · '+progress,'won','sales',iconSales)+
@@ -259,13 +260,14 @@ export function renderExecutive(data,{now=new Date(),demo=false,failures={},anal
  '</section>'+
  renderDirectorInsights(data,{now,failures,pipeline:mobilePipeline})+
  '<details class="director-existing-details"><summary>Más información comercial y analítica</summary>'+
+ (incomplete?'<p class="director-empty">Datos incompletos: actualiza antes de interpretar oportunidades, próximos hitos y señales comerciales.</p>':
  '<section class="director-prospect-feed"><div><small>PROSPECT INTELLIGENCE</small><h2>Prospectos potenciales en actualización automática</h2><p>'+prospects.length+' candidatos consolidados · '+actionNow.length+' listos para acción · '+reviewFirst.length+' requieren investigación o revalidación.</p></div><div class="director-prospect-metrics"><span><strong>'+actionNow.length+'</strong><small>Acción ahora</small></span><span><strong>'+reviewFirst.length+'</strong><small>Investigar</small></span><span><strong>'+prospects.length+'</strong><small>Total</small></span></div><button data-page="prospects">Abrir prospectos →</button></section>'+
  '<section class="director-grid director-grid-secondary">'+
   '<article class="director-panel"><header><div><small>NEGOCIOS ESTRATÉGICOS</small><h2>Oportunidades de mayor impacto</h2></div><button data-page="opportunities">Ver cartera →</button></header><div class="director-opportunity-list">'+strategicCards+'</div></article>'+
   '<article class="director-panel"><header><div><small>PRÓXIMOS HITOS</small><h2>Qué viene después</h2></div><button data-page="meetings">Abrir agenda →</button></header><div class="director-upcoming-list">'+upcomingRows+'</div></article>'+
  '</section>'+
  '<section class="director-radar-strip"><div><small>RADAR COMERCIAL</small><h2>'+radarCritical.length+' críticas · '+radarHigh.length+' alta prioridad</h2><p>'+(topSignal?'Señal destacada: '+esc(topSignal.institution_name||'Institución')+'.':'No hay una señal prioritaria destacada en este momento.')+'</p></div><button data-page="radar">Abrir Radar →</button></section>'+
- '<details class="director-intelligence"><summary>Inteligencia y analítica avanzada</summary><div class="director-intelligence-body">'+territorial+'<button type="button" data-performance-page="overview">Rendimiento del negocio · abrir análisis</button>'+'</div></details>'+
+ '<details class="director-intelligence"><summary>Inteligencia y analítica avanzada</summary><div class="director-intelligence-body">'+territorial+'<button type="button" data-performance-page="overview">Rendimiento del negocio · abrir análisis</button>'+'</div></details>')+
  '</details></div>';
 }
 export const EXECUTIVE_METHOD = 'Ventas ganadas: oportunidades WON cuya fecha de cierre prevista está en el mes actual; no son cobros. Margen: valor menos costo informado, admite pérdidas; sin costo no se estima. Meta: objetivo que cubre el mes completo. Proyección: ganadas del mes más cartera con cierre previsto en el mes ponderada por probabilidad manual, no es una garantía. Riesgo: oportunidades abiertas con seguimiento vencido o margen inferior al 15%; no se cuenta dos veces una oportunidad. Prioridad del saludo: señal crítica vigente; después mayor oportunidad PEN en propuesta o negociación; después tarea vencida o próxima (72 horas); después seguimiento vencido o de las próximas 24 horas; finalmente información general. Se excluyen registros resueltos y se recalcula con cada actualización. Las excepciones del resto del tablero conservan sus reglas de margen, atrasos y datos pendientes. Son reglas explicables, no IA generativa. El ranking compara cumplimiento de metas de ventas, no liquida bonos. Los datos de demostración nunca se mezclan con datos reales.';

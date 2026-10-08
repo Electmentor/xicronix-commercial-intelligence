@@ -1,5 +1,5 @@
 """Real Chromium UI tests with isolated Auth/Data fixtures. Never authenticates a real user."""
-import argparse,json,os,threading,http.server,functools
+import argparse,json,os,re,threading,http.server,functools
 from pathlib import Path
 from urllib.parse import urlparse
 from playwright.sync_api import sync_playwright,expect
@@ -14,6 +14,10 @@ if not args.base_url:
  threading.Thread(target=server.serve_forever,daemon=True).start();base=f'http://127.0.0.1:{server.server_port}/'
 else:base=args.base_url.rstrip('/')+'/'
 fixture=(root/'tests/browser-fixture.js').read_text()
+# Compare the rendered release against this checkout, including deployed-asset runs.
+release_markers=re.findall(r'<meta\s+name="xicronix-release"\s+content="([^"]+)"', (root/'index.html').read_text())
+assert len(release_markers)==1 and re.fullmatch(r'\d{4}-\d{2}-\d{2}-v\d+\.\d+\.\d+',release_markers[0]), 'Missing or invalid candidate release marker'
+expected_release=release_markers[0]
 checks=[];errors=[];blocked=[]
 with sync_playwright() as p:
  exe=os.environ.get('BROWSER_EXECUTABLE')
@@ -41,7 +45,7 @@ with sync_playwright() as p:
   if page.locator('#dailyBriefingDialog').evaluate("el=>el.open"):
    page.locator('#closeDailyBriefing').click()
   check('actual data is default',lambda:expect(page.locator('#sidebarLiveBtn')).to_have_attribute('aria-pressed','true'))
-  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content','2026-09-27-v2.47.1'))
+  check('release marker',lambda:expect(page.locator('meta[name="xicronix-release"]')).to_have_attribute('content',expected_release))
   page.screenshot(path=str(out/'desktop-v2-fixture.png'),full_page=True)
   pages=['now','users','goals','opportunities','meetings','leads','prospects','radar','supplier_relationships','strategic_alliances','catalog_products','institutions','contacts','mail','documents','cost_profiles','expenses','dashboard']
   for target in pages:

@@ -30,3 +30,7 @@ const server=createServer(async(req,res)=>{
  }catch{res.writeHead(500);res.end('Preview failure');}
 });
 server.listen(Number(process.env.PORT||4173),'127.0.0.1',()=>console.log('SYNTHETIC_PREVIEW http://127.0.0.1:'+server.address().port));
+let stopping=false;
+async function stop(){if(stopping)return;stopping=true;server.close();server.closeAllConnections();await fixture.dispose();}
+process.once('SIGTERM',()=>stop().catch(()=>process.exitCode=1));
+process.once('SIGINT',()=>stop().catch(()=>process.exitCode=1));

@@ -21,23 +21,7 @@ fixture=(root/'tests/browser-fixture.js').read_text()+r'''
  Object.assign(db.leads[0],{institution_id:'inst-1',contact_id:'contact-1',score:25,estimated_value:0});
  db.leads.push({...base,id:'44444444-4444-4444-8444-444444444444',title:'Segundo prospecto de prueba',institution_id:'inst-2',contact_id:'contact-2',owner_user_id:base.created_by,source:'EMAIL',status:'NEW',score:0,estimated_value:0});
  Object.assign(db.activities[0],{institution_id:'inst-1',contact_id:'contact-1',type:'WEB_FORM',outcome:null,occurred_at:'2026-09-18T12:00:50.327Z',next_action:null,next_action_date:null});
- const create=window.supabase.createClient;
- window.supabase.createClient=(...args)=>{
-  const client=create(...args),from=client.from;
-  client.from=table=>{
-   const q=from(table),old=q.result.bind(q);
-   q.result=single=>{
-    if(!q.applied&&q.op!=='select'){
-     q.applied=true;
-     if(q.op==='insert')db[table].push({...base,id:crypto.randomUUID(),...q.payload});
-     if(q.op==='update')db[table].filter(row=>q.filters.every(([k,v])=>row[k]===v)).forEach(row=>Object.assign(row,q.payload));
-    }
-    return old(single);
-   };
-   return q;
-  };
-  return client;
- };
+ // Query already applies isolated inserts and updates; do not wrap it a second time.
 })();
 '''
 checks=[];errors=[];blocked=[]
