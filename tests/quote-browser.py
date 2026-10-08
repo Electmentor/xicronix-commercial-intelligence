@@ -12,6 +12,10 @@ import urllib.request
 from urllib.parse import urlparse
 from playwright.sync_api import sync_playwright, expect
 
+# Python Playwright invokes an expression that evaluates to a function. Wrap
+# spy installation so assigning window.print does not itself invoke the spy.
+PRINT_SPY_SETUP = '() => { window.__printCalls = 0; window.print = () => { window.__printCalls++; }; }'
+
 root = pathlib.Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument('--base-url', help='Optional deployed candidate; every quote asset must match this checkout')
@@ -60,7 +64,7 @@ if args.base_url:
     raise
    time.sleep(5)
 
-checks, errors, blocked = [], [], []
+checks, errors, blocked, console_messages, documents = [], [], [], [], []
 passed = False
 with sync_playwright() as p:
  executable = os.environ.get('BROWSER_EXECUTABLE') or ('/usr/bin/chromium' if pathlib.Path('/usr/bin/chromium').exists() else None)
@@ -82,13 +86,18 @@ with sync_playwright() as p:
    blocked.append(url.split('?')[0])
    route.abort()
  context.route('**/*', route_request)
- context.on('page', lambda page: page.on('pageerror', lambda error: errors.append(str(error))))
+ def observe_page(observed_page):
+  observed_page.on('pageerror', lambda error: errors.append(str(error)))
+  observed_page.on('console', lambda message: console_messages.append({'type': message.type, 'text': message.text, 'url': observed_page.url}))
+ context.on('page', observe_page)
  page = context.new_page()
  export = page.get_by_role('button', name='Documento oficial · PDF / imprimir', exact=True)
  def opened_document(action, revision):
   with page.expect_popup() as event:
    action()
   document = event.value
+  evidence = {'revision': revision, 'url': document.url}
+  documents.append(evidence)
   expect(document.get_by_role('button', name='Imprimir / Guardar PDF', exact=True)).to_be_visible()
   expect(document.locator('body')).to_contain_text(f'Versión {revision}')
   expect(document.locator('.draft')).to_contain_text('BORRADOR COMERCIAL')
@@ -99,11 +108,20 @@ with sync_playwright() as p:
   while not logo.evaluate('(image) => image.complete && image.naturalWidth > 0'):
    assert time.monotonic() < deadline, 'Official logo did not load under the document CSP'
    time.sleep(0.1)
-  # Exercise the real button under the document CSP without opening an OS print dialog.
-  document.evaluate('window.__printCalls = 0; window.print = () => window.__printCalls++')
-  document.get_by_role('button', name='Imprimir / Guardar PDF', exact=True).click()
-  assert document.evaluate('window.__printCalls') == 1, 'Document CSP blocked its print action'
+  evidence.update(document.evaluate('''() => ({
+   csp: document.querySelector('meta[http-equiv="Content-Security-Policy"]').content,
+   print_handler: document.querySelector('.actions button').getAttribute('onclick'),
+   logo_loaded: document.querySelector('.brand img').naturalWidth > 0
+  })'''))
+  # Keep the actual document visible in failure evidence, not just its editor.
   document.screenshot(path=str(out / f'customer-version-{revision}.png'), full_page=True)
+  # Exercise the real button under the document CSP without opening an OS print dialog.
+  document.evaluate(PRINT_SPY_SETUP)
+  evidence['print_calls_before'] = document.evaluate('window.__printCalls')
+  assert evidence['print_calls_before'] == 0, f'Print spy ran during setup: {evidence}'
+  document.get_by_role('button', name='Imprimir / Guardar PDF', exact=True).click()
+  evidence['print_calls_after'] = document.evaluate('window.__printCalls')
+  assert evidence['print_calls_after'] == 1, f'Expected exactly one print call after clicking the document button: {evidence}'
   html = page.evaluate('(url) => fetch(url).then(response => response.text())', document.url)
   for private_field in ['supplier_unit_price', 'landed_unit_cost', 'financials', 'markup_pct', 'gross_profit']:
    assert private_field not in html, private_field
@@ -208,7 +226,7 @@ with sync_playwright() as p:
   page.screenshot(path=str(out / 'failure.png'), full_page=True)
   raise
  finally:
-  (out / 'result.json').write_text(json.dumps({'passed': passed, 'base_url': base, 'scope': 'candidate quotation assets with isolated synthetic backend; SQL engine tested separately', 'checks': checks, 'javascript_errors': errors, 'blocked_requests': blocked}, ensure_ascii=False, indent=2))
+  (out / 'result.json').write_text(json.dumps({'passed': passed, 'base_url': base, 'scope': 'candidate quotation assets with isolated synthetic backend; SQL engine tested separately', 'checks': checks, 'javascript_errors': errors, 'blocked_requests': blocked, 'console_messages': console_messages, 'documents': documents}, ensure_ascii=False, indent=2))
   browser.close()
   if server:
    server.shutdown()

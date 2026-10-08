@@ -92,10 +92,23 @@ with sync_playwright() as p:
   page.locator('#recordList button[data-edit="'+doc['id']+'"]').click();field('status').select_option('CURRENT');page.locator('#field-_file').set_input_files({'name':'diagnostico-prueba-v2.pdf','mimeType':'application/pdf','buffer':b'%PDF-1.4 fixture v2'});page.locator('#saveBtn').click();saved();versions=page.evaluate('window.__testDB.document_versions');assert len(versions)==2 and versions[-1]['version_number']==2 and versions[-1]['is_current'];assert versions[0]['is_current'] is False;mark('new file appends version 2 and preserves prior version')
   nav('leads');page.locator('#recordList tr',has_text='Diagnóstico revisado de prueba').get_by_role('button',name='Abrir expediente comercial').click();expect(page.locator('#leadDetailContent')).to_contain_text('Documentos y material');expect(page.locator('#leadDetailContent')).to_contain_text('Diagnóstico técnico de prueba');page.locator('#closeLeadDetail').click();mark('commercial dossier summarizes current document and version history')
   for width in [390,768,1440]:
-   page.set_viewport_size({'width':width,'height':950});nav('leads');page.locator('#recordList tr',has_text='Diagnóstico revisado de prueba').get_by_role('button',name='Registrar movimiento').click();expect(field('type')).to_be_visible();assert page.locator('#editor').evaluate('(el)=>el.scrollWidth<=el.clientWidth+1');cancel();mark('editor fits viewport '+str(width))
+   page.set_viewport_size({'width':width,'height':950});nav('leads')
+   # Mobile renders cards, desktop a table. Both expose the same real dossier action.
+   lead_action=page.locator('#recordList [data-lead-detail="33333333-3333-4333-8333-333333333333"]:visible')
+   expect(lead_action).to_have_count(1);lead_action.click()
+   expect(page.locator('#leadDetailDialog')).to_be_visible()
+   page.locator('#leadDetailContent [data-activity-lead="33333333-3333-4333-8333-333333333333"]').click()
+   expect(field('lead_id')).to_have_value('33333333-3333-4333-8333-333333333333')
+   expect(page.locator('#leadDetailDialog')).not_to_be_visible();expect(field('type')).to_be_visible()
+   assert page.locator('#editor').evaluate('(el)=>el.scrollWidth<=el.clientWidth+1')
+   cancel();mark('editor fits viewport '+str(width))
   assert not errors,errors;assert not blocked,blocked;mark('no JavaScript errors or real customer requests')
  except Exception as error:
-  errors.append(str(error));page.screenshot(path=str(out/'failure.png'),full_page=True)
+  errors.append(str(error))
+  try:
+   if not page.is_closed():page.screenshot(path=str(out/'failure.png'),full_page=True)
+  except Exception as capture_error:
+   print('Could not capture failure screenshot:',capture_error)
   raise
  finally:
   (out/'results.json').write_text(json.dumps({'base_url':base,'fixture_only':True,'checks':checks,'count':len(checks),'javascript_errors':errors,'blocked_requests':blocked},ensure_ascii=False,indent=2));browser.close()

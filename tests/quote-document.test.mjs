@@ -26,6 +26,23 @@ test('print action is allowed by its exact CSP hash without enabling arbitrary i
  assert.ok(!scriptPolicy.includes("'unsafe-inline'"));
 });
 
+test('browser print spy setup does not count as a print invocation',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const {runInNewContext}=await import('node:vm');
+ const source=readFileSync(new URL('./quote-browser.py',import.meta.url),'utf8');
+ const setup=source.match(/^PRINT_SPY_SETUP = '([^'\n]+)'$/m)?.[1];
+ assert.ok(setup,'Browser print spy setup is explicitly testable');
+ const context={window:{}};
+ // Match Python Playwright evaluate(): automatically invoke function results.
+ const result=runInNewContext(setup,context);
+ if(typeof result==='function')result();
+ assert.equal(context.window.__printCalls,0,'Installing the spy must not print');
+ context.window.print();
+ assert.equal(context.window.__printCalls,1);
+ context.window.print();
+ assert.equal(context.window.__printCalls,2,'Each print invocation is counted exactly once');
+});
+
 test('official logo has an absolute URL permitted by the document CSP for blob and downloaded HTML',()=>{
  const html=renderCustomerDocument(doc);
  const image=html.match(/<img src="([^"]+)"/)[1];

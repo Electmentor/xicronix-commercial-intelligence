@@ -18,7 +18,7 @@ fixture=(root/'tests/browser-fixture.js').read_text()
 release_markers=re.findall(r'<meta\s+name="xicronix-release"\s+content="([^"]+)"', (root/'index.html').read_text())
 assert len(release_markers)==1 and re.fullmatch(r'\d{4}-\d{2}-\d{2}-v\d+\.\d+\.\d+',release_markers[0]), 'Missing or invalid candidate release marker'
 expected_release=release_markers[0]
-checks=[];errors=[];blocked=[]
+checks=[];errors=[];blocked=[];fixture_images=[];diagnostic_errors=[];failure=None;passed=False
 with sync_playwright() as p:
  exe=os.environ.get('BROWSER_EXECUTABLE')
  if not exe and Path('/usr/bin/chromium').exists():exe='/usr/bin/chromium'
@@ -31,6 +31,10 @@ with sync_playwright() as p:
    if 'cdn.jsdelivr.net/npm/@supabase/supabase-js@' in u:route.fulfill(status=200,content_type='application/javascript',body=fixture)
    elif 'unpkg.com/leaflet@' in u and u.endswith('.js'):route.fulfill(status=200,content_type='application/javascript',body='')
    elif 'unpkg.com/leaflet@' in u and u.endswith('.css'):route.fulfill(status=200,content_type='text/css',body='')
+   elif u.split('?')[0]=='https://images.unsplash.com/photo-1766066014237-00645c74e9c6':
+    # Stub only the known decorative seller image; never contact an external service.
+    fixture_images.append(u.split('?')[0])
+    route.fulfill(status=200,content_type='image/svg+xml',body='<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1000"><rect width="1400" height="1000" fill="#dce8f5"/><text x="120" y="500" font-size="52" fill="#152a42">Imagen decorativa de prueba</text></svg>')
    elif urlparse(u).netloc==urlparse(base).netloc:route.continue_()
    else:blocked.append(u.split('?')[0]);route.abort()
   context.route('**/*',route_handler)
@@ -165,11 +169,16 @@ with sync_playwright() as p:
   assert not errors,errors
   assert not blocked,blocked
   checks.append('no unhandled JavaScript errors or real backend calls')
+  passed=True
  except Exception as error:
-  errors.append(str(error));page.screenshot(path=str(out/'failure.png'),full_page=True)
+  failure=str(error)
+  try:
+   if not page.is_closed():page.screenshot(path=str(out/'failure.png'),full_page=True)
+  except Exception as capture_error:
+   diagnostic_errors.append(str(capture_error))
   raise
  finally:
-  (out/'results.json').write_text(json.dumps({'base_url':base,'mode':'Chromium with isolated Supabase Auth/Data fixtures; not a real-account end-to-end test','checks':checks,'count':len(checks),'javascript_errors':errors,'blocked_network':blocked},ensure_ascii=False,indent=2))
+  (out/'results.json').write_text(json.dumps({'passed':passed,'failure':failure,'diagnostic_errors':diagnostic_errors,'stubbed_decorative_images':fixture_images,'base_url':base,'mode':'Chromium with isolated Supabase Auth/Data fixtures; not a real-account end-to-end test','checks':checks,'count':len(checks),'javascript_errors':errors,'blocked_network':blocked},ensure_ascii=False,indent=2))
   browser.close()
   if server:server.shutdown()
 print(f'{len(checks)} browser checks passed; no real account, email or business record was modified.')
