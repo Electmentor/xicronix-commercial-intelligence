@@ -33,7 +33,7 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
   closest(){return this;}
  }
  for(const match of html.matchAll(/id="([^"]+)"/g))nodes.set(match[1],new Element(match[1]));
- const document={readyState:'loading',documentElement:{dataset:{}},getElementById:id=>{if(!nodes.has(id))throw Error('Unknown element '+id);return nodes.get(id);},addEventListener:(name,fn)=>{listeners[name]=fn;},querySelectorAll:()=>[],querySelector:()=>null,createElement:()=>new Element('created')};
+ const document={readyState:'loading',documentElement:{dataset:{}},getElementById:id=>nodes.get(id)||null,addEventListener:(name,fn)=>{listeners[name]=fn;},querySelectorAll:()=>[],querySelector:()=>null,createElement:()=>new Element('created')};
  const base={organization_id:'org',created_by:'me',created_at:'2026-09-09',updated_at:'2026-09-09'};
  const row=(id,extra={})=>({...base,id,...extra});
  const db={
@@ -76,7 +76,7 @@ function harness(role='ADMIN',saved=null,sourceChoice='live'){
  const sb={from:table=>new Query(table),auth:{onAuthStateChange(){},signOut:async()=>({error:null})}};
  if(saved)storage.set(workspace.workspaceKey('me','org'),saved);
  if(sourceChoice)storage.set(workspace.workspaceKey('me','org')+':source-v'+demo.DEMO_VERSION,sourceChoice);
- const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,...analytics,...sellerDashboard,...commercialCore,console,performance:{now:()=>Date.now()},requestAnimationFrame:fn=>fn(),setTimeout,clearTimeout,setInterval,clearInterval,document,window:{supabase:{createClient:()=>sb},confirm:()=>true},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
+ const context=vm.createContext({...domain,esc:domain.escapeHTML,...workspace,...demo,...executive,...analytics,...sellerDashboard,...commercialCore,console,performance:{now:()=>Date.now()},requestAnimationFrame:fn=>fn(),setTimeout,clearTimeout,setInterval,clearInterval,document,navigator:{onLine:true,userAgent:'node-test'},window:{supabase:{createClient:()=>sb},confirm:()=>true,addEventListener(){},removeEventListener(){},setTimeout,clearTimeout,setInterval,clearInterval},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)},location:{hostname:'test.invalid',origin:'https://test.invalid',pathname:'/',hash:''},history:{replaceState(){}},URLSearchParams,URL,Blob,Date,setTimeout,clearTimeout,setInterval,clearInterval,FormData:class {get(key){return nodes.get('field-'+key)?.value??null;}}});
  const run=code=>vm.runInContext(code,context);
  run(source);run('init();session={user:{id:"me",email:"test@example.invalid"}};');
  return {run,nodes,db,queries,storage,downloads,boot:()=>run('reload()'),gate:promise=>{profileGate=promise;},click:id=>nodes.get(id).onclick()};
