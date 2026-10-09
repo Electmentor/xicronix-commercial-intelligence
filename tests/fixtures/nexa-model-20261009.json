@@ -1,0 +1,214 @@
+[
+  {
+    "case": "school-five-turn",
+    "user": "Hola",
+    "response": {
+      "ok": true,
+      "message": "¡Hola! ¿En qué puedo ayudarte hoy?",
+      "options": [],
+      "handoff": false,
+      "intents": [
+        "OTRO"
+      ],
+      "commercial": false,
+      "provider": "groq",
+      "degraded": false
+    }
+  },
+  {
+    "case": "school-five-turn",
+    "user": "Quiero un laboratorio para mi colegio.",
+    "response": {
+      "ok": true,
+      "message": "Entiendo, ¿qué tipo de laboratorio buscas (química, física, robótica, STEAM u otro) y qué actividades principales deseas desarrollar?",
+      "options": [],
+      "handoff": false,
+      "intents": [
+        "LABORATORIOS"
+      ],
+      "commercial": true,
+      "provider": "groq",
+      "degraded": false
+    }
+  },
+  {
+    "case": "school-five-turn",
+    "user": "Que nuestros alumnos de secundaria experimenten cómo funciona la electricidad; son 24 y vamos a empezar desde cero.",
+    "response": {
+      "ok": true,
+      "message": "Para un grupo de 24 estudiantes de secundaria que empiezan desde cero, podemos diseñar un laboratorio de electricidad con kits de circuitos seguros, estaciones de montaje, sensores y módulos de microcontroladores para experimentar generación, transmisión y consumo de energía. Incluye guías paso a paso, actividades de medición con multímetros y proyectos de automatización básica. Si deseas más detalles o una propuesta personalizada, podemos enviarte la información completa.",
+      "options": [
+        "Solicitar información o contacto"
+      ],
+      "handoff": true,
+      "intents": [
+        "OTRO"
+      ],
+      "commercial": false,
+      "provider": "groq",
+      "degraded": false
+    }
+  },
+  {
+    "case": "school-five-turn",
+    "user": "Me interesa, pero no sé qué equipos hacen falta y no quiero comprar cosas que no vamos a usar.",
+    "response": {
+      "ok": true,
+      "message": "Para un laboratorio de electricidad básico y útil, considera estos equipos esenciales:\n- Kits de prototipado (placas de pruebas, cables, resistencias, LED, interruptores, potenciómetros).\n- Multímetros digitales (uno por cada 4‑6 alumnos) para medir voltaje, corriente y resistencia.\n- Fuentes de alimentación reguladas de bajo voltaje (5 V y 12 V) con protección contra sobrecarga.\n- Microcontroladores tipo Arduino o similar con módulos de relé y sensores de corriente/voltaje para proyectos de automatización.\n- Materiales de seguridad (guantes aislantes, gafas, tapetes antideslizantes).\n- Estaciones de trabajo con soportes para los kits y espacio para montar circuitos.\nCon estos elementos cubres desde circuitos simples hasta proyectos de control y medición, sin invertir en equipos más avanzados que no se usarían al inicio.\n\n¿Cuál es el espacio disponible (metros cuadrados) y la infraestructura eléctrica del aula donde se instalará el laboratorio?",
+      "options": [],
+      "handoff": false,
+      "intents": [
+        "EQUIPAMIENTO"
+      ],
+      "commercial": true,
+      "provider": "groq",
+      "degraded": false
+    }
+  },
+  {
+    "case": "school-five-turn",
+    "user": "Sí, quiero pedir una propuesta con esos datos.",
+    "response": {
+      "ok": true,
+      "message": "Perfecto, prepararemos una propuesta detallada con los equipos y la configuración recomendada para tu laboratorio de electricidad. Para enviarla, por favor completa el formulario de solicitud.",
+      "options": [],
+      "handoff": true,
+      "intents": [
+        "COTIZACIÓN"
+      ],
+      "commercial": true,
+      "provider": "groq",
+      "degraded": false
+    }
+  },
+  {
+    "case": "research",
+    "user": "Soy investigador. Necesito medir la conductividad del agua en muestras ambientales.",
+    "response": {
+      "ok": true,
+      "message": "Para medir la conductividad del agua ambiental puedes usar un medidor portátil con sonda de acero inoxidable y calibración automática; conecta la sonda a un dispositivo de registro de datos para análisis continuo. ¿Qué rango de conductividad esperas medir en tus muestras?",
+      "options": [],
+      "handoff": false,
+      "intents": [
+        "OTRO"
+      ],
+      "commercial": false,
+      "provider": "groq",
+      "degraded": false
+    }
+  },
+  {
+    "case": "business",
+    "user": "Somos una empresa y queremos automatizar el embalaje con robótica.",
+    "response": {
+      "ok": true,
+      "message": "Entiendo que buscan una solución robótica para automatizar el embalaje. ¿Podrían indicar el tipo de producto o carga que manejan y el volumen diario estimado?",
+      "options": [],
+      "handoff": false,
+      "intents": [
+        "STEAM",
+        "INSTITUCIONAL"
+      ],
+      "commercial": true,
+      "provider": "groq",
+      "degraded": false
+    }
+  },
+  {
+    "case": "direct-purchase",
+    "user": "Quiero comprar dos microscopios para el laboratorio. ¿Cuál es el precio?",
+    "response": {
+      "ok": true,
+      "message": "Para poder orientarte mejor, ¿qué tipo de microscopio necesitas (óptico, digital, de fluorescencia, etc.) y para qué aplicaciones lo usarás?",
+      "options": [],
+      "handoff": false,
+      "intents": [
+        "COTIZACIÓN",
+        "LABORATORIOS"
+      ],
+      "commercial": true,
+      "provider": "groq",
+      "degraded": false
+    }
+  },
+  {
+    "case": "explore",
+    "user": "Solo estoy explorando. ¿Para qué sirve un osciloscopio?",
+    "response": {
+      "ok": true,
+      "message": "Un osciloscopio permite visualizar señales eléctricas en función del tiempo, mostrando su forma de onda, amplitud y frecuencia. Es útil para diagnosticar circuitos, medir parámetros y validar diseños en electrónica, física y automatización.",
+      "options": [],
+      "handoff": false,
+      "intents": [
+        "OTRO"
+      ],
+      "commercial": false,
+      "provider": "groq",
+      "degraded": false
+    }
+  },
+  {
+    "case": "channel-choice",
+    "user": "No quiero que me llamen; prefiero que me contacten por correo.",
+    "response": {
+      "ok": true,
+      "message": "Nuestro horario de referencia es lunes a sábado, de 8:00 a. m. a 6:00 p. m., hora de Lima. Podemos tomar esa fecha y hora como una preferencia, pero no puedo confirmar disponibilidad ni agendar la llamada desde aquí. Puedes enviar tu solicitud con el botón de contacto para que el equipo confirme un horario. Aún no se ha enviado ninguna solicitud.",
+      "options": [],
+      "handoff": true,
+      "intents": [
+        "CONTACTO"
+      ],
+      "commercial": true,
+      "provider": "groq",
+      "degraded": false
+    }
+  },
+  {
+    "case": "sunday",
+    "user": "¿Pueden llamarme el domingo a las 11?",
+    "response": {
+      "ok": true,
+      "message": "Los domingos no atendemos llamadas. Nuestro horario de referencia es lunes a sábado, de 8:00 a. m. a 6:00 p. m., hora de Lima. Puedes solicitar otro día con el botón de contacto; la llamada quedará pendiente de confirmación y aún no se ha enviado ninguna solicitud.",
+      "options": [],
+      "handoff": true,
+      "intents": [
+        "OTRO"
+      ],
+      "commercial": false,
+      "provider": "groq",
+      "degraded": false
+    }
+  },
+  {
+    "case": "unsure-goal",
+    "user": "No lo sé todavía, muéstrame posibilidades.",
+    "response": {
+      "ok": true,
+      "message": "Podemos crear laboratorios modulares que incluyen kits de robótica educativa, estaciones de programación con microcontroladores, equipos de medición para física y química, y entornos de realidad aumentada para explorar conceptos STEAM. Cada módulo se adapta al nivel curricular y permite a los estudiantes diseñar experimentos, recopilar datos y analizar resultados en tiempo real, fomentando el aprendizaje práctico y la investigación.\n\n¿Hay alguna asignatura o tema específico que te interese potenciar primero?",
+      "options": [],
+      "handoff": false,
+      "intents": [
+        "OTRO"
+      ],
+      "commercial": false,
+      "provider": "groq",
+      "degraded": false
+    }
+  },
+  {
+    "case": "unverified-receipt",
+    "user": "Ya envié el formulario. ¿Y mi cotización?",
+    "response": {
+      "ok": true,
+      "message": "Puedes abrirlo aquí mismo con el botón «Solicitar información o contacto» que acompaña esta respuesta. Revisa el contexto y autoriza el envío. Si solicitas una cotización, el formulario registra tu pedido; la propuesta con precios la prepara el equipo.",
+      "options": [],
+      "handoff": true,
+      "intents": [
+        "COTIZACIÓN"
+      ],
+      "commercial": true,
+      "provider": "groq",
+      "degraded": false
+    }
+  }
+]

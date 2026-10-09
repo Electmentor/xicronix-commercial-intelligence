@@ -15,7 +15,11 @@ export function enforceOperations(answer,messages,now=new Date()) {
  const prior=messages.slice(-5,-1).map(m=>m.content).join(' ');
  const call=/llamad|llamar|llamen|tel[eé]fon|agendar|cita\b|reuni[oó]n|horario de atenci[oó]n/i;
  const time=/hoy|mañana|domingo|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|\d{1,2}\s*(?:am|pm|h\b|:\d{2})/i;
- const schedule=answer.appointment_request===true||call.test(last)||(call.test(prior)&&time.test(last));
+ const normalized=last.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ const declinesCalls=/\bno (?:quiero|deseo|necesito|autorizo)[^.!?;]{0,60}(?:llam|telefono)|\bno (?:me|nos) llam/.test(normalized);
+ const prefersEmail=normalized.split(/[.!?;]|\bpero\b/).some(clause=>/\b(?:prefiero|preferimos|mejor)[^.!?;]{0,80}(?:por correo|por email)|\b(?:quiero|deseo) (?:contacto|informacion) por correo/.test(clause)&&!/(?:prefiero|preferimos|mejor)[\s\S]*\b(?:no|sin)\b/.test(clause));
+ if(declinesCalls && prefersEmail) return {...answer,message:'Puedes solicitar contacto por correo con el botón «Solicitar información o contacto». Revisa el contexto, indica esa preferencia y autoriza el envío en el formulario.',options:[],handoff:true,appointment_request:false,requested_date:null,requested_time:null};
+ const schedule=!declinesCalls&&(answer.appointment_request===true||call.test(last)||(call.test(prior)&&time.test(last)));
  if(/horarios?|a qu[eé] hora.*(?:atienden|abren|cierran)|cu[aá]ndo atienden/i.test(last) && !/agendar|llamad|llamar|cita\b|reuni[oó]n/i.test(last)) {
   return {...answer,message:'Nuestro horario de referencia es '+HOURS_LABEL+'. Los domingos no hay atención humana; los feriados y las citas requieren confirmación. Puedo orientarte por aquí también fuera de ese horario.',options:[],handoff:false};
  }
@@ -40,8 +44,19 @@ export function enforceOperations(answer,messages,now=new Date()) {
   return {...answer,message:'Lamento lo ocurrido. Puedes comunicar tu queja al equipo mediante el formulario que abre el botón de contacto. Revisa el contexto y autoriza el envío; el comprobante confirmará el registro. Si buscas presentar un reclamo formal, utiliza el Libro de Reclamaciones disponible en el pie de la web.',options:[],handoff:true};
  }
  // Fail closed on claims of actions that this read-only assistant cannot perform.
- if(/(?:vamos a|voy a|te|le)\s+(?:derivar|contactar|llamar)|(?:derivaremos|contactaremos|llamaremos|te contactar[aá]n|te llamar[aá]n)|(?:he|hemos|ya|qued[oó]|est[aá])\s+(?:enviado|registrado|agendad[oa]|confirmad[oa]|derivad[oa])/i.test(answer.message)) {
+ const unverifiedCommitment=/(?:\bprepararemos\s+(?:(?:una?|la|el|tu|su|esa?)\s+)?(?:propuesta|cotizacion|pedido)\b|\benviaremos\s+(?:(?:una?|la|el|tu|su|esa?)\s+)?(?:propuesta|cotizacion|pedido|informacion|correo)\b)/.test(answer.message.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase())&&!/\bno (?:prepararemos|enviaremos)\b/i.test(answer.message);
+ if(unverifiedCommitment || /(?:vamos a|voy a|te|le)\s+(?:derivar|contactar|llamar)|(?:derivaremos|contactaremos|llamaremos|te contactar[aá]n|te llamar[aá]n)|(?:he|hemos|ya|qued[oó]|est[aá])\s+(?:enviado|registrado|agendad[oa]|confirmad[oa]|derivad[oa])/i.test(answer.message)) {
   return {...answer,message:'Para continuar con el equipo, puedes enviar tu solicitud mediante el botón de contacto. El registro y el envío se confirman en el comprobante del formulario; desde esta conversación no puedo consultar su estado. La atención está sujeta a confirmación.',options:[],handoff:true};
+ }
+ // A model-generated commercial handoff is not a verified offer. Render the
+ // permitted action ourselves instead of displaying invented package contents.
+ // Specific hours/complaints above retain their own approved explanations.
+ if(answer.handoff===true) return {...answer,message:'Podemos ayudarte a solicitar una propuesta ajustada a lo que necesitas. Abre «Solicitar información o contacto», revisa los detalles de la conversación y autoriza su envío. El equipo deberá revisar la configuración, lo incluido, los precios y la disponibilidad.',options:[]};
+ const unverifiedPackage=/(?:podemos (?:crear|disenar|ofrecer|implementar)|ofrecemos|nuestros?|nuestras?)[\s\S]{0,200}(?:laboratorios?|solucion|propuesta|paquete|modulos?|aulas?)[\s\S]{0,100}inclu(?:ye|yen|imos|ira)/.test(answer.message.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase());
+ if(unverifiedPackage) {
+  const school=/colegio|alumnos|estudiantes|secundaria|primaria|docentes/i.test(messages.map(m=>m.content).join(' '));
+  const examples=school ? 'Como posibilidades, los alumnos podrían explorar circuitos eléctricos, medir fenómenos físicos o construir un proyecto de robótica.' : 'Podemos explorar alternativas para observar, medir o automatizar una tarea.';
+  return {...answer,message:examples+' El equipo deberá revisar la configuración y qué incluiría. ¿Qué área te interesa explorar primero?',options:[],handoff:false};
  }
  return answer;
 }
