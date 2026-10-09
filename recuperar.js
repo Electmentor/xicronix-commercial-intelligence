@@ -1,14 +1,31 @@
 /* Verifies only server-issued, one-time recovery tokens with Supabase Auth. */
-(() => {
+(async () => {
  'use strict';
  const $ = id => document.getElementById(id);
- const authHost = 'qzfprdhmcaucqcdqgqiz.supabase.co';
+ let authHost = 'qzfprdhmcaucqcdqgqiz.supabase.co';
+ let publicKey = 'sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK';
+ let storageKey = 'xicronix-recovery-session';
  let token = new URLSearchParams(location.hash.slice(1)).get('recovery_token_hash') || '';
  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
  $('paste').hidden = !!token;
  let accountId = null;
  let busy = false;
- const client = window.supabase.createClient('https://' + authHost, 'sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK', {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:'xicronix-recovery-session'}});
+ // Resolve the same isolated environment as the login page before verifying tokens.
+ if(location.hostname.startsWith('xicronix-commercial-intelligence-')){
+  $('continue').disabled=true;
+  try{
+   const origin=new URL(location.origin);
+   if(origin.protocol!=='https:'||origin.username||origin.password||origin.port||origin.hostname!==location.hostname||!origin.hostname.endsWith('-xicronix.vercel.app'))throw Error('dev_unavailable');
+   const response=await fetch('/api/conversations-config',{cache:'no-store',signal:AbortSignal.timeout(8000)});
+   const config=await response.json();
+   if(!response.ok||!config.ok||config.url!=='https://rmximatxuaczhpqbcuho.supabase.co'||config.recoveryRedirectUrl!=='https://xicronix-commercial-intelligence-git-work-a009-116bc1-xicronix.vercel.app/')throw Error('dev_unavailable');
+   authHost='rmximatxuaczhpqbcuho.supabase.co';publicKey=config.key;storageKey='xicronix-recovery-dev-session';
+   $('title').textContent='Recuperar acceso DEV';$('continue').disabled=false;
+  }catch{
+   token='';$('status').textContent='Recuperación DEV no disponible. No se verificará el enlace contra producción.';$('status').className='error';return;
+  }
+ }
+ const client = window.supabase.createClient('https://' + authHost, publicKey, {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey}});
  const message = (text,error=false) => { $('status').textContent=text; $('status').className=error?'error':''; };
  function parseLink(value) {
   const url = new URL(value);

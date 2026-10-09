@@ -463,3 +463,27 @@ test('workspace permission decisions remain consistent across isolated applicati
   assert.equal(h.run('data.users.length'),canManage?2:0);
  }
 });
+
+test('DEV recovery resolves only configured preview and cannot fall back to production',()=>{
+ const h=harness();
+ h.run("location.hostname='xicronix-commercial-intelligence-gg703b5jy-xicronix.vercel.app';location.origin='https://'+location.hostname;");
+ assert.throws(()=>h.run('authRedirectUrl()'),e=>e.code==='dev_recovery_unavailable');
+ h.run('devRecoveryRedirect=PUBLIC_APP_URL');
+ assert.throws(()=>h.run('authRedirectUrl()'),e=>e.code==='dev_recovery_unavailable');
+ h.run('devRecoveryRedirect=DEV_APP_URL');
+ assert.equal(h.run('authRedirectUrl()'),'https://xicronix-commercial-intelligence-git-work-a009-116bc1-xicronix.vercel.app/');
+ h.run('clearSession()');
+ assert.equal(h.run('authRedirectUrl()'),'https://xicronix-commercial-intelligence-git-work-a009-116bc1-xicronix.vercel.app/');
+ for(const origin of ['http://xicronix-commercial-intelligence-gg703b5jy-xicronix.vercel.app','https://xicronix-commercial-intelligence-gg703b5jy-xicronix.vercel.app:444','https://user@xicronix-commercial-intelligence-gg703b5jy-xicronix.vercel.app','https://xicronix-commercial-intelligence-gg703b5jy-xicronix.vercel.app.evil.test']){
+  h.run('location.origin='+JSON.stringify(origin));
+  assert.throws(()=>h.run('authRedirectUrl()'),e=>e.code==='dev_recovery_unavailable');
+ }
+});
+test('DEV reset failure prevents email API invocation rather than sending to PROD',async()=>{
+ const h=harness();let calls=0;
+ h.run("location.hostname='xicronix-commercial-intelligence-gg703b5jy-xicronix.vercel.app';location.origin='https://'+location.hostname;devRecoveryRedirect=null;mode='reset';");
+ h.run('sb').auth.resetPasswordForEmail=async()=>{calls++;return {error:null};};
+ h.nodes.get('email').value='synthetic@example.invalid';
+ await h.run('authenticate({preventDefault(){}})');
+ assert.equal(calls,0);assert.match(h.nodes.get('authMsg').textContent,/No se enviará/);
+});

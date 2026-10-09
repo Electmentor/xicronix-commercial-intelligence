@@ -144,6 +144,12 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
+const DEV_APP_URL='https://xicronix-commercial-intelligence-git-work-a009-116bc1-xicronix.vercel.app/';
+let devRecoveryRedirect=null;
+const isDevPreview=()=>location.hostname.startsWith('xicronix-commercial-intelligence-');
+function verifiedDevOrigin(){
+ try{const origin=new URL(location.origin);return origin.protocol==='https:'&&!origin.username&&!origin.password&&!origin.port&&origin.hostname===location.hostname&&origin.hostname.endsWith('-xicronix.vercel.app');}catch{return false;}
+}
 const CRM_RELEASE='2026-09-27-v2.47.1';
 const CRM_VERSION_LABEL='v2.47.1';
 
@@ -365,7 +371,11 @@ async function setWorkspace(next){
 }
 const THEME_STORAGE_KEY='xicronix-theme';
 const SIDEBAR_STORAGE_KEY='xicronix-sidebar-collapsed';
-const authRedirectUrl=()=>PUBLIC_APP_URL;
+const authRedirectUrl=()=>{
+ if(!isDevPreview())return PUBLIC_APP_URL;
+ if(!verifiedDevOrigin()||devRecoveryRedirect!==DEV_APP_URL)throw {code:'dev_recovery_unavailable'};
+ return devRecoveryRedirect;
+};
 const nameOf=row=>row.institution_name || row.name || row.title || row.subject || row.description || row.full_name || [row.first_name,row.last_name].filter(Boolean).join(' ');
 const relatedName=row=>data.institutions?.find(i=>i.id===row.institution_id)?.name || '';
 const relationTable=key=>({institution_id:'institutions',contact_id:'contacts',lead_id:'leads',opportunity_id:'opportunities',owner_user_id:'users',assigned_to:'users',catalog_product_id:'catalog_products',cost_profile_id:'cost_profiles'})[key];
@@ -379,6 +389,7 @@ const notice=(message,error=false,timeout=0)=>{
 };
 function errorText(error){
  const code=error?.code;
+ if(code==='dev_recovery_unavailable')return 'Recuperación DEV no configurada. No se enviará un enlace hacia producción.';
  if(code==='invalid_credentials')return 'Correo o contraseña incorrectos.';
  if(['otp_expired','invalid_token','bad_jwt'].includes(code))return 'El enlace de recuperación venció o ya fue utilizado. Solicita uno nuevo y ábrelo una sola vez.';
  if(code==='email_not_confirmed')return 'Confirma tu correo antes de ingresar.';
@@ -2871,11 +2882,13 @@ if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('att
  $('exportBtn').onclick=()=>{if(!accessible(page)||loading||busy||failures[page])return;const columns=fieldsFor(page).filter(field=>!field.transient).map(field=>({key:field.key,label:field.label}));const rows=filtered().map(row=>Object.fromEntries(columns.map(c=>{const field=modules[page].fields.find(f=>f.key===c.key);return [c.key,field.type==='relation'?relationName(c.key,row):costRateKeys.has(c.key)?Number(row[c.key])*100:field.options?.[row[c.key]]||row[c.key]];})));const url=URL.createObjectURL(new Blob([csv(rows,columns)],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`xicronix-${dataSource==='demo'?'SIMULADO-':''}${page}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
  if(!window.supabase){$('authMsg').textContent='Xicronix no pudo cargar temporalmente el servicio de acceso. Tu conexión puede estar funcionando con normalidad. Cierra y vuelve a abrir la aplicación; si persiste, usa Actualizar.';$('authBtn').disabled=true;return;}
  let crmConnection={url:'https://qzfprdhmcaucqcdqgqiz.supabase.co',key:'sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK',storageKey:'xicronix.crm.auth'};
- if(location.hostname.startsWith('xicronix-commercial-intelligence-')&&location.hostname.endsWith('.vercel.app')){
+ if(isDevPreview()){
   try{
+   if(!verifiedDevOrigin())throw Error('dev_unavailable');
    const response=await fetch('/api/conversations-config',{cache:'no-store',signal:AbortSignal.timeout(8000)});
    const config=await response.json();if(!response.ok||!config.ok||config.url!=='https://rmximatxuaczhpqbcuho.supabase.co')throw Error('dev_unavailable');
    crmConnection={url:config.url,key:config.key,storageKey:'xicronix.crm.conversations.dev.auth'};
+   devRecoveryRedirect=config.recoveryRedirectUrl===DEV_APP_URL?config.recoveryRedirectUrl:null;
   }catch{$('authMsg').textContent='Preview DEV sin conexión disponible. Producción permanece aislada.';$('authBtn').disabled=true;hideAppSplash();return;}
  }
  sb=window.supabase.createClient(crmConnection.url,crmConnection.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage,storageKey:crmConnection.storageKey}});
