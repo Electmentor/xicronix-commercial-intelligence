@@ -300,7 +300,7 @@ test('API and bridge HTTP failures never expose credentials or sensitive upstrea
         }));
         assert.equal(response.status, 503);
         assert.equal(response.headers.get('cache-control'), 'no-store');
-        assert.deepEqual(await response.json(), {ok: false, error: 'storage_unavailable'});
+        assert.deepEqual(await response.json(), {ok: false, error: 'storage_unavailable',diagnostic_code:{HTTP:'storage_http_error',network:'storage_network',JSON:'storage_invalid_json'}[failureName]});
       });
     }
   }

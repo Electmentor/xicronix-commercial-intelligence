@@ -1,4 +1,4 @@
-import {createStore,enabled} from '../conversations-store.mjs';
+import {createStore,enabled,storageDiagnosticCode,STORAGE_DIAGNOSTICS} from '../conversations-store.mjs';
 const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
 export async function readBody(req) {
  const reader=req.body?.getReader();if(!reader)throw Error('invalid_body');let n=0;const chunks=[];
@@ -7,7 +7,8 @@ export async function readBody(req) {
 }
 export function errorResponse(error) {
  const code=String(error.message);const known={forbidden:403,not_found:404,stale_revision:409,event_conflict:409,identity_conflict:409,closure_blocked:409,scope_mismatch:400,takeover_required:409,follow_up_required:400,next_action_required:400,invalid_body:400};
- return Response.json({ok:false,error:known[code]?code:'storage_unavailable'},{status:known[code]||503,headers:{'Cache-Control':'no-store'}});
+ const diagnostic=storageDiagnosticCode(error);
+ return Response.json({ok:false,error:known[code]?code:'storage_unavailable',...(!known[code]&&STORAGE_DIAGNOSTICS.includes(diagnostic)?{diagnostic_code:diagnostic}:{})},{status:known[code]||503,headers:{'Cache-Control':'no-store'}});
 }
 export function createHandler({env=process.env,store=createStore(env)}={}) {
  return async req=>{
