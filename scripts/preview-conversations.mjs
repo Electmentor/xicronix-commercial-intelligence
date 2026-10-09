@@ -25,7 +25,7 @@ const server=createServer(async(req,res)=>{
    const response=await(isBridge?bridge:api)(request);res.writeHead(response.status,{'content-type':'application/json'});res.end(await response.text());return;
   }
   if(url.pathname==='/'){res.writeHead(200,{'content-type':'text/html'});res.end(page);return;}
-  if(!['/conversations-view.mjs','/conversations.css','/domain.mjs'].includes(url.pathname)){res.writeHead(404);res.end();return;}
+  if(!['/conversations-reply-attempt.mjs','/conversations-view.mjs','/conversations.css','/domain.mjs'].includes(url.pathname)){res.writeHead(404);res.end();return;}
   res.writeHead(200,{'content-type':url.pathname.endsWith('.css')?'text/css':'text/javascript'});res.end(await readFile(new URL('..'+url.pathname,import.meta.url)));
  }catch{res.writeHead(500);res.end('Preview failure');}
 });

@@ -1,5 +1,5 @@
 const DEV_REF='rmximatxuaczhpqbcuho';
-const STORAGE_ERRORS=['forbidden','not_found','stale_revision','event_conflict','identity_conflict','closure_blocked','scope_mismatch','takeover_required'];
+const STORAGE_ERRORS=['forbidden','not_found','stale_revision','event_conflict','identity_conflict','closure_blocked','scope_mismatch','takeover_required','follow_up_required','next_action_required'];
 function jwtRole(value) {
  // Classification prevents credential mix-ups; Supabase still verifies the JWT.
  try{return typeof value==='string'&&value.split('.').length===3?JSON.parse(Buffer.from(value.split('.')[1],'base64url').toString()).role:null;}catch{return null;}

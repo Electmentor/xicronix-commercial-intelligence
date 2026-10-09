@@ -30,7 +30,7 @@ export async function createFixture(){
  const serial=fn=>{const p=chain.then(fn);chain=p.catch(()=>{});return p;};
  const fixture={
   get db(){return db;},directory,migration,
-  async migrate(){await db.exec("set app.conversations_environment='dev'");await db.exec(migration);},
+  async migrate(){await db.exec("set app.conversations_environment='dev';set app.conversations_project_ref='rmximatxuaczhpqbcuho'");await db.exec(migration);await db.exec(await readFile(new URL('../../supabase/migrations/20261009161000_conversation_attention_cycle_dev.sql',import.meta.url),'utf8'));},
   async reopen(){await db.close();db=new PGlite(directory);},
   async dispose(){await db.close();await rm(directory,{recursive:true,force:true});},
   store:{
