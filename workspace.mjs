@@ -2,7 +2,7 @@
 // The database remains responsible for enforcing the authenticated account's permissions.
 export const ADMIN = 'admin';
 export const SELLER = 'seller';
-const operational = ['prospects', 'radar', 'mail', 'institutions', 'contacts', 'leads', 'opportunities', 'quotes', 'tasks', 'meetings', 'deliverables', 'documents', 'activities', 'catalog_products'];
+const operational = ['conversations', 'prospects', 'radar', 'mail', 'institutions', 'contacts', 'leads', 'opportunities', 'quotes', 'tasks', 'meetings', 'deliverables', 'documents', 'activities', 'catalog_products'];
 const managementOnly = ['users','goals','cost_profiles','expenses','supplier_relationships','strategic_alliances'];
 export function effectiveWorkspace(profile, requested = ADMIN) {
   return profile?.role === 'ADMIN' && requested === ADMIN ? ADMIN : SELLER;
@@ -12,10 +12,10 @@ export function workspaceKey(userId, organizationId) {
 }
 export function canAccessPage(profile, workspace, page) {
   if (!profile?.organization_id || !['ADMIN','MANAGER','SALES','VIEWER'].includes(profile.role)) return false;
-  return (page==='mail' ? ['ADMIN','MANAGER','SALES'].includes(profile.role) : operational.includes(page)) || ['dashboard','now'].includes(page) || (effectiveWorkspace(profile, workspace) === ADMIN && managementOnly.includes(page));
+  return (['mail','conversations'].includes(page) ? ['ADMIN','MANAGER','SALES'].includes(profile.role) : operational.includes(page)) || ['dashboard','now'].includes(page) || (effectiveWorkspace(profile, workspace) === ADMIN && managementOnly.includes(page));
 }
 export function canWriteModule(profile, workspace, table) {
-  if (!canAccessPage(profile, workspace, table) || ['dashboard','radar','now','prospects'].includes(table) || !['ADMIN','MANAGER','SALES'].includes(profile.role)) return false;
+  if (!canAccessPage(profile, workspace, table) || ['conversations','dashboard','radar','now','prospects'].includes(table) || !['ADMIN','MANAGER','SALES'].includes(profile.role)) return false;
   if (['catalog_products','cost_profiles','supplier_relationships','strategic_alliances'].includes(table) && effectiveWorkspace(profile, workspace) !== ADMIN) return false;
   if (['cost_profiles','catalog_products','supplier_relationships','strategic_alliances'].includes(table)) return profile.role === 'ADMIN';
   return true;

@@ -1,4 +1,10 @@
 const env=process.env.VERCEL_ENV||'local';
+// Preview builds must not silently spend provider credits. Live DEV validation
+// is a separately authorized operation; production verification is unchanged.
+if(env!=='production'&&process.env.VALIDATE_LIVE_PROVIDER!=='true'){
+ console.log('ASSISTANT_PROVIDER_CHECK_SKIPPED '+JSON.stringify({env,reason:'LIVE_DEV_VALIDATION_NOT_EXPLICITLY_ENABLED'}));
+ process.exit(0);
+}
 if(env!=='production'&&!process.env.GROQ_API_KEY){
  console.log('ASSISTANT_PROVIDER_CHECK_SKIPPED '+JSON.stringify({env,reason:'GROQ_API_KEY_NOT_CONFIGURED_OUTSIDE_PRODUCTION'}));
  process.exit(0);

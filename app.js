@@ -1,4 +1,5 @@
-import {openQuoteEditor,closeQuoteEditor} from './quote-editor.mjs?v=5';
+import {createConversationsView} from './conversations-view.mjs';
+import {openQuoteEditor,closeQuoteEditor} from './quote-editor.mjs?v=8';
 import {createAssistant,buildAssistantContext} from './assistant.mjs?v=2.47.1';
 import {radarState,radarStateLabels,radarTransition,renderRadarLifecycle} from './radar-lifecycle.mjs?v=2.47.1';
 import {directorGeography} from './director-insights.mjs?v=20260927-v2.47.1';
@@ -7,7 +8,7 @@ import {escapeHTML as esc, filterRecords, money, metrics, priorities, taskUrgenc
 import {ADMIN, SELLER, effectiveWorkspace, workspaceKey, canAccessPage, canWriteModule, assignedUserId, scopeWorkspaceData} from './workspace.mjs';
 
 import {DEMO_VERSION, DEMO_SELLERS, createDemoData, upgradeDemoData, mutateDemo, realOnly, localDay} from './demo.mjs?v=20260924-v2.41.16';
-import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20260927-v2.47.1';
+import {renderExecutive, filterExecutiveRows, EXECUTIVE_METHOD} from './executive.mjs?v=20261008-v2.49.4';
 import {analyticsCSV} from './analytics.mjs';
 import {renderPerformance, performanceCSV, performancePages} from './performance.mjs?v=2.47.1';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
@@ -15,7 +16,7 @@ import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,mileston
 import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.14';
 
 const $ = id => document.getElementById(id);
-const CLIENT_BUILD='v2.49.1';
+const CLIENT_BUILD='v2.49.4';
 const SPLASH_STARTED_AT=performance.now();
 const SPLASH_MIN_MS=450;
 function startLarsonScanner(){
@@ -109,6 +110,7 @@ const supplierLevel={STANDARD:'Estándar',PREFERRED:'Preferente',STRATEGIC:'Estr
 const allianceStatus={EXPLORING:'Explorando',NEGOTIATING:'Negociando',ACTIVE:'Activa',PAUSED:'Pausada',ENDED:'Finalizada'};
 const allianceType={COMMERCIAL:'Comercial',TECHNOLOGY:'Tecnológica',EDUCATION:'Educación',RESEARCH:'Investigación',DISTRIBUTION:'Distribución',INSTITUTIONAL:'Institucional',OTHER:'Otra'};
 const modules={
+ conversations:{label:'Conversaciones',singular:'conversación',options:{},fields:[]},
  prospects:{label:'Prospectos',singular:'prospecto',filter:'operating_bucket',options:{ACTION_NOW:'Acción ahora',RESEARCH_FIRST:'Investigar primero',STRATEGIC_WATCH:'Vigilancia estratégica',MONITOR:'Monitorear',REVALIDATE:'Revalidar'},fields:[]},
  radar:{label:'Radar Comercial',singular:'señal radar',filter:'classification',options:enums.radarClass,fields:[]},
  mail:{label:'Correo Zoho',singular:'correo',filter:'status',options:enums.mailStatus,fields:[]},
@@ -142,6 +144,12 @@ const modules={
 let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
+const DEV_APP_URL='https://xicronix-commercial-intelligence-git-work-a009-116bc1-xicronix.vercel.app/';
+let devRecoveryRedirect=null;
+const isDevPreview=()=>location.hostname.startsWith('xicronix-commercial-intelligence-');
+function verifiedDevOrigin(){
+ try{const origin=new URL(location.origin);return origin.protocol==='https:'&&!origin.username&&!origin.password&&!origin.port&&origin.hostname===location.hostname&&origin.hostname.endsWith('-xicronix.vercel.app');}catch{return false;}
+}
 const CRM_RELEASE='2026-09-27-v2.47.1';
 const CRM_VERSION_LABEL='v2.47.1';
 
@@ -180,7 +188,12 @@ function restoreSource(){
 }
 function loadDemo(){
  if(!demoData){
-  try{const saved=JSON.parse(localStorage.getItem(demoKey())||'null');if(saved&&Object.keys(emptyData()).filter(key=>key!=='expenses').every(key=>Array.isArray(saved[key])&&saved[key].every(row=>row&&row.organization_id===profile.organization_id))&&(!saved.expenses||Array.isArray(saved.expenses)&&saved.expenses.every(row=>row&&row.organization_id===profile.organization_id)))demoData=saved;}catch(_error){}
+  try{
+   const saved=JSON.parse(localStorage.getItem(demoKey())||'null');
+   const required=['institutions','contacts','leads','opportunities','tasks','activities','catalog_products','cost_profiles','scores','users','goals'];
+   // New modules must not invalidate an older local demo or discard its edited records.
+   if(saved&&required.every(key=>Array.isArray(saved[key]))&&Object.values(saved).every(rows=>Array.isArray(rows)&&rows.every(row=>row&&row.organization_id===profile.organization_id)))demoData={...emptyData(),...saved};
+  }catch(_error){}
   if(!demoData)demoData=createDemoData(profile.organization_id);
   upgradeDemoData(demoData,profile.organization_id);persistDemo();
  }
@@ -191,6 +204,7 @@ function persistDemo(){
 }
 function demoSavedMessage(){return demoSaved?'Simulación guardada en este navegador; no modifica datos reales.':'Simulación guardada solo en esta sesión: el navegador no permitió conservarla.';}
 function clearWorkspaceViews(){
+ if(conversationView){conversationView.destroy();conversationView=null;}
  closeQuoteEditor();
  performanceFilters={};performanceAdjustment=20;
  closeLeadDetails(false);
@@ -297,7 +311,7 @@ function renderWorkspaceControls(){
  const navSection=(title,keys,start)=>{const visible=keys.filter(accessible);return visible.length?'<p class="nav-section-label">'+title+'</p>'+visible.map((key,index)=>navButton(key,start+index)).join(''):'';};
  if(admin){
   const command=['dashboard','now','users','goals'];
-  const business=['opportunities','quotes','meetings','leads'];
+  const business=['conversations','opportunities','quotes','meetings','leads'];
   const intelligence=['prospects','radar'];
   const relations=['supplier_relationships','strategic_alliances','catalog_products','institutions','contacts'];
   const support=['mail','documents','cost_profiles','expenses'];
@@ -311,7 +325,7 @@ function renderWorkspaceControls(){
   $('navigation').innerHTML=html;
  }else{
   const day=['dashboard'];
-  const portfolio=['leads','opportunities','quotes','tasks','meetings'];
+  const portfolio=['conversations','leads','opportunities','quotes','tasks','meetings'];
   const support=['mail','documents','contacts','catalog_products'];
   let offset=0;
   let html=navSection('HOY',day,offset);offset+=day.filter(accessible).length;
@@ -357,7 +371,11 @@ async function setWorkspace(next){
 }
 const THEME_STORAGE_KEY='xicronix-theme';
 const SIDEBAR_STORAGE_KEY='xicronix-sidebar-collapsed';
-const authRedirectUrl=()=>PUBLIC_APP_URL;
+const authRedirectUrl=()=>{
+ if(!isDevPreview())return PUBLIC_APP_URL;
+ if(!verifiedDevOrigin()||devRecoveryRedirect!==DEV_APP_URL)throw {code:'dev_recovery_unavailable'};
+ return devRecoveryRedirect;
+};
 const nameOf=row=>row.institution_name || row.name || row.title || row.subject || row.description || row.full_name || [row.first_name,row.last_name].filter(Boolean).join(' ');
 const relatedName=row=>data.institutions?.find(i=>i.id===row.institution_id)?.name || '';
 const relationTable=key=>({institution_id:'institutions',contact_id:'contacts',lead_id:'leads',opportunity_id:'opportunities',owner_user_id:'users',assigned_to:'users',catalog_product_id:'catalog_products',cost_profile_id:'cost_profiles'})[key];
@@ -371,6 +389,7 @@ const notice=(message,error=false,timeout=0)=>{
 };
 function errorText(error){
  const code=error?.code;
+ if(code==='dev_recovery_unavailable')return 'Recuperación DEV no configurada. No se enviará un enlace hacia producción.';
  if(code==='invalid_credentials')return 'Correo o contraseña incorrectos.';
  if(['otp_expired','invalid_token','bad_jwt'].includes(code))return 'El enlace de recuperación venció o ya fue utilizado. Solicita uno nuevo y ábrelo una sola vez.';
  if(code==='email_not_confirmed')return 'Confirma tu correo antes de ingresar.';
@@ -427,6 +446,7 @@ function clearSession(){
  stopLiveIntelligence();
  stopLiveMailRealtime();
  closeLeadDetails(false);
+ if(conversationView){conversationView.destroy();conversationView=null;}
  loadVersion++;session=null;profile=null;data=emptyData();failures={};mailWebhookConfig=null;page='dashboard';pageIndex=0;workspace=SELLER;workspaceIdentity=null;workspaceEntryChosen=false;loading=false;dataSource='live';sourceIdentity=null;demoData=null;executiveFilter='';executiveOwner='';editTable=null;editId=null;editingVersion=null;
  $('fields').replaceChildren();$('sellerSummary').replaceChildren();$('navigation').replaceChildren();$('workspaceControls').hidden=true;
  if($('editor').open)$('editor').close();$('appView').hidden=true;$('authView').hidden=false;$('dashboard').replaceChildren();$('recordList').replaceChildren();
@@ -750,7 +770,7 @@ async function reload(){
  restoreWorkspace();restoreSource();
  $('userRole').textContent='Cuenta: '+(enums.role[profile.role]||'Sin rol');$('welcome').textContent=profile.full_name||session.user.email;
  if(dataSource==='demo'){loadDemo();notice('');render();return;}
- const tables=[...Object.keys(modules).filter(accessible),'scores',...(accessible('documents')?['document_versions']:[]),'commercial_mail_outbox'];
+ const tables=[...Object.keys(modules).filter(k=>k!=='conversations'&&accessible(k)),'scores',...(accessible('documents')?['document_versions']:[]),'commercial_mail_outbox'];
  const results=await Promise.allSettled(tables.map(k=>allRows(k,profile.organization_id)));
  if(version!==loadVersion)return;
  data=emptyData();failures={};tables.forEach((k,i)=>{if(results[i].status==='fulfilled')data[k]=results[i].value;else failures[k]=true;});
@@ -1006,7 +1026,20 @@ function renderSellerCompensationNotice(){
  node.innerHTML='<div><small>COMPENSACIÓN PENDIENTE</small><strong>Dirección debe definir tu contrato, sueldo y bono comercial.</strong><span>Tus ventas y desempeño ya se registran. El cálculo de sueldo, comisión o bono se activará únicamente cuando exista una regla contractual formal y aprobada.</span></div>'+
    '<button type="button" data-page="dashboard">Ver mi rendimiento</button>';
 }
+let conversationView=null;
 function render(){
+ if(conversationView){conversationView.destroy();conversationView=null;}
+ $('conversationsView').hidden=page!=='conversations';
+ if(page==='conversations'&&accessible(page)){
+  renderWorkspaceControls();$('dashboard').hidden=true;$('records').hidden=true;$('pageTitle').textContent='Conversaciones';
+  $('appView').dataset.page=page;
+  conversationView=createConversationsView($('conversationsView'),{contacts:data.contacts||[],users:data.users||[],opportunities:data.opportunities||[],request:async(method,payload,id)=>{
+   if(dataSource==='demo')throw Error('Usa la preview sintética dedicada; no se enviarán datos de demostración al CRM');
+   const response=await fetch('/api/conversations'+(id?'?id='+encodeURIComponent(id):''),{method,headers:{authorization:'Bearer '+session.access_token,'content-type':'application/json'},...(payload?{body:JSON.stringify(payload)}:{})});
+   const result=await response.json();if(!response.ok)throw Error(result.error||'Error de conexión');return result;
+  }});return;
+ }
+
  if(aiAssistant&&!$('aiAssistantPanel').hidden)aiAssistant.sync();
  renderWorkspaceControls();
  renderAttentionButton();
@@ -1287,11 +1320,16 @@ function urgencyCell(row){
  const cls=['OVERDUE','TODAY'].includes(u.band)?'warn':['SOON','WEEK'].includes(u.band)?'active':'';
  return '<div class="task-urgency '+cls+'"><strong>'+esc(u.label)+'</strong><small>Importancia: '+esc(enums.priority[row.priority]||row.priority||'Sin definir')+'</small><small>'+(u.hasDate?esc(date(row.due_at)):'Debe definirse una fecha')+'</small></div>';
 }
+function convertedLeadGuidance(row){
+ if(row.status!=='CONVERTED')return '';
+ const opportunity=(data.opportunities||[]).find(item=>item.lead_id===row.id);
+ return opportunity?'Lead convertido · '+(opportunity.next_action||'continuar '+(enums.stage[opportunity.stage]||'oportunidad')):'Lead convertido · crear o vincular una oportunidad';
+}
 function maturityCell(row){
  const score=(data.scores||[]).find(item=>item.lead_id===row.id);
  const potential=score?Math.max(0,Math.min(100,Number(score.total_score)||0)):null;
  const maturity=Math.max(0,Math.min(100,Number(row.maturity_percent)||0));
- return '<div class="score-cell commercial-progress" aria-label="Madurez '+maturity+'%"><div class="commercial-progress-head"><strong>Madurez '+maturity+'%</strong><small>'+esc(milestoneLabel(row.commercial_milestone))+'</small></div><div class="score-track"><i style="width:'+maturity+'%"></i></div><small>Potencial calculado: '+(potential===null?'pendiente':potential+'%')+'</small></div>';
+ return '<div class="score-cell commercial-progress" aria-label="Madurez '+maturity+'%"><div class="commercial-progress-head"><strong>Madurez '+maturity+'%</strong><small>'+esc(milestoneLabel(row.commercial_milestone))+'</small></div><div class="score-track"><i style="width:'+maturity+'%"></i></div><small>'+(row.status==='CONVERTED'?'Potencial al convertir':'Potencial calculado')+': '+(potential===null?'pendiente':potential+'%')+'</small>'+(row.status==='CONVERTED'?'<small>'+esc(convertedLeadGuidance(row))+'</small>':'')+'</div>';
 }
 function scoreCell(row){
  const score=(data.scores||[]).find(item=>item.lead_id===row.id);
@@ -1389,7 +1427,7 @@ function nextCommercialAction(lead,tasks,meetings){
  if(pending[0])return pending[0].title;
  const nextMeeting=meetings.find(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&Date.parse(row.start_at)>=Date.now());
  if(nextMeeting)return 'Preparar y realizar: '+nextMeeting.title;
- return lead.next_action||'Definir la siguiente acción comercial.';
+ return convertedLeadGuidance(lead)||lead.next_action||'Definir la siguiente acción comercial.';
 }
 function updateMovementPreview(){
  if(editTable!=='activities')return;
@@ -1908,7 +1946,7 @@ function renderTaskCards(rows){
 function renderTaskRecords(){
  $('recordContext').hidden=true;$('sellerSummary').hidden=canViewDashboard();
  $('sellerSummary').innerHTML=renderTaskPrioritySummary();
- $('importBtn').hidden=false;$('importHelp').hidden=false;
+ $('importBtn').hidden=!writableFor('tasks');$('importHelp').hidden=!writableFor('tasks');
  const rows=filtered(),max=Math.max(1,Math.ceil(rows.length/size));pageIndex=Math.min(pageIndex,max-1);
  $('recordCount').textContent=failures.tasks?'Información no disponible':rows.length+' tareas';
  $('exportBtn').disabled=!!failures.tasks||!rows.length;
@@ -1972,7 +2010,7 @@ function renderLeadCards(rows){
   const score=(data.scores||[]).find(item=>item.lead_id===row.id);
   const potential=score?Math.max(0,Math.min(100,Number(score.total_score)||0)):null;
   const maturity=Math.max(0,Math.min(100,Number(row.maturity_percent)||0));
-  const next=row.next_action||'Definir siguiente acción';
+  const next=convertedLeadGuidance(row)||row.next_action||'Definir siguiente acción';
   const overdue=row.next_action_date&&Date.parse(row.next_action_date)<Date.now();
   const phone=String(contact?.phone||institution?.phone||'').trim();
   const email=String(contact?.email||institution?.email||'').trim();
@@ -1980,7 +2018,7 @@ function renderLeadCards(rows){
   return '<article class="lead-mobile-card '+(overdue?'overdue':'')+'">'+
    '<header><div><span class="lead-mobile-kicker">PROSPECTO</span><h3>'+esc(institution?.name||row.title||'Prospecto')+'</h3><small>'+esc(contact?nameOf(contact):'Contacto decisor pendiente')+'</small></div><span class="badge '+(overdue?'warn':'')+'">'+esc(enums.status[row.status]||row.status)+'</span></header>'+
    '<div class="lead-mobile-story"><p><b>Problema</b><span>'+esc(need)+'</span></p><p><b>Evidencia</b><span>'+esc(evidence)+'</span></p></div>'+
-   '<div class="lead-mobile-scores"><span><b>'+maturity+'%</b><small>Madurez</small></span><span><b>'+(potential===null?'—':potential+'%')+'</b><small>Potencial</small></span><span><b>'+esc(row.estimated_value?money(row.estimated_value):'—')+'</b><small>Valor</small></span></div>'+
+   '<div class="lead-mobile-scores"><span><b>'+maturity+'%</b><small>Madurez</small></span><span><b>'+(potential===null?'—':potential+'%')+'</b><small>'+(row.status==='CONVERTED'?'Potencial al convertir':'Potencial')+'</small></span><span><b>'+esc(row.estimated_value?money(row.estimated_value):'—')+'</b><small>Valor</small></span></div>'+
    '<p class="lead-mobile-next"><b>Siguiente:</b> '+esc(next)+(row.next_action_date?' · '+esc(date(row.next_action_date)):'')+'</p>'+
    '<div class="lead-mobile-actions lead-mobile-quick-actions">'+
     (phone?'<a class="lead-quick-action primary" href="'+esc(radarPhoneHref(phone))+'">Llamar</a>':'')+
@@ -2789,7 +2827,7 @@ function aiContextSnapshot(){
 function openAiAssistant(){aiAssistant?.open();$('aiAssistantLauncher')?.setAttribute('aria-expanded','true');}
 function closeAiAssistant(){aiAssistant?.close();$('aiAssistantLauncher')?.setAttribute('aria-expanded','false');}
 
-function init(){
+async function init(){
  window.setTimeout(hideAppSplash,2500);
  installVersionWatcher();
 
@@ -2843,7 +2881,17 @@ if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('att
  $('logoutBtn').onclick=async()=>{const {error}=await sb.auth.signOut();if(error){notice(errorText(error),true);return;}clearSession();setMode('login');};
  $('exportBtn').onclick=()=>{if(!accessible(page)||loading||busy||failures[page])return;const columns=fieldsFor(page).filter(field=>!field.transient).map(field=>({key:field.key,label:field.label}));const rows=filtered().map(row=>Object.fromEntries(columns.map(c=>{const field=modules[page].fields.find(f=>f.key===c.key);return [c.key,field.type==='relation'?relationName(c.key,row):costRateKeys.has(c.key)?Number(row[c.key])*100:field.options?.[row[c.key]]||row[c.key]];})));const url=URL.createObjectURL(new Blob([csv(rows,columns)],{type:'text/csv;charset=utf-8;'}));const a=document.createElement('a');a.href=url;a.download=`xicronix-${dataSource==='demo'?'SIMULADO-':''}${page}-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
  if(!window.supabase){$('authMsg').textContent='Xicronix no pudo cargar temporalmente el servicio de acceso. Tu conexión puede estar funcionando con normalidad. Cierra y vuelve a abrir la aplicación; si persiste, usa Actualizar.';$('authBtn').disabled=true;return;}
- sb=window.supabase.createClient('https://qzfprdhmcaucqcdqgqiz.supabase.co','sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage,storageKey:'xicronix.crm.auth'}});
+ let crmConnection={url:'https://qzfprdhmcaucqcdqgqiz.supabase.co',key:'sb_publishable_WzxQ2iPXjy4IMx4iYOAVqA_U6i8kpFK',storageKey:'xicronix.crm.auth'};
+ if(isDevPreview()){
+  try{
+   if(!verifiedDevOrigin())throw Error('dev_unavailable');
+   const response=await fetch('/api/conversations-config',{cache:'no-store',signal:AbortSignal.timeout(8000)});
+   const config=await response.json();if(!response.ok||!config.ok||config.url!=='https://rmximatxuaczhpqbcuho.supabase.co')throw Error('dev_unavailable');
+   crmConnection={url:config.url,key:config.key,storageKey:'xicronix.crm.conversations.dev.auth'};
+   devRecoveryRedirect=config.recoveryRedirectUrl===DEV_APP_URL?config.recoveryRedirectUrl:null;
+  }catch{$('authMsg').textContent='Preview DEV sin conexión disponible. Producción permanece aislada.';$('authBtn').disabled=true;hideAppSplash();return;}
+ }
+ sb=window.supabase.createClient(crmConnection.url,crmConnection.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage,storageKey:crmConnection.storageKey}});
  sb.auth.onAuthStateChange(handleAuth);
  const params=new URLSearchParams(location.hash.slice(1));if(params.has('error')){setRecovery(false);setMode('reset');$('authMsg').textContent='El enlace de acceso venció o no es válido. Solicita uno nuevo.';history.replaceState(null,'',location.pathname);}
  if(typeof sb.auth.getSession==='function')sb.auth.getSession().then(async({data,error})=>{if(error)throw error;let current=data.session;if(current){const verified=await sb.auth.getUser();if(verified.error||!verified.data.user){await sb.auth.signOut({scope:'local'}).catch(()=>{});current=null;}}handleAuth('INITIAL_SESSION',current);}).catch(()=>{clearSession();setMode('login');$('authMsg').textContent='La sesión anterior ya no es válida. Ingresa nuevamente una vez para renovarla.';});
