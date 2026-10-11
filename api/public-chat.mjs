@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { requestPublicCompletion } from '../public-chat-provider.mjs';
 import { calendarContext, enforceOperations } from '../public-chat-operations.mjs';
 import { publicPageContext } from '../public-chat-context.mjs';
+import { publicChatFailureDiagnostic } from '../public-chat-diagnostics.mjs';
 
 // Public visitor context only. No CRM imports, database clients, tools or internal evidence.
 const SYSTEM = `Eres Nexa, asistente de IA oficial de Xicronix. Español salvo otro idioma del visitante; cercana, clara y natural, sin jerga, Markdown ni URLs. Responde primero la consulta, normalmente en 1–3 frases y hasta 85 palabras; saludos más cortos, detalle cuando haga falta. No finjas ser humana ni aprender entre visitantes.
@@ -46,12 +47,19 @@ export function createHandler({ env = process.env, fetcher = fetch } = {}) {
    const receiptValid=receipt && /^XIC-\d{8}-\d+$/.test(receipt.reference) && ['accepted','pending','unconfirmed'].includes(receipt.email) && Number.isFinite(receipt.expiresAt) && receipt.expiresAt>Date.now();
    const receiptContext=receiptValid ? '\nESTADO CONFIRMADO POR EL SERVIDOR: solicitud '+receipt.reference+' registrada. Correo transaccional: '+receipt.email+'. Esto NO acredita una cotización elaborada, enviada o lista, ni una cita. No pidas repetir el formulario para esta misma solicitud. Puedes explicar este comprobante; no tienes acceso al estado posterior del CRM.' : '';
    // System policy stays server-owned.
+   const model=env.PUBLIC_CHAT_MODEL||'openai/gpt-oss-120b';
    const response=await requestPublicCompletion(fetcher,{
     method:'POST',redirect:'error',
     headers:{authorization:'Bearer '+env.GROQ_API_KEY,'content-type':'application/json'},
-    body:JSON.stringify({model:env.PUBLIC_CHAT_MODEL||'openai/gpt-oss-120b',temperature:0.25,max_completion_tokens:1200,reasoning_effort:'low',response_format:{type:'json_object'},messages:[{role:'system',content:SYSTEM+calendarContext()+publicPageContext(body.sourcePage)+receiptContext},...messages]})
+    body:JSON.stringify({model,temperature:0.25,max_completion_tokens:1200,reasoning_effort:'low',response_format:{type:'json_object'},messages:[{role:'system',content:SYSTEM+calendarContext()+publicPageContext(body.sourcePage)+receiptContext},...messages]})
    });
-   if(!response.ok){console.warn('PUBLIC_CHAT_PROVIDER_FAILURE',response.status);return reply(502,{ok:false,reason:'provider_http',status:response.status});}
+   if(!response.ok){
+    try {
+     const diagnostic=await publicChatFailureDiagnostic(response,model);
+     console.warn('PUBLIC_CHAT_PROVIDER_FAILURE',diagnostic);
+    } catch {}
+    return reply(502,{ok:false,reason:'provider_http',status:response.status});
+   }
    const data=await response.json();const raw=data.choices?.[0]?.message?.content?.trim();
    if(!raw) return reply(502,{ok:false,reason:'provider_schema'});
    let answer;try { answer=JSON.parse(raw); } catch { return reply(502,{ok:false,reason:'provider_schema'}); }
@@ -63,5 +71,6 @@ export function createHandler({ env = process.env, fetcher = fetch } = {}) {
  };
 }
 export default { fetch:createHandler() };
+
 
 
