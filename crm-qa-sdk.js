@@ -119,7 +119,19 @@
   db.commercial_mail_outbox[0].sent_at='2026-09-25T13:00:00Z';db.commercial_mail_outbox[0].to_address='alex@example.invalid';
   db.commercial_mail_inbox=[row('88888888-8888-4888-8888-888888888881',{lead_id:ids.lead,institution_id:'inst-1',contact_id:'contact-1',provider:'ZOHO_MAIL',provider_message_id:'fixture-context-message',provider_folder_id:'fixture-inbox',sender_name:'Alex Sintético',from_address:'alex@example.invalid',to_address:'info@xicronix.com',subject:'Coordinación de propuesta',body_text:message,summary:message,received_at:'2026-09-28T11:24:00-05:00',created_at:'2026-09-28T16:24:00Z',updated_at:'2026-09-28T16:24:00Z',direction:'IN',classification:'COMMERCIAL',priority:'HIGH',status:'NEW'})];
  }
+ if(query.get('latest')==='web'){
+  db.activities.unshift(row('web-latest-qa',{lead_id:ids.lead,institution_id:'inst-1',contact_id:'contact-1',type:'WEB_FORM',subject:'Solicitud desde el chat Nexa',occurred_at:'2026-10-10T15:00:00Z',notes:'Requerimiento original: Queremos revisar una propuesta actualizada para el laboratorio.\nContexto adicional: INTERNAL_ONLY_NOT_FOR_WHATSAPP'}));
+ }
  const test=window.__caseTest={ids,scenario,calls:[],control:{outcomeMode:config.outcomeMode||query.get('result')||'success',capabilities:config.capabilities||{contract_version:3,attachments:true,idempotency:true},responses:config.responses||[],delay:config.functionDelay||0}};
+ // Test-only handoff interception: no WhatsApp or external window can open.
+ test.handoffs=[];
+ window.open=(url,target,features)=>{
+  test.handoffs.push({url:String(url),target,features});
+  let result=document.getElementById('fixtureHandoffResult');
+  if(!result){result=document.createElement('p');result.id='fixtureHandoffResult';result.setAttribute('role','status');(document.getElementById('caseWhatsappDialog')||document.body).append(result);}
+  result.textContent='APERTURA INTERCEPTADA; NO ENVIADO. '+String(url);
+  return null;
+ };
  function simulatedResult(){
   const modes={
    success:{ok:true,status:'SENT',provider_message_id:'fixture-provider-accepted',delivery_status:'UNCONFIRMED'},

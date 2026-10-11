@@ -3,6 +3,6 @@ const query=new URLSearchParams(location.search),mode=query.get('view')==='deskt
 function link(id,changes){const q=new URLSearchParams({view:mode,scenario,qa,...changes});document.getElementById(id).href='qa-responsive.html?'+q;}
 link('mobileLink',{view:'mobile'});link('desktopLink',{view:'desktop'});link('webLink',{scenario:'web'});link('contextLink',{scenario:'context'});link('controlsLink',{qa:qa==='1'?'0':'1'});
 const frame=document.getElementById('crmFixture'),width=mode==='mobile'?390:1440,height=mode==='mobile'?844:900;frame.width=width;frame.height=height;frame.style.width=width+'px';frame.style.height=height+'px';
-frame.src='crm-qa-fixture.html?'+new URLSearchParams({scenario,qa});
+frame.src='crm-qa-fixture.html?'+new URLSearchParams({scenario,qa,latest:query.get('latest')||''});
 frame.addEventListener('load',()=>{const inner=frame.contentWindow;document.getElementById('measurement').textContent='Viewport interno real: '+inner.innerWidth+' × '+inner.innerHeight+' px. Escenario: '+scenario+'. Controles: '+(qa==='1'?'visibles':'ocultos')+'.';});
 </script></body></html>

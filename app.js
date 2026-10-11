@@ -1,3 +1,4 @@
+import {openCaseWhatsapp,closeCaseWhatsapp} from './case-whatsapp.mjs';
 import {openQuoteEditor,closeQuoteEditor} from './quote-editor.mjs?v=5';
 import {createAssistant,buildAssistantContext} from './assistant.mjs?v=2.47.1';
 import {radarState,radarStateLabels,radarTransition,renderRadarLifecycle} from './radar-lifecycle.mjs?v=2.47.1';
@@ -196,6 +197,7 @@ function persistDemo(){
 }
 function demoSavedMessage(){return demoSaved?'Simulación guardada en este navegador; no modifica datos reales.':'Simulación guardada solo en esta sesión: el navegador no permitió conservarla.';}
 function clearWorkspaceViews(){
+ closeCaseWhatsapp();
  closeQuoteEditor();
  performanceFilters={};performanceAdjustment=20;
  closeLeadDetails(false);
@@ -420,6 +422,7 @@ function resetPasswordVisibility(){
  });
 }
 function clearSession(){
+ closeCaseWhatsapp();
  smartMailState=null;smartMailUploadState=null;smartMailDrafts.clear();caseFilter='pending';sellerManagementSearch='';
  if($('smartMailDialog')?.open)$('smartMailDialog').close();
  closeQuoteEditor();
@@ -1758,7 +1761,7 @@ function renderRadarRecords(){
    '<div class="radar-quick-actions">'+
     (row.contact_phone?'<a class="radar-action-button primary" href="'+esc(radarPhoneHref(row.contact_phone))+'">Llamar</a>':'')+
     (row.contact_email?'<a class="radar-action-button" href="'+esc(radarMailHref(row))+'">Correo Zoho</a>':'')+
-    (row.contact_whatsapp?'<a class="radar-action-button" href="'+esc(radarWhatsappHref(row.contact_whatsapp))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
+    '<button type="button" class="radar-action-button" data-case-whatsapp-radar="'+esc(row.id)+'">WhatsApp</button>'+
     (row.lead_id?'<button type="button" class="radar-action-button" data-radar-lead="'+row.id+'">Abrir prospecto</button>':['RESOLVED','DISCARDED'].includes(radarState(row))?'':row.actionable?'<button type="button" class="radar-action-button primary" data-radar-promote="'+row.id+'">Promover a CRM</button>':'<button type="button" class="radar-action-button" data-radar-lead="'+row.id+'">Preparar prospecto</button>')+
     (row.lead_id&&writableFor('activities')?'<button type="button" class="radar-action-button" data-radar-activity="'+row.lead_id+'">Registrar acción</button>':'')+
    '</div>'+
@@ -1941,7 +1944,7 @@ function renderTaskCards(rows){
   const phone=phoneHref(contact?.phone),wa=whatsappHref(contact?.phone),email=mailHref(contact?.email);
   const primary=lead?'<button type="button" class="primary" data-task-lead="'+lead.id+'">Abrir prospecto</button>':'<button type="button" class="primary" data-task-module="'+row.id+'">'+esc(moduleTarget.label)+'</button>';
   const respond=lead&&canEdit?'<button type="button" data-task-response="'+lead.id+'">Registrar respuesta</button>':'';
-  const contactActions=(phone?'<a class="task-link-button" href="'+esc(phone)+'">Llamar</a>':'')+(wa?'<a class="task-link-button" href="'+esc(wa)+'" target="_blank" rel="noopener">WhatsApp</a>':'')+(email?'<a class="task-link-button" href="'+esc(email)+'">Correo</a>':'');
+  const contactActions=(phone?'<a class="task-link-button" href="'+esc(phone)+'">Llamar</a>':'')+'<button type="button" class="task-link-button" data-case-whatsapp-task="'+esc(row.id)+'">WhatsApp</button>'+(email?'<a class="task-link-button" href="'+esc(email)+'">Correo</a>':'');
   const complete=!done&&canEdit?'<button type="button" class="task-complete" data-task-complete="'+row.id+'">Completar</button>':'';
   return '<article class="task-mobile-card '+(overdue?'overdue ':'')+(done?'done':'')+'">'+
    '<header><div><span class="task-mobile-priority">'+esc(enums.priority[row.priority]||row.priority||'Sin prioridad')+'</span><h3>'+esc(row.title||'Tarea')+'</h3></div><span class="badge '+(overdue?'warn':done?'success':'')+'">'+esc(enums.taskStatus[row.status]||row.status)+'</span></header>'+
@@ -2031,7 +2034,7 @@ function renderLeadCards(rows){
    '<div class="lead-mobile-actions lead-mobile-quick-actions">'+
     (phone?'<a class="lead-quick-action primary" href="'+esc(radarPhoneHref(phone))+'">Llamar</a>':'')+
     (email?'<button type="button" class="lead-quick-action" data-smart-mail="'+row.id+'">Correo Zoho</button>':'')+
-    (phone?'<a class="lead-quick-action" href="'+esc(radarWhatsappHref(phone))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
+    '<button type="button" class="lead-quick-action" data-case-whatsapp-lead="'+esc(row.id)+'">WhatsApp</button>'+
     '<button type="button" class="lead-open-compact" data-lead-detail="'+row.id+'">Abrir expediente</button>'+
    '</div>'+
   '</article>';
@@ -2708,6 +2711,7 @@ function installHistoryGuard(){
  history.pushState({xicronix:true,page:current,guard:true},'',location.pathname+location.search+'#page='+current);
  window.addEventListener('popstate',event=>{
   if(!profile||recovery)return;
+  if($('caseWhatsappDialog')?.open){closeCaseWhatsapp();history.pushState({xicronix:true,page},'',location.pathname+location.search+'#page='+page);return;}
   if($('smartMailDialog')?.open){if(!busy)$('smartMailDialog').close();history.pushState({xicronix:true,page},'',location.pathname+location.search+'#page='+page);return;}
   if($('editor')?.open){$('editor').close();history.pushState({xicronix:true,page},'',location.pathname+location.search+'#page='+page);return;}
   if($('leadDetailDialog')?.open){closeLeadDetails(false);history.pushState({xicronix:true,page},'',location.pathname+location.search+'#page='+page);return;}
@@ -2782,7 +2786,7 @@ function openLeadDetails(id){
  const quickActions='<section class="lead-action-center"><div class="lead-action-primary"><small>ACCIÓN RECOMENDADA</small><strong>'+esc(safeAction)+'</strong><span>'+(nextDate?'Antes de '+esc(date(nextDate)):'Sin fecha comprometida')+'</span></div><div class="lead-action-buttons">'+
   (directEmail&&writableFor('activities')?'<button type="button" class="lead-action-button primary" data-smart-mail="'+lead.id+'"'+(unconfirmedSend.length?' disabled title="Revisa el envío sin confirmación antes de responder"':!responseProgress.responseAccepted&&latestMail&&!mailBodyAvailable?' disabled title="Primero debe recuperarse el contenido completo del correo"':'')+'>'+(responseProgress.responseAccepted?'Escribir correo':'Responder')+'</button>':'')+
   (directPhone?'<a class="lead-action-button" href="'+esc(radarPhoneHref(directPhone))+'">Llamar</a>':'')+
-  (directPhone?'<a class="lead-action-button" href="'+esc(radarWhatsappHref(directPhone))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
+  '<button type="button" class="lead-action-button" data-case-whatsapp-lead="'+esc(lead.id)+'">WhatsApp</button>'+
   (writableFor('activities')?'<button type="button" class="lead-action-button" data-activity-lead="'+lead.id+'">Registrar resultado</button>':'')+
  '</div></section>';
  const profileDetails='<details class="executive-detail"><summary>Datos del expediente</summary><div class="executive-detail-body"><dl>'+
@@ -2846,7 +2850,28 @@ function aiContextSnapshot(){
 function openAiAssistant(){aiAssistant?.open();$('aiAssistantLauncher')?.setAttribute('aria-expanded','true');}
 function closeAiAssistant(){aiAssistant?.close();$('aiAssistantLauncher')?.setAttribute('aria-expanded','false');}
 
+function prepareCaseWhatsapp(button){
+ if(!profile?.organization_id||!session?.user?.id||loading||busy)return;
+ const actor=session.user.id,org=profile.organization_id,source=dataSource,view=workspace;
+ const task=button.dataset.caseWhatsappTask?scopedRows('tasks').find(row=>String(row.id)===button.dataset.caseWhatsappTask):null;
+ const radar=button.dataset.caseWhatsappRadar?scopedRows('radar').find(row=>String(row.id)===button.dataset.caseWhatsappRadar):null;
+ const leadId=button.dataset.caseWhatsappLead||task?.lead_id||radar?.lead_id;
+ const lead=leadId?scopedRows('leads').find(row=>String(row.id)===String(leadId)):null;
+ if(leadId&&!lead){notice('El expediente ya no está disponible en tu cartera.',true);return;}
+ if(button.dataset.caseWhatsappTask&&!task||button.dataset.caseWhatsappRadar&&!radar)return;
+ const contactId=lead?.contact_id||task?.contact_id;
+ const contact=contactId?scopedRows('contacts').find(row=>row.id===contactId):null;
+ const institutionId=lead?.institution_id||task?.institution_id;
+ const institution=institutionId?scopedRows('institutions').find(row=>row.id===institutionId):null;
+ const safeData={...data,contacts:contact?[contact]:[],institutions:institution?[institution]:[]};
+ openCaseWhatsapp({lead,contact,institution,data:safeData,radar,dataSource:source,isReady:()=>!loading&&!busy,isCurrent:()=>
+  session?.user?.id===actor&&profile?.organization_id===org&&dataSource===source&&workspace===view&&(loading||(
+  (!lead||scopedRows('leads').some(row=>row.id===lead.id))&&(!task||scopedRows('tasks').some(row=>row.id===task.id))&&(!radar||scopedRows('radar').some(row=>row.id===radar.id))))
+ });
+}
+
 function init(){
+ document.addEventListener('click',event=>{const button=event.target.closest?.('[data-case-whatsapp-lead],[data-case-whatsapp-task],[data-case-whatsapp-radar]');if(button&&profile&&session&&!loading&&!busy)prepareCaseWhatsapp(button);});
  window.setTimeout(hideAppSplash,2500);
  installVersionWatcher();
 

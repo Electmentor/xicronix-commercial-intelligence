@@ -3,12 +3,13 @@
   "app_logic_changes": false,
   "network": "connect-src none; mock SDK functions",
   "source_hashes": {
-    "app.js": "74b6c1b26e54e3b538d4a1088cf77b983f27247016fea0eadf5a4079a500103f",
+    "app.js": "25e3e81e74527d07320258358e115df2cfb0ba5cc4a39a44cd89ab22157bfe9d",
     "case-attention.mjs": "ecda6db475c866c095a32b3a47044c662195fc8363ab1985a4065e7fcdfae508",
     "case-reply.mjs": "b3730c535e9e52947a981bf7feeb0fc5d1659e7153336fbefc42d98ef3e3e331",
+    "case-whatsapp.mjs": "5058f87f0eedb77050fa1fa8f92ba75135d5e9e85ef031ceb5892c3ee1c823f3",
     "production.css": "b9635923e147b3b06de4eab31dd6595a13a38d72012ba902e91c7adfa0f96456",
     "index.html": "8d633f198adb3051c427de7f825a6275958db1131ae967e0f4d4e46dd5ac05ac",
     "tests/browser-fixture.js": "13cb12346f0f387519551d0d8ced91512060f36efb1c60b7367ee1dd32ca8491",
-    "tests/case-attention-browser-fixture.js": "5c61c426807c88daa02901114514c8b8837b49be8fe2459b10aa7418bada8b39"
+    "tests/case-attention-browser-fixture.js": "3ea7038fb20b75782df1e5bb6c38a0c02ceb1c40470870ef71c94021a24b63d9"
   }
 }
