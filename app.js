@@ -281,7 +281,7 @@ function renderWorkspaceControls(){
   mobileBottom.hidden=!profile||!workspaceEntryChosen;
   const primary=$('mobileNavPrimary'),reports=$('mobileNavReports'),nowBtn=$('mobileNavNow');
   const home=$('mobileNavHome');
-  if(home){home.dataset.page='leads';const label=home.querySelector('small');if(label)label.textContent=admin?'Dirección':'Mi rendimiento';}
+  if(home){home.dataset.page='leads';const label=home.querySelector('small');if(label)label.textContent='Mis casos';}
   if(primary){
    primary.dataset.page='tasks';
    const label=primary.querySelector('small');if(label)label.textContent='Tareas';
@@ -2681,7 +2681,7 @@ function setRecovery(value){
 function readEntryRoute(){
  const query=new URLSearchParams(location.search||''),hash=new URLSearchParams((location.hash||'').slice(1));
  const lead=query.get('lead'),requested=hash.get('page');
- return {page:requested||'dashboard',lead:/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lead||'')?lead:null};
+ return {page:requested||'leads',lead:/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lead||'')?lead:null};
 }
 function rememberPage(lead=null,mode='replace'){
  if(!profile||recovery)return;
@@ -2693,7 +2693,7 @@ function rememberPage(lead=null,mode='replace'){
 }
 function renderHistoryPage(target){
  if(!profile||recovery)return;
- let next=target||'dashboard';
+ let next=target||'leads';
  if(!accessible(next))next='leads';
  page=next;pageIndex=0;executiveFilter='';executiveOwner='';sellerQuickFilter='';sellerManagementSearch='';$('search').value='';
  const config=modules[page];$('filter').dataset.page=page;

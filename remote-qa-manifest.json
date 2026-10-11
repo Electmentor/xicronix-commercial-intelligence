@@ -3,7 +3,7 @@
   "app_logic_changes": false,
   "network": "connect-src none; mock SDK functions",
   "source_hashes": {
-    "app.js": "4924e90bac231a99fc7527a92992490bc0def292dfcaa06e7ae539e60a2e63a3",
+    "app.js": "1d7cb4851c0f1ec7221d34fc8122e77c15f7034878d5479d9b27f916f2c89edc",
     "case-attention.mjs": "8bc11f80674f86175d7cfb56ca2ddb051b8c6270489233a503c2e8c5a1c889d8",
     "case-reply.mjs": "b3730c535e9e52947a981bf7feeb0fc5d1659e7153336fbefc42d98ef3e3e331",
     "production.css": "b9635923e147b3b06de4eab31dd6595a13a38d72012ba902e91c7adfa0f96456",
