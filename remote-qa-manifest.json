@@ -1,0 +1,14 @@
+{
+  "mode": "exact-source-files-with-synthetic-sdk",
+  "app_logic_changes": false,
+  "network": "connect-src none; mock SDK functions",
+  "source_hashes": {
+    "app.js": "4924e90bac231a99fc7527a92992490bc0def292dfcaa06e7ae539e60a2e63a3",
+    "case-attention.mjs": "8bc11f80674f86175d7cfb56ca2ddb051b8c6270489233a503c2e8c5a1c889d8",
+    "case-reply.mjs": "b3730c535e9e52947a981bf7feeb0fc5d1659e7153336fbefc42d98ef3e3e331",
+    "production.css": "b9635923e147b3b06de4eab31dd6595a13a38d72012ba902e91c7adfa0f96456",
+    "index.html": "8d633f198adb3051c427de7f825a6275958db1131ae967e0f4d4e46dd5ac05ac",
+    "tests/browser-fixture.js": "13cb12346f0f387519551d0d8ced91512060f36efb1c60b7367ee1dd32ca8491",
+    "tests/case-attention-browser-fixture.js": "5c61c426807c88daa02901114514c8b8837b49be8fe2459b10aa7418bada8b39"
+  }
+}
