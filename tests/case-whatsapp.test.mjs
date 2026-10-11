@@ -64,3 +64,7 @@ test('an ordinary refresh pauses opening without erasing or closing the draft',(
  assert.equal(h.opened.length,0);assert.equal(h.dialog.open,true);assert.equal(h.text.value,text);assert.ok(h.nodes.some(n=>/borrador se conserva/.test(n.textContent||'')));
  ready=true;h.button.fire('click');assert.equal(h.opened.length,1);
 });
+
+
+test('draft text uses normal readable mobile typography instead of inheriting a bold label',()=>{const h=harness();for(const rule of ['font:inherit','font-weight:400','font-size:16px','line-height:1.4'])assert.ok(h.text.style.cssText.includes(rule),rule);});
+test('manual-only context explicitly explains that no reliable automatic draft is available',()=>{const h=harness(undefined,undefined,{data:{...data,activities:[web]}});assert.equal(h.text.value,'');assert.ok(h.nodes.some(n=>/no hay un borrador automático fiable/.test(n.textContent||'')));assert.equal(h.nodes.some(n=>/adapta el mensaje/.test(n.textContent||'')),false);});

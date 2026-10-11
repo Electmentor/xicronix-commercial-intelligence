@@ -101,13 +101,14 @@ export function openCaseWhatsapp({lead=null,contact=null,institution=null,data={
   const title=node('h2',dataSource==='live'?'Preparar WhatsApp':'Preparar WhatsApp · simulación');title.id='caseWhatsappTitle';dialog.append(title);
   const name=[contact?.first_name,contact?.last_name].filter(Boolean).join(' ')||radar?.decision_maker_name||'Contacto por confirmar';
   dialog.append(node('p',name));
-  const warning=node('p',draft.context.reason);warning.setAttribute('role','status');dialog.append(warning);
+  const guidance=draft.manual?'Redacta el mensaje a partir del contexto registrado; no hay un borrador automático fiable para este caso.'+(!draft.context.complete||draft.context.outgoing?' '+draft.context.reason:''):draft.context.reason;
+  const warning=node('p',guidance);warning.setAttribute('role','status');dialog.append(warning);
   if(draft.context.source)dialog.append(node('p',`${draft.context.source} · ${draft.context.at||'Fecha no acreditada'}`));
   if(draft.context.text){const details=node('details');details.append(node('summary','Ver contexto registrado (no se copiará al mensaje)'));const body=node('p',draft.context.text);body.style.whiteSpace='pre-wrap';details.append(body);dialog.append(details);}
   const phoneLabel=node('label','Número de WhatsApp del destinatario (con código de país)');
   const phone=node('input');phone.type='tel';phone.autocomplete='off';phone.value=contact?.phone||(!lead?radar?.contact_whatsapp:'')||'';phone.style.width='100%';phoneLabel.append(phone);dialog.append(phoneLabel);
   if(!phone.value && institution?.phone)dialog.append(node('p','Sólo hay teléfono institucional. Confirma quién recibirá el mensaje y escribe el número; no lo seleccionamos automáticamente.'));
-  const label=node('label','Mensaje breve para revisar y editar');const input=node('textarea');input.rows=7;input.maxLength=1200;input.value=draft.text;input.placeholder='Escribe una respuesta al último mensaje o un seguimiento concreto.';input.style.cssText='width:100%;box-sizing:border-box';label.append(input);dialog.append(label);
+  const label=node('label','Mensaje breve para revisar y editar');const input=node('textarea');input.rows=7;input.maxLength=1200;input.value=draft.text;input.placeholder='Escribe una respuesta al último mensaje o un seguimiento concreto.';input.style.cssText='width:100%;box-sizing:border-box;font:inherit;font-weight:400;font-size:16px;line-height:1.4';label.append(input);dialog.append(label);
   const confirmLabel=node('label');const reviewed=node('input');reviewed.type='checkbox';reviewed.style.width='auto';confirmLabel.append(reviewed,doc.createTextNode(' Revisé el destinatario y el texto. No contiene información sensible ni conversaciones completas.'));dialog.append(confirmLabel);
   dialog.append(node('p',dataSource==='live'?'WhatsApp se abrirá con este borrador. Tú decides si lo envías. Abrirlo no cambia el estado del expediente.':'Esta demostración permite revisar el borrador. No abrirá WhatsApp ni enviará mensajes.'));
   const feedback=node('p');feedback.setAttribute('role','status');dialog.append(feedback);

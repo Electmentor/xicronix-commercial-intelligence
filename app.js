@@ -151,6 +151,7 @@ const CRM_VERSION_LABEL='v2.47.1';
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
 let entryRoute=readEntryRoute();
+let historyGuardInstalled=false;
 const emptyData=()=>Object.fromEntries([...Object.keys(modules),'scores','document_versions','quote_items','quote_financials'].map(k=>[k,[]]));
 const writable=()=>profile && ['ADMIN','MANAGER','SALES'].includes(profile.role);
 let workspace=SELLER, workspaceIdentity=null, workspaceEntryChosen=false, loading=false;
@@ -2707,11 +2708,15 @@ function renderHistoryPage(target){
 function installHistoryGuard(){
  if(!profile||recovery)return;
  const current=readEntryRoute().page||page||'leads';
- history.replaceState({xicronix:true,page:current,root:true},'',location.pathname+location.search+'#page='+current);
- history.pushState({xicronix:true,page:current,guard:true},'',location.pathname+location.search+'#page='+current);
+ // The listener survives logout; its protective history entry may have been consumed.
+ if(!historyGuardInstalled||!history.state?.xicronix||!history.state?.guard){
+  history.replaceState({xicronix:true,page:current,root:true},'',location.pathname+location.search+'#page='+current);
+  history.pushState({xicronix:true,page:current,guard:true},'',location.pathname+location.search+'#page='+current);
+ }
+ if(historyGuardInstalled)return;
  window.addEventListener('popstate',event=>{
   if(!profile||recovery)return;
-  if($('caseWhatsappDialog')?.open){closeCaseWhatsapp();history.pushState({xicronix:true,page},'',location.pathname+location.search+'#page='+page);return;}
+  if($('caseWhatsappDialog')?.open){closeCaseWhatsapp();history.pushState({xicronix:true,page,guard:true},'',location.pathname+location.search+'#page='+page);return;}
   if($('smartMailDialog')?.open){if(!busy)$('smartMailDialog').close();history.pushState({xicronix:true,page},'',location.pathname+location.search+'#page='+page);return;}
   if($('editor')?.open){$('editor').close();history.pushState({xicronix:true,page},'',location.pathname+location.search+'#page='+page);return;}
   if($('leadDetailDialog')?.open){closeLeadDetails(false);history.pushState({xicronix:true,page},'',location.pathname+location.search+'#page='+page);return;}
@@ -2725,6 +2730,7 @@ function installHistoryGuard(){
   }
   renderHistoryPage(target);
  });
+ historyGuardInstalled=true;
 }
 
 function applyEntryRoute(){
@@ -2864,6 +2870,7 @@ function prepareCaseWhatsapp(button){
  const institutionId=lead?.institution_id||task?.institution_id;
  const institution=institutionId?scopedRows('institutions').find(row=>row.id===institutionId):null;
  const safeData={...data,contacts:contact?[contact]:[],institutions:institution?[institution]:[]};
+ installHistoryGuard();
  openCaseWhatsapp({lead,contact,institution,data:safeData,radar,dataSource:source,isReady:()=>!loading&&!busy,isCurrent:()=>
   session?.user?.id===actor&&profile?.organization_id===org&&dataSource===source&&workspace===view&&(loading||(
   (!lead||scopedRows('leads').some(row=>row.id===lead.id))&&(!task||scopedRows('tasks').some(row=>row.id===task.id))&&(!radar||scopedRows('radar').some(row=>row.id===radar.id))))
