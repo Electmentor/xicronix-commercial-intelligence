@@ -1,2 +1,6 @@
 .env*
 supabase/.temp/
+node_modules/
+review-artifacts/
+__pycache__/
+*.pyc

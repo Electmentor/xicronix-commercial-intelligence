@@ -1,16 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHandler,deterministicFallbackPlan} from '../api/assistant.mjs';
+import {buildEvidence} from '../assistant-policy.mjs';
 import {resolveAssistantProvider,requestStructuredPlan} from '../assistant-provider.mjs';
 
 const auth={id:'u',organization_id:'org',role:'ADMIN'};
-const evidence={
- policy:'a009-evidence-v1.1',page:'dashboard',intent:'priority',source:'live',as_of:'2026-09-27T20:00:00Z',
- items:[{id:'tasks:t1',record_id:'t1',title:'Tarea crítica',source:'Tareas · t1',rank:[4,3,0,0,0,-1],gate:{state:'UNKNOWN'}}],
- facts:[{id:'tasks:t1/status',record:'tasks:t1',field:'status',value:'PENDING',source:'Tareas · t1'}],
- recommendations:[{id:'tasks:t1/review',record:'tasks:t1',text:'Revisar la tarea.',source:'Tareas · t1'}],
- limitations:[],focus:'tasks:t1'
-};
+const evidence=buildEvidence({records:{tasks:[{id:'t1',title:'Tarea crítica',status:'PENDING'}]},role:'ADMIN',now:Date.parse('2026-09-27T20:00:00Z')});
 const request=message=>new Request('https://test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message,context:{page:'dashboard',source:'live'},history:[]})});
 
 test('provider selection defaults to Groq without coupling business rules',()=>{

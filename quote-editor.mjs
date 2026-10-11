@@ -1,5 +1,5 @@
 import {LAB_FQBM,QUOTE_DEFAULTS} from './quote-template.mjs?v=1';
-import {renderCustomerDocument} from './quote-document.mjs?v=1';
+import {renderCustomerDocument} from './quote-document.mjs?v=4';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>n==null?'—':new Intl.NumberFormat('es-PE',{style:'currency',currency:'PEN'}).format(n);
 const fields=[['exchange_rate','Tipo de cambio · S/ por USD'],['freight_usd','Flete total · USD'],['insurance_usd','Seguro total · USD'],['duty_pct','Ad valorem · %'],['local_cost_pen','Gastos locales y servicios sin IGV recuperable · S/'],['contingency_pct','Contingencia · %'],['igv_pct','IGV · %'],['perception_pct','Percepción importación · %'],['margin_pct','Margen bruto objetivo · %'],['minimum_margin_pct','Margen mínimo · %'],['discount_pct','Descuento global · %'],['advance_pct','Anticipo cliente · %'],['supplier_advance_pct','Anticipo proveedor · %']];
@@ -34,7 +34,7 @@ export async function openQuoteEditor({sb,profile,data,quoteId=null,onSaved,work
  dialog.querySelector('[data-template]').onclick=()=>{read();quote.title=LAB_FQBM.title;quote.is_test=true;inputs={...(isDirector?LAB_FQBM.inputs:{terms:LAB_FQBM.inputs.terms,advance_pct:50,discount_pct:0}),cost_profile_id:inputs.cost_profile_id,scope:LAB_FQBM.scope};if(!isDirector)applyCostProfile();items=LAB_FQBM.items.map(i=>{const p=(data.catalog_products||[]).find(p=>p.supplier_sku===i.sku);if(!p)throw Error('Falta producto '+i.sku);return {catalog_product_id:p.id,quantity:i.quantity,discount_pct:0,negotiated_unit_price:null};});dirty=true;render();};
  dialog.querySelector('[data-search]').oninput=filterProducts;
  dialog.querySelector('[data-add]').onclick=()=>{const id=dialog.querySelector('[data-product]').value;if(!id)return;const old=items.find(i=>i.catalog_product_id===id);if(old)old.quantity++;else items.push({catalog_product_id:id,quantity:1,discount_pct:0,negotiated_unit_price:null});changed();renderItems();};
- form.oninput=e=>{if(e.target.matches('[data-search]'))return;read();changed();};
+ form.oninput=e=>{if(e.target.matches('[data-search],[data-product],[data-history]'))return;read();changed();};
  form.onchange=e=>{if(e.target.name==='cost_profile_id'){read();applyCostProfile();dirty=true;requestId=null;render();return;}if(e.target.matches('[data-product],[data-history]'))return;read();changed();};
  form.onsubmit=save;
  dialog.querySelector('[data-export]').onclick=()=>exportVersion(revision);

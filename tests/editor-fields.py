@@ -21,23 +21,7 @@ fixture=(root/'tests/browser-fixture.js').read_text()+r'''
  Object.assign(db.leads[0],{institution_id:'inst-1',contact_id:'contact-1',score:25,estimated_value:0});
  db.leads.push({...base,id:'44444444-4444-4444-8444-444444444444',title:'Segundo prospecto de prueba',institution_id:'inst-2',contact_id:'contact-2',owner_user_id:base.created_by,source:'EMAIL',status:'NEW',score:0,estimated_value:0});
  Object.assign(db.activities[0],{institution_id:'inst-1',contact_id:'contact-1',type:'WEB_FORM',outcome:null,occurred_at:'2026-09-18T12:00:50.327Z',next_action:null,next_action_date:null});
- const create=window.supabase.createClient;
- window.supabase.createClient=(...args)=>{
-  const client=create(...args),from=client.from;
-  client.from=table=>{
-   const q=from(table),old=q.result.bind(q);
-   q.result=single=>{
-    if(!q.applied&&q.op!=='select'){
-     q.applied=true;
-     if(q.op==='insert')db[table].push({...base,id:crypto.randomUUID(),...q.payload});
-     if(q.op==='update')db[table].filter(row=>q.filters.every(([k,v])=>row[k]===v)).forEach(row=>Object.assign(row,q.payload));
-    }
-    return old(single);
-   };
-   return q;
-  };
-  return client;
- };
+ // Query already applies isolated inserts and updates; do not wrap it a second time.
 })();
 '''
 checks=[];errors=[];blocked=[]
@@ -55,11 +39,18 @@ with sync_playwright() as p:
  def mark(label):checks.append(label)
  def field(name):return page.locator('#field-'+name)
  def nav(name):
+  toggle=page.locator('#sidebarToggle')
+  if toggle.get_attribute('aria-expanded')=='false':toggle.click()
+  expect(toggle).to_have_attribute('aria-expanded','true')
+  expect(page.locator('#mainSidebar')).to_be_visible()
   locator=page.locator('#navigation [data-page="'+name+'"]')
   if locator.count()==0:
+   # Editor-only modules are callable routes but absent from the curated sidebar.
+   assert name in ['activities','tasks'], 'Missing production navigation: '+name
    page.locator('#navigation').evaluate("(node,name)=>node.insertAdjacentHTML('beforeend','<button data-page=\"'+name+'\">test</button>')",name)
    locator=page.locator('#navigation [data-page="'+name+'"]')
-  locator.evaluate("el=>el.click()")
+  locator.click()
+  expect(page.locator('#appView')).to_have_attribute('data-page',name)
  def cancel():page.locator('#cancelEditor').click()
  def saved():expect(page.locator('#editor')).not_to_be_visible();expect(page.locator('#status')).to_contain_text('guardado correctamente')
  try:
@@ -86,16 +77,47 @@ with sync_playwright() as p:
   nav('activities');page.locator('#recordList button[data-edit="'+new['id']+'"]').click();expect(field('type')).to_have_value('WEB_FORM');expect(field('outcome')).to_have_value('');expect(field('notes')).to_have_value(new['notes']);expect(field('decision_timeline')).to_have_value('Por confirmar');expect(field('need_summary')).to_have_value('Necesidad de diagnóstico de laboratorio');expect(field('next_action_date')).to_have_value('2026-09-22T11:30');mark('reopening edited interaction retains every saved field')
   page.screenshot(path=str(out/'linked-interaction-fixture.png'),full_page=True);cancel()
   page.locator('#recordList button[data-edit="activity-1"]').click();expect(field('outcome')).to_have_value('');field('subject').fill('Recepción web revisada');page.locator('#saveBtn').click();saved();assert page.evaluate('window.__testDB.activities[0].occurred_at')=='2026-09-18T12:00:50.327Z';mark('editing another field preserves original event seconds and milliseconds')
-  nav('leads');page.locator('#recordList tr',has_text='Diagnóstico revisado de prueba').get_by_role('button',name='Abrir expediente comercial').click();expect(page.locator('#leadDetailContent')).to_contain_text('AVANCE');expect(page.locator('#leadDetailContent')).to_contain_text('15%');expect(page.locator('#leadDetailContent')).to_contain_text('Prospecto calificado');expect(page.locator('#leadDetailContent')).to_contain_text('Formulario web');expect(page.locator('#leadDetailContent')).to_contain_text('Solicitud recibida por la web');page.locator('#closeLeadDetail').click();mark('original request remains visible once in compact dossier')
+  nav('leads');page.locator('#recordList tr',has_text='Diagnóstico revisado de prueba').get_by_role('button',name='Abrir expediente comercial').click();expect(page.locator('#leadDetailContent')).to_contain_text('AVANCE');expect(page.locator('#leadDetailContent')).to_contain_text('15%');expect(page.locator('#leadDetailContent')).to_contain_text('Prospecto calificado');expect(page.locator('#leadDetailContent')).to_contain_text('Formulario web');history=page.locator('#leadDetailContent details',has=page.locator('summary',has_text='Historial CRM'))
+  history.locator('summary').click()
+  original=history.locator('article.lead-note',has=page.get_by_role('heading',name='Recepción web revisada',exact=True))
+  expect(original).to_have_count(1);expect(original).to_be_visible()
+  expect(original).to_contain_text('Formulario web');expect(original).to_contain_text('Solicitamos un diagnóstico del laboratorio.')
+  expect(original).to_contain_text('<em>Texto no confiable, no HTML</em>');expect(original.locator('em')).to_have_count(0)
+  expect(history.get_by_role('heading',name='Solicitud recibida por la web',exact=True)).to_have_count(0)
+  page.locator('#closeLeadDetail').click();mark('edited original request appears once in CRM history with original body and escaped text')
   nav('leads');page.locator('#recordList tr',has_text='Diagnóstico revisado de prueba').get_by_role('button',name='Registrar movimiento').click();field('action_code').select_option('FOLLOW_UP');field('type').select_option('EMAIL');field('subject').fill('Prueba de integridad');field('institution_id').select_option('inst-2');field('contact_id').select_option('contact-2');before=page.evaluate('window.__testWrites.length');page.locator('#saveBtn').click();expect(page.locator('#formMsg')).to_contain_text('institución debe coincidir');assert page.evaluate('window.__testWrites.length')==before;mark('mismatched prospect institution is blocked');cancel()
   nav('tasks');page.locator('#recordList button[data-edit="task-1"]').click();expect(field('lead_id')).to_be_visible();expect(field('contact_id')).to_be_visible();field('lead_id').select_option('33333333-3333-4333-8333-333333333333');expect(field('contact_id')).to_have_value('contact-1');mark('task editor also supports consistent links');cancel()
   nav('documents');page.locator('#newBtn').click();field('title').fill('Diagnóstico técnico de prueba');field('lead_id').select_option('33333333-3333-4333-8333-333333333333');expect(field('institution_id')).to_have_value('inst-1');expect(field('contact_id')).to_have_value('contact-1');field('category').select_option('REQUEST_DIAGNOSIS');field('status').select_option('DRAFT');page.locator('#field-_file').set_input_files({'name':'diagnostico-prueba.pdf','mimeType':'application/pdf','buffer':b'%PDF-1.4 fixture'});page.locator('#saveBtn').click();saved()
   doc=page.evaluate('window.__testDB.documents.at(-1)');versions=page.evaluate('window.__testDB.document_versions');storage=page.evaluate('window.__testStorage');assert doc['current_version']==1 and doc['status']=='DRAFT';assert len(versions)==1 and versions[0]['file_name']=='diagnostico-prueba.pdf' and versions[0]['is_current'];assert storage[-1]['action']=='upload';mark('private document upload creates version 1 without sending or signing it')
   page.locator('#recordList button[data-edit="'+doc['id']+'"]').click();field('status').select_option('CURRENT');page.locator('#field-_file').set_input_files({'name':'diagnostico-prueba-v2.pdf','mimeType':'application/pdf','buffer':b'%PDF-1.4 fixture v2'});page.locator('#saveBtn').click();saved();versions=page.evaluate('window.__testDB.document_versions');assert len(versions)==2 and versions[-1]['version_number']==2 and versions[-1]['is_current'];assert versions[0]['is_current'] is False;mark('new file appends version 2 and preserves prior version')
   nav('leads');page.locator('#recordList tr',has_text='Diagnóstico revisado de prueba').get_by_role('button',name='Abrir expediente comercial').click();expect(page.locator('#leadDetailContent')).to_contain_text('Documentos y material');expect(page.locator('#leadDetailContent')).to_contain_text('Diagnóstico técnico de prueba');page.locator('#closeLeadDetail').click();mark('commercial dossier summarizes current document and version history')
-  for width in [390,768,1440]:
-   page.set_viewport_size({'width':width,'height':950});nav('leads');page.locator('#recordList tr',has_text='Diagnóstico revisado de prueba').get_by_role('button',name='Registrar movimiento').click();expect(field('type')).to_be_visible();assert page.locator('#editor').evaluate('(el)=>el.scrollWidth<=el.clientWidth+1');cancel();mark('editor fits viewport '+str(width))
+  editor_layout=[]
+  for width in [320,390,391,768,1440]:
+   page.set_viewport_size({'width':width,'height':950});nav('leads')
+   # Mobile renders cards, desktop a table. Both expose the same real dossier action.
+   lead_action=page.locator('#recordList [data-lead-detail="33333333-3333-4333-8333-333333333333"]:visible')
+   expect(lead_action).to_have_count(1);lead_action.click()
+   expect(page.locator('#leadDetailDialog')).to_be_visible()
+   page.locator('#leadDetailContent [data-activity-lead="33333333-3333-4333-8333-333333333333"]').click()
+   expect(field('lead_id')).to_have_value('33333333-3333-4333-8333-333333333333')
+   expect(page.locator('#leadDetailDialog')).not_to_be_visible();expect(field('type')).to_be_visible()
+   layout=page.locator('#editor').evaluate('''(el)=>{
+    const box=el.getBoundingClientRect(),header=el.querySelector('.dialog-header').getBoundingClientRect();
+    return {viewport:innerWidth,clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,left:box.left,right:box.right,headerLeft:header.left,headerRight:header.right};
+   }''')
+   editor_layout.append(layout);(out/'editor-layout.json').write_text(json.dumps(editor_layout,indent=2))
+   assert layout['scrollWidth']<=layout['clientWidth']+1, layout
+   assert layout['headerLeft']>=layout['left'] and layout['headerRight']<=layout['right'], layout
+   page.locator('#editor').screenshot(path=str(out/('editor-'+str(width)+'.png')))
+   cancel();mark('editor fits viewport '+str(width))
   assert not errors,errors;assert not blocked,blocked;mark('no JavaScript errors or real customer requests')
+ except Exception as error:
+  errors.append(str(error))
+  try:
+   if not page.is_closed():page.screenshot(path=str(out/'failure.png'),full_page=True)
+  except Exception as capture_error:
+   print('Could not capture failure screenshot:',capture_error)
+  raise
  finally:
   (out/'results.json').write_text(json.dumps({'base_url':base,'fixture_only':True,'checks':checks,'count':len(checks),'javascript_errors':errors,'blocked_requests':blocked},ensure_ascii=False,indent=2));browser.close()
   if server:server.shutdown()

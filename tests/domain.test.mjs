@@ -33,7 +33,7 @@ test('parses quoted CSV headers, commas, multiline cells and BOM',()=>{
  assert.deepEqual(rows,[{nombre:'Institución, Sur',notas:'Línea 1\nLínea 2'}]);
 });
 
-test('prioritizes overdue and calculated lead potential before lower-potential follow-ups',()=>{
+test('prioritizes follow-up dates and uses calculated potential to break equal-date ties',()=>{
  const data={
   leads:[
    {id:'lead-low',title:'Bajo',status:'CONTACTED',next_action_date:'2026-01-01T12:00:00Z',score:90},
@@ -42,7 +42,14 @@ test('prioritizes overdue and calculated lead potential before lower-potential f
   scores:[{lead_id:'lead-low',total_score:20,recommendation:'Completar datos'},{lead_id:'lead-high',total_score:90,recommendation:'Contactar hoy'}]
  };
  assert.deepEqual(priorities(data,Date.parse('2026-01-02')).map(row=>row.id),['lead-low','lead-high']);
- assert.equal(priorities(data,Date.parse('2025-12-01'))[0].derived_score,90);
+ const upcoming=priorities(data,Date.parse('2025-12-01'));
+ assert.deepEqual(upcoming.map(row=>row.id),['lead-low','lead-high']);
+ assert.deepEqual(upcoming.map(row=>row.derived_score),[20,90]);
+ assert.deepEqual(upcoming.map(row=>row.recommendation),['Completar datos','Contactar hoy']);
+ const tied={...data,leads:data.leads.map(row=>({...row,next_action_date:'2026-01-01T12:00:00Z'}))};
+ for(const timestamp of ['2025-12-01','2026-01-02']){
+  assert.deepEqual(priorities(tied,Date.parse(timestamp)).map(row=>row.id),['lead-high','lead-low'],'calculated potential takes precedence over manual score for equal dates');
+ }
 });
 
 

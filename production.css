@@ -4700,6 +4700,15 @@ html{scroll-padding-top:calc(var(--app-header-height,110px) + 12px)}
     padding-left:10px!important;
     padding-right:10px!important;
   }
+  /* Match the editor's 10px padding at this breakpoint. The -12px header
+     margins from the 700px rule otherwise create 2px of horizontal overflow. */
+  #editor[data-ribbon] .dialog-header{
+    margin-left:-10px;
+    margin-right:-10px;
+    padding-left:10px;
+    padding-right:10px;
+  }
+  #editor[data-ribbon] .dialog-header::before{left:10px}
 }
 
 
