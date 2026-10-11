@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {caseRequestContext, caseInboundMail, caseOutboundStatus, caseUnconfirmedMailActivity} from '../case-attention.mjs';
+import {caseRequestContext, caseInboundMail, caseOutboundStatus, caseUnconfirmedMailActivity, caseResponseProgress} from '../case-attention.mjs';
 import {renderSellerDashboard} from '../seller-dashboard.mjs';
 
 const now = new Date('2026-10-11T12:00:00Z');
@@ -104,11 +104,13 @@ test('search matches accent-insensitive school, request, contact, responsible an
   assert.doesNotMatch(render(fixture(),{searchQuery:'rojo'}),/data-case-id=/);
 });
 
-test('an unanswered incoming mail is prioritized; the latest sent mail is shown as the last action',()=>{
+test('the latest evidenced send is the last action and removes the already answered mail priority',()=>{
   const data=fixture({leads:[{...lead,id:'urgent-other',institution_id:null,title:'Otra escuela',next_action_date:'2026-10-01'},lead],mail:[{lead_id:lead.id,status:'NEW',subject:'Precisiones del alcance',received_at:'2026-10-11T09:00:00Z'}],commercial_mail_outbox:[{lead_id:lead.id,status:'SENT',provider_message_id:'accepted-provider-id',subject:'Respuesta registrada',sent_at:'2026-10-11T10:00:00Z'}]});
   const html=render(data);
-  assert.ok(html.indexOf('data-case-id="'+lead.id+'"')<html.indexOf('data-case-id="urgent-other"'));
+  assert.ok(html.indexOf('data-case-id="urgent-other"')<html.indexOf('data-case-id="'+lead.id+'"'));
   assert.match(html,/Correo enviado: Respuesta registrada/);
+  assert.doesNotMatch(html,/Correo nuevo|Revisar el correo recibido y preparar la respuesta/);
+  assert.match(html,/Esperar respuesta o programar seguimiento/);
 });
 
 test('missing email only shows Open case and current profile resolves owner without loading users',()=>{
@@ -205,4 +207,98 @@ test('v2 success-looking activity without provider evidence is never presented a
     assert.doesNotMatch(html,/Correo enviado|data-smart-mail=/);
     assert.equal(JSON.stringify(data),before);
   }
+});
+
+
+const receivedMail={id:'inbound',lead_id:lead.id,status:'NEW',subject:'Consulta recibida',body_text:'Necesitamos información de laboratorio.',received_at:'2026-10-11T09:00:00Z'};
+const acceptedMail={lead_id:lead.id,status:'SENT',provider_message_id:'provider-evidence',subject:'Respuesta del caso',sent_at:'2026-10-11T10:00:00Z'};
+const progress=(data)=>caseResponseProgress(lead,data,{now});
+
+test('provider acceptance after inbound produces follow-up without changing unread/open state',()=>{
+ const data=fixture({mail:[receivedMail],commercial_mail_outbox:[acceptedMail]});const before=JSON.stringify(data);
+ const result=progress(data);
+ assert.equal(result.responseAccepted,true);assert.equal(result.pendingMail,null);assert.equal(result.nextAction,'Esperar respuesta o programar seguimiento.');assert.equal(result.nextDate,null);
+ assert.equal(JSON.stringify(data),before);assert.equal(data.mail[0].status,'NEW');assert.equal(data.leads[0].status,'NEW');
+ const html=render(data);assert.match(html,/En seguimiento/);assert.match(html,/>Escribir correo<\/button>/);assert.doesNotMatch(html,/Correo nuevo|preparar la respuesta/);
+});
+
+test('a newer incoming message after an accepted send restores response priority',()=>{
+ const newer={...receivedMail,received_at:'2026-10-11T11:00:00Z'};
+ const data=fixture({mail:[newer],commercial_mail_outbox:[acceptedMail]});
+ assert.equal(progress(data).responseAccepted,false);assert.equal(progress(data).pendingMail.id,'inbound');
+ assert.match(render(data),/Correo nuevo/);assert.match(render(data),/Revisar el correo recibido y preparar la respuesta/);
+});
+
+test('failed, uncertain and legacy no-ID sends never suppress the incoming request',()=>{
+ for(const row of [{...acceptedMail,status:'FAILED'},{...acceptedMail,status:'SENDING'},{...acceptedMail,status:'UNKNOWN'},{...acceptedMail,provider_message_id:null}]){
+  const result=progress(fixture({mail:[receivedMail],commercial_mail_outbox:[row]}));assert.equal(result.responseAccepted,false);assert.equal(result.pendingMail.id,'inbound');
+ }
+});
+
+test('provider-evidenced activities cover outbox-hidden sessions without trusting ordinary EMAIL notes',()=>{
+ const activity={lead_id:lead.id,type:'EMAIL',subject:'Correo aceptado por proveedor · respuesta',occurred_at:acceptedMail.sent_at};
+ for(const evidence_note of ['Aceptado por Resend. Entrega al destinatario no confirmada. ID: provider-evidence. Referencia CRM: local-id. Adjuntos: 0','Envío confirmado por Resend. ID: provider-evidence']){
+  const data=fixture({mail:[receivedMail],activities:[web,{...activity,evidence_note}]});
+  assert.equal(progress(data).responseAccepted,true);assert.equal(progress(data).accepted.source,'activity');assert.match(render(data),/Esperar respuesta o programar seguimiento/);
+ }
+ for(const evidence_note of ['', 'Envío confirmado por Resend. ID: no disponible','Enviar a Resend más adelante','Envío confirmado por Resend. ID: null'])assert.equal(progress(fixture({mail:[receivedMail],activities:[{...activity,evidence_note}]})).responseAccepted,false);
+});
+
+test('manual future tasks, meetings and lead plans survive an accepted response',()=>{
+ const base={mail:[receivedMail],commercial_mail_outbox:[acceptedMail]};
+ const task={lead_id:lead.id,status:'PENDING',title:'Llamar para revisar inventario',due_at:'2026-10-12T10:00:00Z'};
+ const meeting={lead_id:lead.id,status:'SCHEDULED',title:'Revisión con dirección',start_at:'2026-10-13T10:00:00Z'};
+ let result=progress(fixture({...base,tasks:[task],meetings:[meeting]}));assert.equal(result.nextAction,task.title);assert.equal(result.nextDate,task.due_at);
+ result=progress(fixture({...base,meetings:[meeting]}));assert.equal(result.nextAction,'Preparar y realizar: '+meeting.title);assert.equal(result.nextDate,meeting.start_at);
+ result=caseResponseProgress({...lead,next_action:'Enviar ficha acordada',next_action_date:'2026-10-14T10:00:00Z'},fixture(base),{now});assert.equal(result.nextAction,'Enviar ficha acordada');assert.equal(result.nextDate,'2026-10-14T10:00:00Z');
+ const automatic=fixture({...base,tasks:[{...task,title:'Responder primera solicitud',automation_key:'cx:web:test'}]});
+ assert.equal(progress(automatic).nextAction,'Esperar respuesta o programar seguimiento.');
+ assert.equal(caseResponseProgress({...lead,next_action_date:'2026-10-14T10:00:00Z'},automatic,{now}).nextAction,'Esperar respuesta o programar seguimiento.');
+});
+
+test('missing dates, future evidence and evidence from another case never prove this reply was handled',()=>{
+ for(const row of [{...acceptedMail,sent_at:null},{...acceptedMail,sent_at:'invalid'},{...acceptedMail,sent_at:'2026-10-12T10:00:00Z'},{...acceptedMail,lead_id:'other'}])assert.equal(progress(fixture({mail:[receivedMail],commercial_mail_outbox:[row]})).responseAccepted,false);
+ assert.equal(progress(fixture({mail:[{...receivedMail,received_at:null}],commercial_mail_outbox:[acceptedMail]})).responseAccepted,false);
+ assert.equal(progress(fixture({activities:[{...web,occurred_at:'2026-10-11T11:00:00Z'}],commercial_mail_outbox:[acceptedMail]})).responseAccepted,false);
+});
+
+
+test('a newer web submission also prevents treating an old email response as current',()=>{
+ const data=fixture({mail:[receivedMail],activities:[{...web,occurred_at:'2026-10-11T11:00:00Z'}],commercial_mail_outbox:[acceptedMail]});
+ assert.equal(progress(data).responseAccepted,false);
+});
+
+
+test('impossible calendars and guessed timezones never prove chronological progress',()=>{
+ const invalid=['2026-02-30','2026-02-30T10:00:00Z','2026-13-01T10:00:00Z','2026-10-10T24:00:00Z','2026-10-10T10:60:00Z','2026-10-10T10:00:00','10/10/2026','2026-10-10T10:00:00+25:00'];
+ for(const value of invalid){
+  let result=progress(fixture({mail:[receivedMail],commercial_mail_outbox:[{...acceptedMail,sent_at:value}]}));assert.equal(result.responseAccepted,false,'sent_at '+value);assert.equal(result.pendingMail.id,'inbound');
+  result=progress(fixture({mail:[{...receivedMail,received_at:value}],commercial_mail_outbox:[acceptedMail]}));assert.equal(result.responseAccepted,false,'received_at '+value);assert.equal(result.pendingMail.id,'inbound');
+ }
+});
+test('created_at is never a substitute for received_at, sent_at or occurred_at',()=>{
+ let result=progress(fixture({mail:[{...receivedMail,received_at:null,created_at:'2026-10-11T08:00:00Z'}],commercial_mail_outbox:[acceptedMail]}));assert.equal(result.responseAccepted,false);assert.equal(result.pendingMail.id,'inbound');
+ result=progress(fixture({mail:[receivedMail],commercial_mail_outbox:[{...acceptedMail,sent_at:null,created_at:acceptedMail.sent_at}]}));assert.equal(result.responseAccepted,false);
+ const activity={lead_id:lead.id,type:'EMAIL',subject:'Correo aceptado',created_at:acceptedMail.sent_at,evidence_note:'Envío confirmado por Resend. ID: real-id'};
+ assert.equal(progress(fixture({mail:[receivedMail],activities:[activity]})).responseAccepted,false);
+});
+test('provider placeholder tokens remain unconfirmed for both outbox and activity evidence',()=>{
+ for(const provider_message_id of ['no disponible','no_disponible','no-disponible','unknown','undefined','null','N/A','not_available','pending','none','false']){
+  assert.equal(caseOutboundStatus({...acceptedMail,provider_message_id}).kind,'uncertain',provider_message_id);
+  const result=progress(fixture({mail:[receivedMail],commercial_mail_outbox:[{...acceptedMail,provider_message_id}]}));assert.equal(result.responseAccepted,false);assert.equal(result.pendingMail.id,'inbound');
+  const activity={lead_id:lead.id,type:'EMAIL',occurred_at:acceptedMail.sent_at,evidence_note:'Envío confirmado por Resend. ID: '+provider_message_id};
+  assert.equal(progress(fixture({mail:[receivedMail],activities:[activity]})).responseAccepted,false);
+ }
+});
+test('explicitly foreign organization evidence cannot answer or plan this case',()=>{
+ const own={...lead,organization_id:'org-own'};
+ const data=fixture({mail:[{...receivedMail,organization_id:'org-own'}],commercial_mail_outbox:[{...acceptedMail,organization_id:'org-other'}],activities:[{...web,organization_id:'org-own'},{lead_id:lead.id,organization_id:'org-other',type:'EMAIL',occurred_at:acceptedMail.sent_at,evidence_note:'Envío confirmado por Resend. ID: actual-id'}]});
+ let result=caseResponseProgress(own,data,{now});assert.equal(result.responseAccepted,false);assert.equal(result.pendingMail.id,'inbound');
+ data.commercial_mail_outbox=[{...acceptedMail,organization_id:'org-own'}];data.tasks=[{lead_id:lead.id,organization_id:'org-other',status:'PENDING',title:'Foreign private plan',due_at:'2026-10-12T12:00:00Z'}];
+ result=caseResponseProgress(own,data,{now});assert.equal(result.responseAccepted,true);assert.equal(result.nextAction,'Esperar respuesta o programar seguimiento.');
+ assert.equal(caseInboundMail(own,fixture({mail:[{...receivedMail,organization_id:'org-other'}]})).length,0);
+});
+test('date-only evidence cannot establish order inside the same calendar day',()=>{
+ let result=progress(fixture({mail:[{...receivedMail,received_at:'2026-10-11'}],commercial_mail_outbox:[acceptedMail]}));assert.equal(result.responseAccepted,false);assert.equal(result.pendingMail.id,'inbound');
+ result=progress(fixture({mail:[{...receivedMail,received_at:'2026-10-10T09:00:00Z'}],commercial_mail_outbox:[{...acceptedMail,sent_at:'2026-10-10'}]}));assert.equal(result.responseAccepted,false);
 });

@@ -1,5 +1,5 @@
 import {escapeHTML as esc, normalize, money, taskUrgency, sortTasksByUrgency} from './domain.mjs';
-import {caseRequestContext,caseInboundMail,caseOutboundStatus,caseUnconfirmedMailActivity} from './case-attention.mjs';
+import {caseRequestContext,caseInboundMail,caseOutboundStatus,caseUnconfirmedMailActivity,caseResponseProgress} from './case-attention.mjs';
 import {caseReplyContext} from './case-reply.mjs';
 
 const closedLead = row => ['DISQUALIFIED','CONVERTED'].includes(row.status);
@@ -134,7 +134,8 @@ function caseRows(data,now,currentUser){
     const owner=(data.users||[]).find(row=>row.id===lead.owner_user_id)||(currentUser?.id===lead.owner_user_id?currentUser:null);
     const activities=(data.activities||[]).filter(row=>row.lead_id===lead.id).sort((a,b)=>(Date.parse(b.occurred_at||b.created_at)||0)-(Date.parse(a.occurred_at||a.created_at)||0));
     const mail=caseInboundMail(lead,data);
-    const newMail=mail.find(row=>row.status==='NEW')||null;
+    const response=caseResponseProgress(lead,data,{now});
+    const newMail=response.pendingMail;
     const latestActivity=activities[0]||null,latestMail=mail[0]||null;
     const outgoing=(data.commercial_mail_outbox||[]).filter(row=>row.lead_id===lead.id).map(row=>({row,state:caseOutboundStatus(row)})).filter(item=>item.state).sort((a,b)=>(Date.parse(b.state.at)||0)-(Date.parse(a.state.at)||0));
     const outbound=outgoing[0]||null,uncertainMail=outgoing.find(item=>item.state.kind==='uncertain')||activities.find(caseUnconfirmedMailActivity)||null;
@@ -143,7 +144,7 @@ function caseRows(data,now,currentUser){
       latestMail&&{text:'Correo recibido'+(latestMail.subject?': '+latestMail.subject:''),at:latestMail.received_at||latestMail.created_at},
       outbound&&{text:outbound.state.label+(outbound.row.subject?': '+outbound.row.subject:''),at:outbound.state.at,kind:outbound.state.kind}
     ].filter(Boolean).sort((a,b)=>(Date.parse(b.at)||0)-(Date.parse(a.at)||0));
-    return {lead,institution,contact,owner,request:caseListRequest(lead,data),urgency:urgencyForLead(lead,data.tasks||[],now),newMail,uncertainMail,latest:movements[0]||null};
+    return {lead,institution,contact,owner,request:caseListRequest(lead,data),urgency:urgencyForLead(lead,data.tasks||[],now),newMail,uncertainMail,response,latest:movements[0]||null};
   }).sort((a,b)=>Number(closedLead(a.lead))-Number(closedLead(b.lead))||Number(!!b.uncertainMail)-Number(!!a.uncertainMail)||Number(!!b.newMail)-Number(!!a.newMail)||b.urgency.rank-a.urgency.rank||(Date.parse(b.latest?.at||b.lead.created_at)||0)-(Date.parse(a.latest?.at||a.lead.created_at)||0));
 }
 function matchesCaseSearch(row,query){
@@ -159,16 +160,17 @@ function matchesCaseSearch(row,query){
 function caseCard(row,canReply){
   const {lead,institution,contact,request,urgency}=row;
   const closed=closedLead(lead),hasEmail=!!String(contact?.email||institution?.email||'').trim(),showReply=canReply&&hasEmail&&!closed&&!row.uncertainMail;
-  const status=closed?(lead.status==='CONVERTED'?'Convertido':'Descartado'):(row.uncertainMail?'Revisar envío':row.latest?.kind==='failed'?'Envío fallido':row.newMail?'Correo nuevo':urgency.label==='Alta'?'Por atender':'Pendiente');
+  const status=closed?(lead.status==='CONVERTED'?'Convertido':'Descartado'):(row.uncertainMail?'Revisar envío':row.latest?.kind==='failed'?'Envío fallido':row.newMail?'Correo nuevo':row.response.responseAccepted?'En seguimiento':urgency.label==='Alta'?'Por atender':'Pendiente');
   const ownerName=row.owner?.full_name||(lead.owner_user_id?'Responsable asignado':'Sin responsable');
-  const next=row.uncertainMail?'Revisar el envío sin confirmación antes de enviar otro correo.':closed?'Caso cerrado':row.latest?.kind==='failed'?'Revisar el envío fallido y corregirlo antes de volver a enviar.':row.newMail?'Revisar el correo recibido y preparar la respuesta.':urgency.next;
+  const next=row.uncertainMail?'Revisar el envío sin confirmación antes de enviar otro correo.':closed?'Caso cerrado':row.latest?.kind==='failed'?'Revisar el envío fallido y corregirlo antes de volver a enviar.':row.newMail?'Revisar el correo recibido y preparar la respuesta.':row.response.responseAccepted?row.response.nextAction:urgency.next;
+  const nextDate=row.response.responseAccepted?row.response.nextDate:urgency.date;
   const origin=request.source+(request.at?' · '+compactDate(request.at):'');
   return '<article class="case-card'+(closed?' is-closed':'')+'" data-case-id="'+esc(lead.id)+'">'+
     '<header class="case-card-heading"><div><span class="prospect-id">ID '+esc(prospectDisplayId(lead))+'</span><h2>'+esc(institution?.name||lead.title||'Institución sin nombre')+'</h2></div><span class="seller-urgency '+(closed?'calm':row.uncertainMail||row.latest?.kind==='failed'?'danger':row.newMail?'warning':urgency.tone)+'">'+esc(status)+'</span></header>'+
     '<div class="case-request"><small>Solicitud</small><p>'+esc(request.text||'Solicitud todavía no registrada.')+'</p>'+(origin?'<span class="case-request-source">'+esc(origin)+'</span>':'')+'</div>'+
     '<dl class="case-meta"><div><dt>Responsable</dt><dd>'+esc(ownerName)+'</dd></div><div><dt>Última acción</dt><dd>'+esc(row.latest?.text||'Sin acción registrada')+(row.latest?.at?'<small>'+esc(compactDateTime(row.latest.at))+'</small>':'')+'</dd></div></dl>'+
-    '<div class="case-next"><small>Siguiente paso</small><strong>'+esc(next)+'</strong>'+(!closed&&!row.uncertainMail&&row.latest?.kind!=='failed'&&urgency.date?'<span>'+esc(compactDateTime(urgency.date))+'</span>':'')+'</div>'+
-    '<footer class="case-actions">'+(showReply?'<button type="button" class="primary" data-smart-mail="'+esc(lead.id)+'">Responder</button>':'')+'<button type="button"'+(!showReply?' class="primary"':'')+' data-lead-detail="'+esc(lead.id)+'">Abrir caso</button></footer>'+
+    '<div class="case-next"><small>Siguiente paso</small><strong>'+esc(next)+'</strong>'+(!closed&&!row.uncertainMail&&row.latest?.kind!=='failed'&&nextDate?'<span>'+esc(compactDateTime(nextDate))+'</span>':'')+'</div>'+
+    '<footer class="case-actions">'+(showReply?'<button type="button" class="primary" data-smart-mail="'+esc(lead.id)+'">'+(row.response.responseAccepted?'Escribir correo':'Responder')+'</button>':'')+'<button type="button"'+(!showReply?' class="primary"':'')+' data-lead-detail="'+esc(lead.id)+'">Abrir caso</button></footer>'+
   '</article>';
 }
 

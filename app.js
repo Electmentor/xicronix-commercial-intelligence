@@ -13,7 +13,7 @@ import {renderPerformance, performanceCSV, performancePages} from './performance
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
 import {renderSellerDashboard} from './seller-dashboard.mjs?v=20261011-cases';
-import {caseRequestContext,caseInboundMail,caseUnconfirmedMailActivity} from './case-attention.mjs';
+import {caseRequestContext,caseInboundMail,caseUnconfirmedMailActivity,caseResponseProgress,caseOutboundStatus} from './case-attention.mjs';
 import {buildCaseReply,caseReplyContext} from './case-reply.mjs';
 
 const $ = id => document.getElementById(id);
@@ -1462,7 +1462,7 @@ function smartMailDraftForLead(lead){
  return {lead,contact,institution,email,subject,body,reply,recommendation,recommendedCategories,docs,suggestedDocs,thread,latest};
 }
 function unconfirmedMailForLead(leadId){
- return [...(data.commercial_mail_outbox||[]).filter(row=>row.lead_id===leadId&&(['SENDING','UNKNOWN'].includes(row.status)||row.status==='SENT'&&!String(row.provider_message_id||'').trim())),...(data.activities||[]).filter(row=>row.lead_id===leadId&&caseUnconfirmedMailActivity(row))];
+ return [...(data.commercial_mail_outbox||[]).filter(row=>row.lead_id===leadId&&caseOutboundStatus(row)?.kind==='uncertain'),...(data.activities||[]).filter(row=>row.lead_id===leadId&&caseUnconfirmedMailActivity(row))];
 }
 function openSmartMailDraft(leadId){
  const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
@@ -2753,14 +2753,15 @@ function openLeadDetails(id){
  const potential=score?Math.max(0,Math.min(100,Number(score.total_score)||0)):null;
  const urgency=commercialUrgency(tasks,meetings),potentialState=commercialPotential(score),health=commercialHealth(lead,urgency,potentialState);
  const latest=activities[0]||null;
+ const responseProgress=caseResponseProgress(lead,data);
  const newestInbound=relatedMail[0]||null;
  const newestInboundAt=Date.parse(newestInbound?.received_at||newestInbound?.created_at||0)||0;
  const newestTaskAt=Math.max(0,...pending.map(row=>Date.parse(row.updated_at||row.created_at||row.due_at||0)||0));
- const inboundIsCurrent=!!newestInbound&&newestInboundAt>=newestTaskAt;
- const action=inboundIsCurrent?'Revisar la respuesta de '+(contact?nameOf(contact):newestInbound.sender_name||'contacto')+' y responder según su mensaje.':nextCommercialAction(lead,tasks,meetings);
+ const inboundIsCurrent=!responseProgress.responseAccepted&&!!newestInbound&&newestInboundAt>=newestTaskAt;
+ const action=responseProgress.responseAccepted?responseProgress.nextAction:inboundIsCurrent?'Revisar la respuesta de '+(contact?nameOf(contact):newestInbound.sender_name||'contacto')+' y responder según su mensaje.':nextCommercialAction(lead,tasks,meetings);
  const nextMeeting=meetings.find(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&Date.parse(row.start_at)>=Date.now())||null;
  const nextTask=pending[0]||null;
- const nextDate=[nextTask?.due_at,nextMeeting?.start_at,lead.next_action_date].filter(Boolean).sort((a,b)=>Date.parse(a)-Date.parse(b))[0]||null;
+ const nextDate=responseProgress.responseAccepted?responseProgress.nextDate:[nextTask?.due_at,nextMeeting?.start_at,lead.next_action_date].filter(Boolean).sort((a,b)=>Date.parse(a)-Date.parse(b))[0]||null;
  const maturity=Math.max(0,Math.min(100,Number(lead.maturity_percent)||0));
  const originalRequest=caseRequestContext(lead,data);
  const replyContext=caseReplyContext(lead,data);
@@ -2777,9 +2778,9 @@ function openLeadDetails(id){
  const mailBodyAvailable=!!latestMail&&!!mailBody&&replyContext.complete;
  const mailContext=latestMail?'<section class="lead-situation"><header><div><small>QUÉ ESTÁ PASANDO</small><strong>'+esc(latestMail.sender_name||(contact?nameOf(contact):latestMail.from_address)||'Contacto')+' respondió por correo</strong></div><time>'+esc(date(latestMail.received_at))+'</time></header><h3>'+esc(latestMail.subject||'Correo recibido')+'</h3><div class="lead-situation-meta"><span>'+esc(latestMail.classification||'COMMERCIAL')+'</span><span>'+esc(latestMail.priority==='HIGH'?'Prioridad alta':'Requiere revisión')+'</span></div><details class="lead-original-mail" open><summary>Texto de correo disponible'+(mailBodyAvailable?' · contenido disponible':' · contenido pendiente')+'</summary><div><dl><dt>De</dt><dd>'+esc(latestMail.sender_name||(contact?nameOf(contact):''))+' &lt;'+esc(latestMail.from_address||directEmail||'')+'&gt;</dd><dt>Fecha</dt><dd>'+esc(date(latestMail.received_at))+'</dd><dt>Asunto</dt><dd>'+esc(latestMail.subject||'Sin asunto')+'</dd></dl><article class="lead-original-mail-body">'+(mailBodyAvailable?esc(mailBody):'<strong>Contenido completo pendiente de recuperación.</strong><p>Revisa el original antes de responder; el borrador no supone su contenido.</p>')+'</article></div></details></section>':'';
  const unconfirmedSend=unconfirmedMailForLead(id);
- const safeAction=unconfirmedSend.length?'Revisar el envío sin confirmación antes de volver a responder.':latestMail&&!mailBodyAvailable?'Recuperar y revisar el contenido completo del correo antes de responder.':action;
+ const safeAction=unconfirmedSend.length?'Revisar el envío sin confirmación antes de volver a responder.':!responseProgress.responseAccepted&&latestMail&&!mailBodyAvailable?'Recuperar y revisar el contenido completo del correo antes de responder.':action;
  const quickActions='<section class="lead-action-center"><div class="lead-action-primary"><small>ACCIÓN RECOMENDADA</small><strong>'+esc(safeAction)+'</strong><span>'+(nextDate?'Antes de '+esc(date(nextDate)):'Sin fecha comprometida')+'</span></div><div class="lead-action-buttons">'+
-  (directEmail&&writableFor('activities')?'<button type="button" class="lead-action-button primary" data-smart-mail="'+lead.id+'"'+(unconfirmedSend.length?' disabled title="Revisa el envío sin confirmación antes de responder"':latestMail&&!mailBodyAvailable?' disabled title="Primero debe recuperarse el contenido completo del correo"':'')+'>Responder</button>':'')+
+  (directEmail&&writableFor('activities')?'<button type="button" class="lead-action-button primary" data-smart-mail="'+lead.id+'"'+(unconfirmedSend.length?' disabled title="Revisa el envío sin confirmación antes de responder"':!responseProgress.responseAccepted&&latestMail&&!mailBodyAvailable?' disabled title="Primero debe recuperarse el contenido completo del correo"':'')+'>'+(responseProgress.responseAccepted?'Escribir correo':'Responder')+'</button>':'')+
   (directPhone?'<a class="lead-action-button" href="'+esc(radarPhoneHref(directPhone))+'">Llamar</a>':'')+
   (directPhone?'<a class="lead-action-button" href="'+esc(radarWhatsappHref(directPhone))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
   (writableFor('activities')?'<button type="button" class="lead-action-button" data-activity-lead="'+lead.id+'">Registrar resultado</button>':'')+
@@ -2792,7 +2793,7 @@ function openLeadDetails(id){
  const outboundMail=(data.commercial_mail_outbox||[]).filter(row=>row.lead_id===id);
  const uncertainMail=unconfirmedSend;
  const uncertaintyNotice=uncertainMail.length?'<section class="notice error" role="alert"><strong>Hay un envío sin confirmación.</strong> Revisa el proveedor antes de volver a enviar. El estado guardado por sí solo no acredita que el correo haya sido aceptado.</section>':'';
- const conversation=[...relatedMail.map(row=>({direction:'IN',at:row.received_at||row.created_at,subject:row.subject,body:caseReplyContext(lead,{...data,mail:[row]}).contextText,actor:row.sender_name||(contact?nameOf(contact):row.from_address)})),...outboundMail.map(row=>({direction:'OUT',at:row.sent_at||row.created_at,subject:row.subject,body:row.body,actor:'Xicronix',status:row.status==='SENT'&&String(row.provider_message_id||'').trim()?'ACEPTADO POR PROVEEDOR · ENTREGA NO CONFIRMADA':row.status==='FAILED'?'INTENTO FALLIDO':'ENVÍO SIN CONFIRMACIÓN'}))].sort((a,b)=>String(a.at||'').localeCompare(String(b.at||'')));
+ const conversation=[...relatedMail.map(row=>({direction:'IN',at:row.received_at||row.created_at,subject:row.subject,body:caseReplyContext(lead,{...data,mail:[row]}).contextText,actor:row.sender_name||(contact?nameOf(contact):row.from_address)})),...outboundMail.map(row=>({direction:'OUT',at:row.sent_at||row.created_at,subject:row.subject,body:row.body,actor:'Xicronix',status:caseOutboundStatus(row)?.kind==='sent'?'ACEPTADO POR PROVEEDOR · ENTREGA NO CONFIRMADA':row.status==='FAILED'?'INTENTO FALLIDO':'ENVÍO SIN CONFIRMACIÓN'}))].sort((a,b)=>String(a.at||'').localeCompare(String(b.at||'')));
  const conversationDetails='<details class="executive-detail"><summary>Conversación por correo <span>'+conversation.length+'</span></summary><div class="executive-detail-body mail-thread">'+(conversation.length?conversation.map(row=>'<article class="mail-thread-message '+(row.direction==='OUT'?'outbound':'inbound')+'"><header><strong>'+esc(row.direction==='OUT'?'Xicronix → '+(contact?nameOf(contact):'Contacto'):(row.actor||'Contacto')+' → Xicronix')+'</strong><small>'+esc(date(row.at))+'</small></header><h4>'+esc(row.subject||'Sin asunto')+'</h4><p>'+esc(row.body||'Contenido no disponible')+'</p><span>'+esc(row.direction==='OUT'?row.status:'RECIBIDO')+'</span></article>').join(''):'<p class="muted">Sin correos registrados.</p>')+'</div></details>';
  const historyDetails='<details class="executive-detail"><summary>Historial CRM <span>'+activities.length+'</span></summary><div class="executive-detail-body">'+
   (activities.length?activities.map(row=>'<article class="lead-note"><div class="movement-note-head"><h4>'+esc(caseUnconfirmedMailActivity(row)?'Registro de envío sin confirmación':row.subject||MOVEMENT_ACTIONS[row.action_code]||enums.activityType[row.type]||'Movimiento')+'</h4>'+(row.action_code?'<span class="badge">'+esc(MOVEMENT_ACTIONS[row.action_code]||row.action_code)+'</span>':'')+'</div><small>'+esc(enums.activityType[row.type]||row.type)+' · '+esc(date(row.occurred_at))+'</small><p>'+esc(row.notes||row.need_summary||'Sin notas adicionales')+'</p>'+(row.milestone_after?'<p class="milestone-evidence">Hito acreditado: '+esc(milestoneLabel(row.milestone_after))+' · '+Number(row.maturity_after||0)+'%</p>':'')+'</article>').join(''):'<p class="muted">Sin movimientos registrados.</p>')+
@@ -2806,7 +2807,8 @@ function openLeadDetails(id){
  '</div></details>';
  const management=writableFor('leads')?'<details class="executive-detail management"><summary>Seguimiento y cierre</summary><div class="executive-detail-body lead-master-actions"><button type="button" data-edit-lead="'+lead.id+'">Editar prospecto</button><button type="button" data-create-task-lead="'+lead.id+'">Crear tarea</button><button type="button" data-create-meeting-lead="'+lead.id+'">Agendar reunión</button><button type="button" data-create-document-lead="'+lead.id+'">Subir documento</button></div></details>':'';
  const ownerName=relationName('owner_user_id',lead)||(assignedUserId(lead)===profile?.id?profile.full_name:'')||(assignedUserId(lead)?'Responsable asignado':'Sin responsable asignado');
- const lastAction=latest?(/ID: no disponible/i.test(latest.evidence_note||'')?'Envío sin confirmación':latest.subject||enums.activityType[latest.type]||'Movimiento registrado')+' · '+date(latest.occurred_at):'Aún no hay acciones registradas';
+ const lastAccepted=responseProgress.accepted;
+ const lastAction=lastAccepted&&(Date.parse(lastAccepted.at)||0)>=(Date.parse(latest?.occurred_at)||0)?'Correo aceptado por el proveedor · '+date(lastAccepted.at):latest?(/ID: no disponible/i.test(latest.evidence_note||'')?'Envío sin confirmación':latest.subject||enums.activityType[latest.type]||'Movimiento registrado')+' · '+date(latest.occurred_at):'Aún no hay acciones registradas';
  const requestSummary='<section class="case-request-detail"><header><div><small>SOLICITUD</small><h3>'+esc(institution?.name||lead.title||'Caso')+'</h3></div><span class="badge">'+esc(enums.status[lead.status]||lead.status)+'</span></header><p class="case-original-request">'+esc(need)+'</p><small>'+esc(request.source||'Sin fuente disponible')+(request.at?' · '+esc(date(request.at)):'')+'</small><dl class="case-context-grid">'+field('Responsable',ownerName)+field('Última acción',lastAction)+field('Siguiente paso',safeAction)+field('Fecha',nextDate?date(nextDate):'Pendiente de definir')+'</dl></section>';
  const followupActions=writableFor('leads')?'<section class="case-followup"><p>Enviar un correo no cierra este caso. Registra el resultado y define el próximo seguimiento, o cambia su estado al terminar.</p><button type="button" data-edit-lead="'+lead.id+'">Seguimiento o cierre</button>'+(writableFor('tasks')?'<button type="button" data-create-task-lead="'+lead.id+'">Programar seguimiento</button>':'')+'</section>':'';
  $('leadDetailTitle').textContent=institution?.name||lead.title||'Prospecto';
