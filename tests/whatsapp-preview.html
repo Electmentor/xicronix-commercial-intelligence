@@ -1,0 +1,9 @@
+<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WhatsApp · prueba local aislada</title><style>body{font:16px system-ui;background:#f5f7fa;color:#13233a;padding:24px}dialog{border:1px solid #ccd3dc;border-radius:14px}label{display:block;margin:16px 0}input,textarea,button{font:inherit;padding:10px}button{margin:8px}dialog::backdrop{background:#1238}</style><h1>Prueba local: preparar WhatsApp</h1><p>Datos sintéticos. La apertura está interceptada: nunca se abre WhatsApp ni se envía nada.</p><button id="known">Correo acreditado</button><button id="web">Nexa más reciente</button><button id="missing">Sin teléfono / contexto incompleto</button><pre id="result"></pre><script type="module">
+import {openCaseWhatsapp} from '../case-whatsapp.mjs';
+const lead={id:'demo-lead',contact_id:'demo-contact'},contact={id:'demo-contact',first_name:'Ana',phone:'999999999'};
+const mail={id:'demo-mail',lead_id:lead.id,subject:'Coordinación',received_at:'2026-10-06T12:00:00Z',body_text:'Tenemos un espacio de coordinaciones internas para presentar la necesidad el viernes.'};
+const show=(data,c=contact)=>openCaseWhatsapp({lead,contact:c,institution:{phone:'015000000'},data:{contacts:[c],...data},dataSource:'demo',isCurrent:()=>true,now:Date.parse('2026-10-11T12:00:00Z'),open:url=>document.querySelector('#result').textContent='APERTURA INTERCEPTADA; NO ENVIADO\n'+url});
+document.querySelector('#known').onclick=()=>show({mail:[mail]});
+document.querySelector('#web').onclick=()=>show({mail:[mail],activities:[{lead_id:lead.id,type:'WEB_FORM',subject:'Solicitud desde el chat',occurred_at:'2026-10-10T12:00:00Z',notes:'Requerimiento original: Queremos revisar una propuesta nueva\nContexto adicional: NO COPIAR NOTA INTERNA'}]});
+document.querySelector('#missing').onclick=()=>show({mail:[{...mail,body_text:''}]},{...contact,phone:''});
+</script></html>

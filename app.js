@@ -1,3 +1,4 @@
+import {openCaseWhatsapp,closeCaseWhatsapp} from './case-whatsapp.mjs';
 import {openQuoteEditor,closeQuoteEditor} from './quote-editor.mjs?v=5';
 import {createAssistant,buildAssistantContext} from './assistant.mjs?v=2.47.1';
 import {radarState,radarStateLabels,radarTransition,renderRadarLifecycle} from './radar-lifecycle.mjs?v=2.47.1';
@@ -12,7 +13,9 @@ import {analyticsCSV} from './analytics.mjs';
 import {renderPerformance, performanceCSV, performancePages} from './performance.mjs?v=2.47.1';
 import {catalogDisplayName, calculateQuote} from './catalog.mjs';
 import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,milestonePercent,movementMilestoneHelp,renderMilestoneRail} from './commercial-core.mjs?v=20260923-v2.40.22';
-import {renderSellerDashboard} from './seller-dashboard.mjs?v=20260926-v2.45.14';
+import {renderSellerDashboard} from './seller-dashboard.mjs?v=20261011-cases';
+import {caseRequestContext,caseInboundMail,caseUnconfirmedMailActivity,caseResponseProgress,caseOutboundStatus} from './case-attention.mjs';
+import {buildCaseReply,caseReplyContext} from './case-reply.mjs';
 
 const $ = id => document.getElementById(id);
 const CLIENT_BUILD='v2.49.1';
@@ -139,7 +142,7 @@ const modules={
  ]},
  users:{label:'Usuarios',singular:'usuario',filter:'role',options:enums.role,fields:[f('full_name','Nombre completo','text',true),f('role','Rol','select',true,enums.role)]}
 };
-let sb, session=null, profile=null, data={}, failures={}, page='dashboard', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
+let sb, session=null, profile=null, data={}, failures={}, page='leads', pageIndex=0, editTable=null, editId=null, editingVersion=null, mode='login', recovery=false, loadVersion=0, busy=false, resetCooldownUntil=0, resetCooldownTimer=null;
 const size=20;
 const PUBLIC_APP_URL='https://xicronix-commercial-intelligence.vercel.app/';
 const CRM_RELEASE='2026-09-27-v2.47.1';
@@ -148,6 +151,7 @@ const CRM_VERSION_LABEL='v2.47.1';
 const REMEMBER_EMAIL_KEY='xicronix.crm.remembered-email';
 const RECOVERY_KEY='xicronix.crm.password-recovery';
 let entryRoute=readEntryRoute();
+let historyGuardInstalled=false;
 const emptyData=()=>Object.fromEntries([...Object.keys(modules),'scores','document_versions','quote_items','quote_financials'].map(k=>[k,[]]));
 const writable=()=>profile && ['ADMIN','MANAGER','SALES'].includes(profile.role);
 let workspace=SELLER, workspaceIdentity=null, workspaceEntryChosen=false, loading=false;
@@ -156,6 +160,9 @@ let noticeTimer=null;
 let analyticsPeriod='year';
 let performancePage=null,performanceFilters={},performanceAdjustment=20;
 let sellerManagementSearch='';
+let caseFilter='pending';
+let smartMailState=null;
+const smartMailDrafts=new Map();
 let deferredInstallPrompt=null;
 let criticalPushState='unknown';
 let mailWebhookConfig=null;
@@ -191,6 +198,7 @@ function persistDemo(){
 }
 function demoSavedMessage(){return demoSaved?'Simulación guardada en este navegador; no modifica datos reales.':'Simulación guardada solo en esta sesión: el navegador no permitió conservarla.';}
 function clearWorkspaceViews(){
+ closeCaseWhatsapp();
  closeQuoteEditor();
  performanceFilters={};performanceAdjustment=20;
  closeLeadDetails(false);
@@ -276,28 +284,28 @@ function renderWorkspaceControls(){
   mobileBottom.hidden=!profile||!workspaceEntryChosen;
   const primary=$('mobileNavPrimary'),reports=$('mobileNavReports'),nowBtn=$('mobileNavNow');
   const home=$('mobileNavHome');
-  if(home){home.dataset.page='dashboard';const label=home.querySelector('small');if(label)label.textContent=admin?'Dirección':'Mi rendimiento';}
+  if(home){home.dataset.page='leads';const label=home.querySelector('small');if(label)label.textContent='Mis casos';}
   if(primary){
-   primary.dataset.page=admin?'users':'leads';
-   const label=primary.querySelector('small');if(label)label.textContent=admin?'Equipo':'Mi cartera';
+   primary.dataset.page='tasks';
+   const label=primary.querySelector('small');if(label)label.textContent='Tareas';
   }
   if(reports){
-   reports.dataset.page=admin?'opportunities':'tasks';
-   const label=reports.querySelector('small');if(label)label.textContent=admin?'Negociaciones':'Mis tareas';
+   reports.dataset.page='meetings';
+   const label=reports.querySelector('small');if(label)label.textContent='Agenda';
   }
   if(nowBtn){
-   nowBtn.dataset.page=admin?'goals':'meetings';
-   const label=nowBtn.querySelector('small');if(label)label.textContent=admin?'Metas':'Mi agenda';
+   nowBtn.dataset.page='dashboard';
+   const label=nowBtn.querySelector('small');if(label)label.textContent='Rendimiento';
   }
  }
  const labels=admin
-  ?{dashboard:'Centro de Dirección',now:'Prioridades y decisiones',users:'Equipo y cumplimiento',goals:'Metas y cumplimiento',opportunities:'Negociaciones y pipeline',quotes:'Cotizaciones',meetings:'Agenda y reuniones',leads:'Gestión comercial',prospects:'Inteligencia de prospectos',radar:'Radar Comercial',supplier_relationships:'Proveedores',strategic_alliances:'Alianzas estratégicas',catalog_products:'Catálogo',institutions:'Cuentas',contacts:'Contactos estratégicos',mail:'Correo Zoho',documents:'Repositorio comercial',cost_profiles:'Costos y márgenes',expenses:'Gastos'}
+  ?{dashboard:'Centro de Dirección',now:'Prioridades y decisiones',users:'Equipo y cumplimiento',goals:'Metas y cumplimiento',opportunities:'Negociaciones y pipeline',quotes:'Cotizaciones',meetings:'Agenda y reuniones',leads:'Mis casos',prospects:'Inteligencia de prospectos',radar:'Radar Comercial',supplier_relationships:'Proveedores',strategic_alliances:'Alianzas estratégicas',catalog_products:'Catálogo',institutions:'Cuentas',contacts:'Contactos estratégicos',mail:'Correo Zoho',documents:'Repositorio comercial',cost_profiles:'Costos y márgenes',expenses:'Gastos'}
   :{dashboard:'Mi Dashboard',now:'Ahora',leads:'Mis casos',tasks:'Mis tareas',meetings:'Mi agenda',mail:'Correo Zoho',opportunities:'Mis oportunidades',quotes:'Mis cotizaciones',contacts:'Mis contactos',documents:'Mi repositorio',catalog_products:'Catálogo'};
  const navButton=(key,index)=>'<button data-page="'+key+'"><span class="nav-index">'+String(index+1).padStart(2,'0')+'</span>'+(labels[key]||modules[key]?.label||'Resumen')+'</button>';
  const navSection=(title,keys,start)=>{const visible=keys.filter(accessible);return visible.length?'<p class="nav-section-label">'+title+'</p>'+visible.map((key,index)=>navButton(key,start+index)).join(''):'';};
  if(admin){
-  const command=['dashboard','now','users','goals'];
-  const business=['opportunities','quotes','meetings','leads'];
+  const command=['leads','dashboard','now','users','goals'];
+  const business=['opportunities','quotes','meetings'];
   const intelligence=['prospects','radar'];
   const relations=['supplier_relationships','strategic_alliances','catalog_products','institutions','contacts'];
   const support=['mail','documents','cost_profiles','expenses'];
@@ -310,8 +318,8 @@ function renderWorkspaceControls(){
   html+=navSection('SOPORTE',support,offset);
   $('navigation').innerHTML=html;
  }else{
-  const day=['dashboard'];
-  const portfolio=['leads','opportunities','quotes','tasks','meetings'];
+  const day=['leads'];
+  const portfolio=['tasks','meetings','opportunities','quotes','dashboard'];
   const support=['mail','documents','contacts','catalog_products'];
   let offset=0;
   let html=navSection('HOY',day,offset);offset+=day.filter(accessible).length;
@@ -323,13 +331,9 @@ function renderWorkspaceControls(){
 function renderWorkspaceEntry(){
  const gate=$('workspaceEntry');
  if(!gate||!profile)return;
- if(!isAdminAccount()){
-  workspaceEntryChosen=true;
-  gate.hidden=true;
-  if(!dailyBriefingShownForSession)setTimeout(()=>openDailyBriefing(false),250);
-  return;
- }
- gate.hidden=workspaceEntryChosen;
+ workspaceEntryChosen=true;
+ gate.hidden=true;
+ renderWorkspaceControls();
 }
 async function chooseWorkspaceEntry(next){
  if(![ADMIN,SELLER].includes(next)||!profile)return;
@@ -337,8 +341,7 @@ async function chooseWorkspaceEntry(next){
  $('workspaceEntry').hidden=true;
  if(next===workspace){
   renderWorkspaceControls();renderConnectionState();
-  navigate('dashboard');
-  setTimeout(()=>openDailyBriefing(false),250);
+  navigate('leads');
   return;
  }
  await setWorkspace(next);
@@ -352,7 +355,7 @@ async function setWorkspace(next){
  dailyBriefingShownForSession=false;
  try{localStorage.setItem(workspaceIdentity,workspace);}catch(_error){}
  clearWorkspaceViews();
- navigate('dashboard');
+ navigate('leads');
  await reload();
 }
 const THEME_STORAGE_KEY='xicronix-theme';
@@ -420,6 +423,9 @@ function resetPasswordVisibility(){
  });
 }
 function clearSession(){
+ closeCaseWhatsapp();
+ smartMailState=null;smartMailUploadState=null;smartMailDrafts.clear();caseFilter='pending';sellerManagementSearch='';
+ if($('smartMailDialog')?.open)$('smartMailDialog').close();
  closeQuoteEditor();
  aiSelected=null;aiAssistant?.reset();closeAiAssistant();
  performancePage=null;performanceFilters={};performanceAdjustment=20;
@@ -427,7 +433,7 @@ function clearSession(){
  stopLiveIntelligence();
  stopLiveMailRealtime();
  closeLeadDetails(false);
- loadVersion++;session=null;profile=null;data=emptyData();failures={};mailWebhookConfig=null;page='dashboard';pageIndex=0;workspace=SELLER;workspaceIdentity=null;workspaceEntryChosen=false;loading=false;dataSource='live';sourceIdentity=null;demoData=null;executiveFilter='';executiveOwner='';editTable=null;editId=null;editingVersion=null;
+ loadVersion++;session=null;profile=null;data=emptyData();failures={};mailWebhookConfig=null;page='leads';pageIndex=0;workspace=SELLER;workspaceIdentity=null;workspaceEntryChosen=false;loading=false;dataSource='live';sourceIdentity=null;demoData=null;executiveFilter='';executiveOwner='';editTable=null;editId=null;editingVersion=null;
  $('fields').replaceChildren();$('sellerSummary').replaceChildren();$('navigation').replaceChildren();$('workspaceControls').hidden=true;
  if($('editor').open)$('editor').close();$('appView').hidden=true;$('authView').hidden=false;$('dashboard').replaceChildren();$('recordList').replaceChildren();
 }
@@ -779,7 +785,7 @@ async function reload(){
  primeLiveIntelligence();startLiveIntelligence();startLiveMailRealtime();
  render();const bad=Object.keys(failures);notice(bad.length?'No se pudo cargar: '+bad.map(k=>modules[k]?.label||k).join(', ')+'. Pulsa Actualizar para reintentar.':'',!!bad.length);
  }catch(error){if(version===loadVersion){profile=null;data=emptyData();failures=Object.fromEntries(Object.keys(modules).map(k=>[k,true]));render();notice(errorText(error),true);}}
- finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;$('refreshBtn').classList.remove('is-refreshing');render();applyEntryRoute();renderWorkspaceEntry();hideAppSplash();if(workspaceEntryChosen)setTimeout(()=>openDailyBriefing(false),350);}}
+ finally{if(version===loadVersion){loading=false;$('refreshBtn').disabled=false;$('refreshBtn').classList.remove('is-refreshing');render();applyEntryRoute();renderWorkspaceEntry();hideAppSplash();}}
 }
 function applyTheme(theme,persist=false){
  const night=theme==='night';document.documentElement.dataset.theme=night?'night':'day';
@@ -826,7 +832,7 @@ function initSidebar(){
 }
 function navigate(next,{historyMode='push'}={}){
  if(busy||$('editor').open)return;
- if(!accessible(next))next=canViewDashboard()?'dashboard':'leads';
+ if(!accessible(next))next='leads';
  const changed=page!==next;
  if(changed)aiSelected=null;
  page=next;pageIndex=0;executiveFilter='';executiveOwner='';sellerQuickFilter='';if(next!=='leads')sellerManagementSearch='';$('search').value='';
@@ -982,7 +988,7 @@ function openAttention(){
  if(loading||busy||!profile)return;renderAttentionCenter();$('attentionDialog').showModal();
 }
 function renderSellerManagement(){
-  $('dashboard').innerHTML=renderSellerDashboard(commercialDataView(),{demo:dataSource==='demo',failures,searchQuery:sellerManagementSearch,showSearch:true});
+  $('dashboard').innerHTML=renderSellerDashboard(commercialDataView(),{demo:dataSource==='demo',failures,searchQuery:sellerManagementSearch,caseFilter,currentUser:profile,canReply:writableFor('activities'),showSearch:true});
   const input=$('commercialSearch');
   if(input){
     input.addEventListener('input',event=>{
@@ -1001,7 +1007,7 @@ function compensationSetupPending(){
 function renderSellerCompensationNotice(){
  const node=$('sellerCompensationNotice');if(!node)return;
  const admin=canViewDashboard(),task=compensationSetupPending();
- if(admin){node.hidden=true;node.replaceChildren();return;}
+ if(admin||page==='leads'){node.hidden=true;node.replaceChildren();return;}
  node.hidden=false;
  node.innerHTML='<div><small>COMPENSACIÓN PENDIENTE</small><strong>Dirección debe definir tu contrato, sueldo y bono comercial.</strong><span>Tus ventas y desempeño ya se registran. El cálculo de sueldo, comisión o bono se activará únicamente cuando exista una regla contractual formal y aprobada.</span></div>'+
    '<button type="button" data-page="dashboard">Ver mi rendimiento</button>';
@@ -1011,17 +1017,17 @@ function render(){
  renderWorkspaceControls();
  renderAttentionButton();
  renderSellerCompensationNotice();
- if(!accessible(page)){page='dashboard';pageIndex=0;$('search').value='';$('filter').value='';}
+ if(!accessible(page)){page='leads';pageIndex=0;$('search').value='';$('filter').value='';}
  if($('filter').dataset.page!==page){
   $('filter').dataset.page=page;
   $('filter').innerHTML='<option value="">Todos los estados / tipos</option>'+Object.entries(modules[page]?.options||{}).map(([key,value])=>'<option value="'+key+'">'+value+'</option>').join('');
  }
  const admin=canViewDashboard();
  $('appView').dataset.page=page;$('appView').dataset.source=dataSource;
- const sellerCommercialView=!admin&&page==='leads';
+ const sellerCommercialView=page==='leads';
  $('dashboard').hidden=page!=='dashboard'&&!sellerCommercialView;
  $('records').hidden=page==='dashboard'||sellerCommercialView;
- $('pageTitle').textContent=page==='dashboard'?(admin?'Dirección Comercial':'Mi rendimiento'):page==='now'?'Xicronix Ahora':!admin&&page==='prospects'?'Prospectos':!admin&&page==='leads'?'Mi cartera':modules[page].label;
+ $('pageTitle').textContent=page==='dashboard'?(admin?'Dirección Comercial':'Mi rendimiento'):page==='now'?'Xicronix Ahora':!admin&&page==='prospects'?'Prospectos':page==='leads'?'Mis casos':modules[page].label;
  const target=page==='dashboard'?(admin?'institutions':'leads'):page==='now'?'leads':page;
  $('newBtn').hidden=page==='dashboard'||page==='now'||(!admin&&page==='leads')||target==='users'||!writableFor(target);
  $('newBtn').textContent='+ Crear '+modules[target].singular;
@@ -1032,7 +1038,7 @@ function render(){
   if(button.dataset.page===page)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');
  });
  if(page==='dashboard')renderDashboard();
- else if(!admin&&page==='leads'){
+ else if(page==='leads'){
    renderSellerManagement();
  }else renderRecords();
  requestAnimationFrame(renderActivityRail);
@@ -1447,71 +1453,54 @@ function smartMailDraftForLead(lead){
  const firstName=String(contact?.first_name||'').trim();
  const name=firstName||'';
  const institutionName=institution?.name||lead?.title||'su institución';
- const relatedMail=(data.mail||[]).filter(row=>row.lead_id===lead?.id||(contact?.id&&row.contact_id===contact.id)||(email&&String(row.from_address||'').trim().toLowerCase()===email.toLowerCase())).sort((a,b)=>String(b.received_at||b.created_at||'').localeCompare(String(a.received_at||a.created_at||'')));
+ const relatedMail=caseInboundMail(lead,data);
  const inbound=relatedMail[0]||null;
- const maturity=Math.max(0,Math.min(100,Number(lead?.maturity_percent)||0));
- const need=activities.find(row=>row.need_summary)?.need_summary||lead?.next_action||'su solicitud';
- const greeting=name?'Estimada '+name+',':'Estimada/o,';
- let subject=inbound?.subject?('Re: '+String(inbound.subject).replace(/^Re:\s*/i,'')):'Xicronix | '+institutionName;
- let paragraphs=[];
- if(inbound){
-   paragraphs.push('Gracias por su mensaje. Hemos revisado la información compartida y el estado actual de su solicitud con Xicronix.');
- }else if(lead?.source==='WEBSITE'){
-   paragraphs.push('Gracias por ponerse en contacto con Xicronix a través de nuestro formulario web. Hemos revisado su solicitud relacionada con '+need+'.');
- }else{
-   paragraphs.push('Gracias por su comunicación con Xicronix. Hemos revisado el estado actual de su solicitud relacionada con '+need+'.');
- }
- let recommendation='Brochure institucional / presentación de capacidades';
- let recommendedCategories=['INSTITUTIONAL_BROCHURES','SOLUTIONS_TECHNICAL'];
- if(maturity<30){
-   paragraphs.push('Para avanzar de manera adecuada, proponemos una breve conversación de diagnóstico que nos permita precisar necesidades, alcance y prioridades antes de plantear una solución.');
-   paragraphs.push('Quedamos atentos para coordinar el horario que le resulte más conveniente.');
-   recommendation='Brochure institucional o ficha de solución, solo si aporta contexto';
-   recommendedCategories=['INSTITUTIONAL_BROCHURES','SOLUTIONS_TECHNICAL','PRESENTATIONS'];
- }else if(maturity<60){
-   paragraphs.push('De acuerdo con lo conversado hasta el momento, el siguiente paso es consolidar los requerimientos técnicos y comerciales para preparar una propuesta alineada a sus necesidades.');
-   paragraphs.push('Si está de acuerdo, podemos confirmar los puntos pendientes y avanzar con la siguiente etapa.');
-   recommendation='Ficha técnica, diagnóstico o presentación de solución';
-   recommendedCategories=['SOLUTIONS_TECHNICAL','REQUEST_DIAGNOSIS','PRESENTATIONS'];
- }else if(maturity<80){
-   paragraphs.push('Con la información ya validada, estamos en condiciones de avanzar con la propuesta comercial correspondiente.');
-   paragraphs.push('Adjuntaremos o actualizaremos la documentación necesaria para que pueda revisarla y continuar con la evaluación interna.');
-   recommendation='Propuesta, cotización o proforma vigente';
-   recommendedCategories=['COMMERCIAL_PROPOSALS','PROPOSALS_QUOTES','SOLUTIONS_TECHNICAL'];
- }else{
-   paragraphs.push('Estamos en la etapa final del proceso y queremos dejar claramente establecidos los próximos pasos para el cierre y la implementación.');
-   paragraphs.push('Quedamos atentos a su confirmación para completar la documentación pendiente y coordinar la ejecución.');
-   recommendation='Proforma final, propuesta aprobada, contrato o documentación de implementación';
-   recommendedCategories=['PROPOSALS_QUOTES','COMMERCIAL_PROPOSALS','CONTRACTS_AUTHORIZATIONS','IMPLEMENTATION_DELIVERY'];
- }
- const signature='Atentamente,\nEquipo Xicronix\n\nXICRONIX — Ciencia, tecnología y educación\ninfo@xicronix.com\nwww.xicronix.com\nLima, Perú';
- const body=[greeting,'',...paragraphs,'',signature].join('\n');
+ const reply=buildCaseReply(lead,data);
+ const subject=inbound?.subject?('Re: '+String(inbound.subject).replace(/^Re:\s*/i,'')):'Xicronix | '+institutionName;
+ const recommendation='Selecciona solo los archivos que acompañan esta respuesta: hasta 10 adjuntos y 20 MiB en total.';
+ const recommendedCategories=Object.keys(enums.documentCategory);
+ const body=reply.body;
  const docs=(data.documents||[]).filter(row=>row.lead_id===lead?.id&&['CURRENT','SENT','SIGNED'].includes(row.status)).sort((a,b)=>String(b.updated_at||'').localeCompare(String(a.updated_at||'')));
  const suggestedDocs=docs.filter(row=>recommendedCategories.includes(row.category));
  const thread=relatedMail.find(row=>zohoMailMessageHref(row))||null;
- return {lead,contact,institution,email,subject,body,recommendation,recommendedCategories,docs,suggestedDocs,thread,latest};
+ return {lead,contact,institution,email,subject,body,reply,recommendation,recommendedCategories,docs,suggestedDocs,thread,latest};
+}
+function unconfirmedMailForLead(leadId){
+ return [...(data.commercial_mail_outbox||[]).filter(row=>row.lead_id===leadId&&caseOutboundStatus(row)?.kind==='uncertain'),...(data.activities||[]).filter(row=>row.lead_id===leadId&&caseUnconfirmedMailActivity(row))];
 }
 function openSmartMailDraft(leadId){
  const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
+ if(unconfirmedMailForLead(leadId).length){openLeadDetails(leadId);return;}
  const draft=smartMailDraftForLead(lead);
- if(!draft.email){notice('Este prospecto todavía no tiene un correo registrado.',true);return;}
+ if(!writableFor('activities')){notice('Tu cuenta solo puede consultar este caso.',true);return;}
+ if(!draft.email){notice('Este caso todavía no tiene un correo registrado.',true);return;}
  const folderLabels=(draft.recommendedCategories||[]).map(key=>enums.documentCategory[key]||key);
- const matching=draft.suggestedDocs||[];
+ const matching=draft.docs||[];
  const materialButtons=matching.length
-  ?matching.slice(0,8).map(row=>'<button type="button" class="smart-material-option" data-smart-material="'+esc(row.id)+'"><span>Adjuntar · '+esc(row.title||'Documento')+'</span><small>'+esc(enums.documentCategory[row.category]||row.category||'Documento')+'</small></button>').join('')
-  :(draft.recommendedCategories||[]).map(key=>'<button type="button" class="smart-material-option upload" data-smart-upload-category="'+esc(key)+'" data-smart-upload-lead="'+esc(lead.id)+'"><span>Subir material</span><small>'+esc(enums.documentCategory[key]||key)+'</small></button>').join('');
- $('smartMailTitle').textContent='Correo · '+(draft.institution?.name||draft.lead.title||'Prospecto');
+  ?matching.map(row=>'<button type="button" class="smart-material-option" data-smart-material="'+esc(row.id)+'"><span>Adjuntar · '+esc(row.title||'Documento')+'</span><small>'+esc(enums.documentCategory[row.category]||row.category||'Documento')+'</small></button>').join('')
+  :['INSTITUTIONAL_BROCHURES'].map(key=>'<button type="button" class="smart-material-option upload" data-smart-upload-category="'+esc(key)+'" data-smart-upload-lead="'+esc(lead.id)+'"><span>Subir material</span><small>'+esc(enums.documentCategory[key]||key)+'</small></button>').join('');
+ smartMailState={leadId:String(lead.id),pending:false};
+ $('smartMailTitle').textContent='Responder · '+(draft.institution?.name||draft.lead.title||'Prospecto');
  $('smartMailContent').innerHTML=
+  '<section class="smart-mail-context"><p>Revisa el mensaje antes de enviar. Este borrador usa reglas locales, sin una consulta nueva a IA.</p><p>'+esc(draft.reply.reason)+'</p>'+(draft.reply.contextText?'<details open><summary>'+esc(draft.reply.source||'Contexto')+(draft.reply.at?' · '+esc(date(draft.reply.at)):'')+'</summary><p class="smart-mail-original">'+esc(draft.reply.contextText)+'</p></details>':'')+'</section>'+
+  '<div id="smartMailFeedback" class="notice" role="status" aria-live="polite" hidden></div>'+
   '<section class="smart-mail-recipient">'+
-    '<label><span>Para</span><input id="smartMailTo" type="email" value="'+esc(draft.email)+'" autocomplete="off"></label>'+
-    '<label><span>Asunto</span><input id="smartMailSubject" type="text" value="'+esc(draft.subject)+'" autocomplete="off"></label>'+
+    '<label><span>Para</span><input id="smartMailTo" type="email" maxlength="254" value="'+esc(draft.email)+'" autocomplete="off"></label>'+
+    '<label><span>Asunto</span><input id="smartMailSubject" type="text" maxlength="200" value="'+esc(draft.subject)+'" autocomplete="off"></label>'+
   '</section>'+
-  '<section class="smart-mail-body"><header><div><small>RESPUESTA SUGERIDA</small><h3>Mensaje</h3></div><span class="smart-mail-status">'+(draft.thread?'Continuación de conversación':'Nuevo correo')+'</span></header><textarea id="smartMailBody" rows="14">'+esc(draft.body)+'</textarea></section>'+
-  '<section class="smart-mail-assets"><header><div><small>REPOSITORIO COMERCIAL</small><h3>Material sugerido</h3></div><span id="smartMaterialCount">0 adjuntos</span></header><div id="smartAttachmentTray" class="smart-attachment-tray" hidden></div><div class="smart-material-grid">'+materialButtons+'</div><p>'+esc(draft.recommendation)+'</p></section>'+
-  '<footer class="smart-mail-actions"><button type="button" class="primary" data-send-smart-mail="'+esc(lead.id)+'">'+(draft.thread?'Enviar respuesta':'Enviar correo')+'</button><small>Se enviará desde info@xicronix.com y quedará registrado en este expediente.</small></footer>';
+  '<section class="smart-mail-body"><header><div><small>BORRADOR PARA REVISAR</small><h3>Mensaje</h3></div><span class="smart-mail-status">'+(draft.thread?'Continuación de conversación':'Nuevo correo')+'</span></header><textarea id="smartMailBody" rows="14" maxlength="20000" aria-label="Mensaje de respuesta">'+esc(draft.body)+'</textarea></section>'+
+  '<section class="smart-mail-assets"><header><div><small>REPOSITORIO COMERCIAL</small><h3>Adjuntos del caso</h3></div><span id="smartMaterialCount">0 adjuntos</span></header><div id="smartAttachmentTray" class="smart-attachment-tray" hidden></div><div class="smart-material-grid">'+materialButtons+'</div><p>'+esc(draft.recommendation)+'</p></section>'+
+  '<footer class="smart-mail-actions"><button type="button" class="primary" data-send-smart-mail="'+esc(lead.id)+'">'+(draft.thread?'Enviar respuesta':'Enviar correo')+'</button><small>Se enviará desde info@xicronix.com. El envío no cierra el caso ni confirma entrega al destinatario.</small></footer>';
+ const saved=smartMailDrafts.get(String(leadId));
+ if(saved){$('smartMailTo').value=saved.to;$('smartMailSubject').value=saved.subject;$('smartMailBody').value=saved.body;for(const id of saved.selected)toggleSmartMaterial(id);}
  $('smartMailDialog').showModal();
 }
+function rememberSmartMailDraft(){
+ if(!smartMailState?.leadId)return;
+ smartMailDrafts.set(smartMailState.leadId,{to:$('smartMailTo')?.value||'',subject:$('smartMailSubject')?.value||'',body:$('smartMailBody')?.value||'',selected:Array.from($('smartMailContent')?.querySelectorAll('.smart-material-option.selected')||[]).map(node=>node.dataset.smartMaterial).filter(Boolean)});
+}
 function toggleSmartMaterial(id){
+ if(busy)return;
  const button=document.querySelector('[data-smart-material="'+CSS.escape(id)+'"]');if(!button)return;
  button.classList.toggle('selected');
  const selected=Array.from(document.querySelectorAll('.smart-material-option.selected')).map(node=>node.dataset.smartMaterial).filter(Boolean);
@@ -1533,7 +1522,7 @@ function uploadSmartMaterial(leadId,category){
  smartMailUploadState={leadId,category:category||'INSTITUTIONAL_BROCHURES',to,subject,body,selected};
  const input=document.createElement('input');
  input.type='file';
- input.accept='.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+ input.accept='.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv,.png,.jpg,.jpeg,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
  input.addEventListener('change',async()=>{
    const file=input.files?.[0];if(!file){smartMailUploadState=null;return;}
    await uploadSmartMaterialFile(lead,file,smartMailUploadState.category);
@@ -1543,9 +1532,9 @@ function uploadSmartMaterial(leadId,category){
 
 async function uploadSmartMaterialFile(lead,file,category){
  if(!lead||!file||!profile?.organization_id||!session?.user?.id)return;
- if(file.size>26214400){notice('El archivo supera el límite de 25 MB.',true);return;}
+ if(file.size>20971520){smartMailFeedback('El archivo supera el límite de 20 MiB por correo.',true);return;}
  const org=profile.organization_id,userId=session.user.id;
- busy=true;render();notice('Cargando material al repositorio…');
+ busy=true;render();smartMailFeedback('Cargando material al repositorio…');
  let createdId=null,uploadedPath=null;
  try{
    const title=String(file.name||'Material comercial').replace(/\.[^.]+$/,'').trim()||'Material comercial';
@@ -1594,7 +1583,7 @@ async function uploadSmartMaterialFile(lead,file,category){
        });
      });
    }
-   notice('Material cargado y adjuntado al correo.',false,3000);
+   smartMailFeedback('Material cargado y seleccionado. Se adjuntará al enviar.');
  }catch(error){
    if(uploadedPath){try{await sb.storage.from('crm-documents').remove([uploadedPath]);}catch(_cleanup){}}
    if(createdId){try{await sb.from('documents').delete().eq('id',createdId).eq('organization_id',org);}catch(_cleanup){}}
@@ -1624,19 +1613,80 @@ async function rememberSmartMailHandoff(lead,draft,to,subject,body,selectedDocs)
  const {data:saved,error}=await sb.from('activities').insert(payload).select('*').single();
  if(!error&&saved){data.activities=data.activities||[];data.activities.unshift(saved);}
 }
+function smartMailFeedback(message,error=false){
+ const node=$('smartMailFeedback');
+ if(node){node.hidden=!message;node.textContent=message;node.className='notice'+(error?' error':'');}
+ else notice(message,error);
+}
+function setSmartMailBusy(pending){
+ if(smartMailState)smartMailState.pending=pending;
+ $('smartMailContent')?.querySelectorAll('input,textarea,button').forEach(node=>{node.disabled=pending;});
+ if($('closeSmartMail'))$('closeSmartMail').disabled=pending;
+}
+async function smartMailAttempt(payload){
+ const storageKey='xicronix-mail-attempt:'+profile.organization_id+':'+session.user.id+':'+payload.lead_id;
+ const bytes=new TextEncoder().encode(JSON.stringify(payload));
+ const digest=await crypto.subtle.digest('SHA-256',bytes);
+ const fingerprint=Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');
+ // Keep only a digest and identifiers. Never store the message or attachment contents.
+ const previous=JSON.parse(sessionStorage.getItem(storageKey)||'null');
+ if(previous?.fingerprint!==fingerprint&&['SENDING','UNKNOWN'].includes(previous?.status))throw new Error('PREVIOUS_SEND_UNCONFIRMED');
+ const attempt=previous?.fingerprint===fingerprint&&previous.status!=='FAILED'?previous:{fingerprint,idempotency_key:crypto.randomUUID(),status:'READY'};
+ if(attempt.status==='SENT')throw new Error('ALREADY_SENT');
+ sessionStorage.setItem(storageKey,JSON.stringify(attempt));
+ return {attempt,save(status,evidence={}){attempt.status=status;for(const key of ['outbox_id','provider_message_id'])if(typeof evidence[key]==='string'&&evidence[key].length<=200)attempt[key]=evidence[key];sessionStorage.setItem(storageKey,JSON.stringify(attempt));}};
+}
 async function sendSmartMailDirect(leadId){
- const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead||busy||loading)return;
- const draft=smartMailDraftForLead(lead);
- const to=$('smartMailTo')?.value?.trim()||draft.email,subject=$('smartMailSubject')?.value?.trim()||draft.subject,body=$('smartMailBody')?.value||draft.body;
- if(!to||!subject||!body){notice('Revisa destinatario, asunto y mensaje antes de enviar.',true);return;}
- if(!window.confirm('Enviar ahora desde info@xicronix.com a '+to+'?'))return;
- busy=true;const button=document.querySelector('[data-send-smart-mail="'+CSS.escape(String(leadId))+'"]');if(button){button.disabled=true;button.textContent='Enviando…';}
+ const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead||busy||loading||!writableFor('activities'))return;
+ if(dataSource!=='live'){smartMailFeedback('La demostración no envía correos.');return;}
+ const to=$('smartMailTo')?.value?.trim()||'',subject=$('smartMailSubject')?.value?.trim()||'',body=$('smartMailBody')?.value?.trim()||'';
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)||!subject||!body){smartMailFeedback('Revisa destinatario, asunto y mensaje antes de enviar.',true);return;}
+ if(body.includes('[Escribe aquí tu respuesta')){smartMailFeedback('Sustituye la indicación entre corchetes por tu respuesta antes de enviar.',true);$('smartMailBody')?.focus();return;}
+ const document_ids=Array.from($('smartMailContent').querySelectorAll('.smart-material-option.selected')).map(node=>node.dataset.smartMaterial).filter(Boolean).sort();
+ if(document_ids.length>10){smartMailFeedback('Selecciona como máximo 10 adjuntos, con un total de hasta 20 MiB.',true);return;}
+ if(document_ids.some(id=>!(data.documents||[]).some(doc=>String(doc.id)===id&&doc.lead_id===lead.id))){smartMailFeedback('Algún adjunto ya no pertenece a este caso. Actualiza y revísalo.',true);return;}
+ const labels=document_ids.map(id=>(data.documents||[]).find(doc=>String(doc.id)===id)?.title||'Documento');
+ if(!window.confirm('Enviar desde info@xicronix.com a '+to+'?\nAsunto: '+subject+'\n'+(labels.length?'Adjuntos: '+labels.join(', '):'Sin adjuntos')+'\nEl caso permanecerá abierto.'))return;
+ const actor=session.user.id,org=profile.organization_id;
+ let tracking=null,providerStarted=false,providerConfirmed=false;
+ busy=true;setSmartMailBusy(true);smartMailFeedback('Comprobando el canal de envío…');
  try{
-  const {data:result,error}=await sb.functions.invoke('commercial-mail-send',{body:{lead_id:leadId,to,subject,body}});
-  if(error)throw error;if(!result?.ok||result?.status!=='SENT')throw new Error(result?.detail||'El proveedor no confirmó el envío.');
-  $('smartMailDialog').close();await reload();notice('Correo enviado y registrado en el expediente.',false,7000);
- }catch(error){notice('No se envió el correo: '+errorText(error),true,10000);}
- finally{busy=false;if(button){button.disabled=false;button.textContent='Enviar respuesta';}}
+  // Older endpoints reject this read-only payload, so they cannot silently omit attachments.
+  const capabilities=await sb.functions.invoke('commercial-mail-send-v3',{body:{action:'capabilities'}});
+  if(capabilities.error||capabilities.data?.contract_version!==3||capabilities.data?.attachments!==true||capabilities.data?.idempotency!==true)throw new Error('MAIL_CHANNEL_NOT_READY');
+  if(actor!==session?.user?.id||org!==profile?.organization_id)throw new Error('SESSION_CHANGED');
+  const payload={lead_id:leadId,to,subject,body,document_ids};
+  tracking=await smartMailAttempt(payload);
+  if(actor!==session?.user?.id||org!==profile?.organization_id)throw new Error('SESSION_CHANGED');
+  tracking.save('SENDING');providerStarted=true;smartMailFeedback('Enviando…');
+  const response=await sb.functions.invoke('commercial-mail-send-v3',{body:{...payload,idempotency_key:tracking.attempt.idempotency_key}});
+  let result=response.data;
+  if(response.error?.context?.json){try{result=await response.error.context.json();}catch(_error){}}
+  if(actor!==session?.user?.id||org!==profile?.organization_id)return;
+  if(!response.error&&result?.ok&&result?.status==='SENT'&&typeof result.provider_message_id==='string'&&result.provider_message_id&&result.delivery_status==='UNCONFIRMED'){
+   providerConfirmed=true;tracking.save('SENT',result);
+   $('smartMailDialog').close();smartMailDrafts.delete(String(leadId));busy=false;
+   await reload();openLeadDetails(leadId);
+   const resultNode=document.createElement('section');resultNode.className='notice case-send-result';resultNode.setAttribute('role','status');
+   resultNode.textContent='Correo aceptado por el proveedor y registrado. Entrega al destinatario pendiente de confirmación. El caso sigue abierto: programa el seguimiento o registra su resultado.';
+   $('leadDetailContent').prepend(resultNode);notice('Correo enviado. Entrega aún no confirmada.',false,7000);
+   return;
+  }
+  const review=result?.requires_review||['SENDING','UNKNOWN','SENT'].includes(result?.status)||!result?.error;
+  if(review||!result||response.error&&!result?.error){tracking.save('UNKNOWN',result||{});const accepted=result?.provider_status==='ACCEPTED'&&result?.provider_message_id;smartMailFeedback((accepted?'El proveedor aceptó el correo, pero falta confirmar su registro. No lo reenvíes.':'No se pudo confirmar el resultado. No repitas el envío: revisa el expediente y el proveedor antes de continuar.')+(result?.outbox_id?' Referencia de revisión: '+result.outbox_id:''),true);return;}
+  tracking.save(result.retry_allowed===false?'UNKNOWN':result.status==='FAILED'?'FAILED':'READY');
+  const messages={invalid_attachments:'Revisa los adjuntos: solo se admiten archivos vigentes y autorizados de este caso.',attachment_too_large:'Los adjuntos superan el tamaño permitido.',unsupported_attachment_type:'El tipo de uno de los adjuntos no está permitido.',forbidden:'Tu cuenta no tiene permiso para enviar desde este caso.',provider_rejected:'El proveedor rechazó el correo. Revisa el destinatario y los adjuntos.',invalid_payload:'Revisa destinatario, asunto, mensaje y adjuntos.'};
+  const attachmentError=/attachment|document_ids/.test(result.error||'');
+  smartMailFeedback(messages[result.error]||(attachmentError?'No se envió el correo. Revisa que los adjuntos estén vigentes, sean de este caso y sumen como máximo 20 MiB.':result.status==='FAILED'?'El proveedor no aceptó este intento. Revisa el mensaje antes de iniciar otro envío.':'El envío no fue confirmado. Revisa el expediente antes de volver a intentarlo.'),true);
+ }catch(error){
+  if(actor!==session?.user?.id||org!==profile?.organization_id)return;
+  if(providerConfirmed){smartMailFeedback('El proveedor aceptó el correo y quedó registrado, pero no pudimos actualizar la vista. No lo reenvíes; actualiza el expediente.',false);notice('Correo aceptado y registrado. Actualiza el expediente; no lo reenvíes.',false);}
+  else if(providerStarted){try{tracking?.save('UNKNOWN');}catch(_storage){}smartMailFeedback('No se pudo confirmar el envío. Conservamos este intento para evitar duplicados. No repitas el correo hasta revisar su estado.',true);}
+  else if(error.message==='MAIL_CHANNEL_NOT_READY')smartMailFeedback('El canal de envío seguro aún no está habilitado. No se envió ningún correo; tu borrador se conserva.',true);
+  else if(error.message==='ALREADY_SENT')smartMailFeedback('Este mensaje ya fue enviado. Revisa el expediente antes de redactar otro.',true);
+  else if(error.message==='PREVIOUS_SEND_UNCONFIRMED')smartMailFeedback('Hay un envío anterior sin confirmar para este caso. Revisa su estado antes de enviar otro mensaje.',true);
+  else smartMailFeedback('No se pudo preparar el envío seguro. No se envió el correo y tu borrador se conserva.',true);
+ }finally{busy=false;setSmartMailBusy(false);}
 }
 async function openSmartMailInZoho(leadId){
  const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
@@ -1712,7 +1762,7 @@ function renderRadarRecords(){
    '<div class="radar-quick-actions">'+
     (row.contact_phone?'<a class="radar-action-button primary" href="'+esc(radarPhoneHref(row.contact_phone))+'">Llamar</a>':'')+
     (row.contact_email?'<a class="radar-action-button" href="'+esc(radarMailHref(row))+'">Correo Zoho</a>':'')+
-    (row.contact_whatsapp?'<a class="radar-action-button" href="'+esc(radarWhatsappHref(row.contact_whatsapp))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
+    '<button type="button" class="radar-action-button" data-case-whatsapp-radar="'+esc(row.id)+'">WhatsApp</button>'+
     (row.lead_id?'<button type="button" class="radar-action-button" data-radar-lead="'+row.id+'">Abrir prospecto</button>':['RESOLVED','DISCARDED'].includes(radarState(row))?'':row.actionable?'<button type="button" class="radar-action-button primary" data-radar-promote="'+row.id+'">Promover a CRM</button>':'<button type="button" class="radar-action-button" data-radar-lead="'+row.id+'">Preparar prospecto</button>')+
     (row.lead_id&&writableFor('activities')?'<button type="button" class="radar-action-button" data-radar-activity="'+row.lead_id+'">Registrar acción</button>':'')+
    '</div>'+
@@ -1895,7 +1945,7 @@ function renderTaskCards(rows){
   const phone=phoneHref(contact?.phone),wa=whatsappHref(contact?.phone),email=mailHref(contact?.email);
   const primary=lead?'<button type="button" class="primary" data-task-lead="'+lead.id+'">Abrir prospecto</button>':'<button type="button" class="primary" data-task-module="'+row.id+'">'+esc(moduleTarget.label)+'</button>';
   const respond=lead&&canEdit?'<button type="button" data-task-response="'+lead.id+'">Registrar respuesta</button>':'';
-  const contactActions=(phone?'<a class="task-link-button" href="'+esc(phone)+'">Llamar</a>':'')+(wa?'<a class="task-link-button" href="'+esc(wa)+'" target="_blank" rel="noopener">WhatsApp</a>':'')+(email?'<a class="task-link-button" href="'+esc(email)+'">Correo</a>':'');
+  const contactActions=(phone?'<a class="task-link-button" href="'+esc(phone)+'">Llamar</a>':'')+'<button type="button" class="task-link-button" data-case-whatsapp-task="'+esc(row.id)+'">WhatsApp</button>'+(email?'<a class="task-link-button" href="'+esc(email)+'">Correo</a>':'');
   const complete=!done&&canEdit?'<button type="button" class="task-complete" data-task-complete="'+row.id+'">Completar</button>':'';
   return '<article class="task-mobile-card '+(overdue?'overdue ':'')+(done?'done':'')+'">'+
    '<header><div><span class="task-mobile-priority">'+esc(enums.priority[row.priority]||row.priority||'Sin prioridad')+'</span><h3>'+esc(row.title||'Tarea')+'</h3></div><span class="badge '+(overdue?'warn':done?'success':'')+'">'+esc(enums.taskStatus[row.status]||row.status)+'</span></header>'+
@@ -1985,7 +2035,7 @@ function renderLeadCards(rows){
    '<div class="lead-mobile-actions lead-mobile-quick-actions">'+
     (phone?'<a class="lead-quick-action primary" href="'+esc(radarPhoneHref(phone))+'">Llamar</a>':'')+
     (email?'<button type="button" class="lead-quick-action" data-smart-mail="'+row.id+'">Correo Zoho</button>':'')+
-    (phone?'<a class="lead-quick-action" href="'+esc(radarWhatsappHref(phone))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
+    '<button type="button" class="lead-quick-action" data-case-whatsapp-lead="'+esc(row.id)+'">WhatsApp</button>'+
     '<button type="button" class="lead-open-compact" data-lead-detail="'+row.id+'">Abrir expediente</button>'+
    '</div>'+
   '</article>';
@@ -2635,7 +2685,7 @@ function setRecovery(value){
 function readEntryRoute(){
  const query=new URLSearchParams(location.search||''),hash=new URLSearchParams((location.hash||'').slice(1));
  const lead=query.get('lead'),requested=hash.get('page');
- return {page:requested||'dashboard',lead:/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lead||'')?lead:null};
+ return {page:requested||'leads',lead:/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lead||'')?lead:null};
 }
 function rememberPage(lead=null,mode='replace'){
  if(!profile||recovery)return;
@@ -2647,8 +2697,8 @@ function rememberPage(lead=null,mode='replace'){
 }
 function renderHistoryPage(target){
  if(!profile||recovery)return;
- let next=target||'dashboard';
- if(!accessible(next))next=canViewDashboard()?'dashboard':'leads';
+ let next=target||'leads';
+ if(!accessible(next))next='leads';
  page=next;pageIndex=0;executiveFilter='';executiveOwner='';sellerQuickFilter='';sellerManagementSearch='';$('search').value='';
  const config=modules[page];$('filter').dataset.page=page;
  $('filter').innerHTML='<option value="">Todos los estados / tipos</option>'+Object.entries(config?.options||{}).map(([key,value])=>'<option value="'+key+'">'+value+'</option>').join('');
@@ -2657,23 +2707,30 @@ function renderHistoryPage(target){
 }
 function installHistoryGuard(){
  if(!profile||recovery)return;
- const current=readEntryRoute().page||page||'dashboard';
- history.replaceState({xicronix:true,page:current,root:true},'',location.pathname+location.search+'#page='+current);
- history.pushState({xicronix:true,page:current,guard:true},'',location.pathname+location.search+'#page='+current);
+ const current=readEntryRoute().page||page||'leads';
+ // The listener survives logout; its protective history entry may have been consumed.
+ if(!historyGuardInstalled||!history.state?.xicronix||!history.state?.guard){
+  history.replaceState({xicronix:true,page:current,root:true},'',location.pathname+location.search+'#page='+current);
+  history.pushState({xicronix:true,page:current,guard:true},'',location.pathname+location.search+'#page='+current);
+ }
+ if(historyGuardInstalled)return;
  window.addEventListener('popstate',event=>{
   if(!profile||recovery)return;
+  if($('caseWhatsappDialog')?.open){closeCaseWhatsapp();history.pushState({xicronix:true,page,guard:true},'',location.pathname+location.search+'#page='+page);return;}
+  if($('smartMailDialog')?.open){if(!busy)$('smartMailDialog').close();history.pushState({xicronix:true,page},'',location.pathname+location.search+'#page='+page);return;}
   if($('editor')?.open){$('editor').close();history.pushState({xicronix:true,page},'',location.pathname+location.search+'#page='+page);return;}
   if($('leadDetailDialog')?.open){closeLeadDetails(false);history.pushState({xicronix:true,page},'',location.pathname+location.search+'#page='+page);return;}
   if($('attentionDialog')?.open){$('attentionDialog').close();history.pushState({xicronix:true,page},'',location.pathname+location.search+'#page='+page);return;}
   if(mobileNavMode()&&!$('appView').classList.contains('sidebar-collapsed')){applySidebar(true);history.pushState({xicronix:true,page},'',location.pathname+location.search+'#page='+page);return;}
   const target=event.state?.xicronix?event.state.page:new URLSearchParams((location.hash||'').slice(1)).get('page');
   if(!target||target===page){
-    renderHistoryPage(canViewDashboard()?'dashboard':'leads');
+    renderHistoryPage('leads');
     history.pushState({xicronix:true,page,guard:true},'',location.pathname+location.search+'#page='+page);
     return;
   }
   renderHistoryPage(target);
  });
+ historyGuardInstalled=true;
 }
 
 function applyEntryRoute(){
@@ -2696,7 +2753,7 @@ function openLeadDetails(id){
  const contact=(data.contacts||[]).find(row=>row.id===lead.contact_id);
  const institution=(data.institutions||[]).find(row=>row.id===lead.institution_id);
  const activities=(data.activities||[]).filter(row=>row.lead_id===id).sort((a,b)=>String(b.occurred_at||'').localeCompare(String(a.occurred_at||'')));
- const relatedMail=(data.mail||[]).filter(row=>row.lead_id===id||(lead.contact_id&&row.contact_id===lead.contact_id)).sort((a,b)=>String(b.received_at||'').localeCompare(String(a.received_at||'')));
+ const relatedMail=caseInboundMail(lead,data);
  const latestMail=relatedMail[0]||null;
  const tasks=sortTasksByUrgency((data.tasks||[]).filter(row=>row.lead_id===id),Date.now());
  const meetings=(data.meetings||[]).filter(row=>row.lead_id===id).sort((a,b)=>String(a.start_at||'').localeCompare(String(b.start_at||'')));
@@ -2706,16 +2763,20 @@ function openLeadDetails(id){
  const potential=score?Math.max(0,Math.min(100,Number(score.total_score)||0)):null;
  const urgency=commercialUrgency(tasks,meetings),potentialState=commercialPotential(score),health=commercialHealth(lead,urgency,potentialState);
  const latest=activities[0]||null;
+ const responseProgress=caseResponseProgress(lead,data);
  const newestInbound=relatedMail[0]||null;
  const newestInboundAt=Date.parse(newestInbound?.received_at||newestInbound?.created_at||0)||0;
  const newestTaskAt=Math.max(0,...pending.map(row=>Date.parse(row.updated_at||row.created_at||row.due_at||0)||0));
- const inboundIsCurrent=!!newestInbound&&newestInboundAt>=newestTaskAt;
- const action=inboundIsCurrent?'Revisar la respuesta de '+(contact?nameOf(contact):newestInbound.sender_name||'contacto')+' y responder según su mensaje.':nextCommercialAction(lead,tasks,meetings);
+ const inboundIsCurrent=!responseProgress.responseAccepted&&!!newestInbound&&newestInboundAt>=newestTaskAt;
+ const action=responseProgress.responseAccepted?responseProgress.nextAction:inboundIsCurrent?'Revisar la respuesta de '+(contact?nameOf(contact):newestInbound.sender_name||'contacto')+' y responder según su mensaje.':nextCommercialAction(lead,tasks,meetings);
  const nextMeeting=meetings.find(row=>!['COMPLETED','CANCELLED'].includes(row.status)&&Date.parse(row.start_at)>=Date.now())||null;
  const nextTask=pending[0]||null;
- const nextDate=[nextTask?.due_at,nextMeeting?.start_at,lead.next_action_date].filter(Boolean).sort((a,b)=>Date.parse(a)-Date.parse(b))[0]||null;
+ const nextDate=responseProgress.responseAccepted?responseProgress.nextDate:[nextTask?.due_at,nextMeeting?.start_at,lead.next_action_date].filter(Boolean).sort((a,b)=>Date.parse(a)-Date.parse(b))[0]||null;
  const maturity=Math.max(0,Math.min(100,Number(lead.maturity_percent)||0));
- const need=activities.find(row=>row.need_summary)?.need_summary||'Necesidad aún no precisada.';
+ const originalRequest=caseRequestContext(lead,data);
+ const replyContext=caseReplyContext(lead,data);
+ const request=originalRequest.text?originalRequest:replyContext.complete&&replyContext.contextText?{text:replyContext.contextText,source:replyContext.source,at:replyContext.at}:originalRequest;
+ const need=request.text||'Solicitud sin detalle registrado.';
  const evidence=activities.find(row=>row.evidence_note)?.evidence_note||'Sin evidencia comercial explícita registrada.';
  const decisionSignal=activities.find(row=>row.decision_timeline||row.budget_signal);
  const decisionContext=[decisionSignal?.decision_timeline,decisionSignal?.budget_signal].filter(Boolean).join(' · ')||'Timing y presupuesto aún no confirmados.';
@@ -2723,14 +2784,15 @@ function openLeadDetails(id){
  const field=(label,value)=>'<div class="lead-detail-row"><dt>'+esc(label)+'</dt><dd>'+esc(value||'Sin registrar')+'</dd></div>';
  const directPhone=String(contact?.phone||institution?.phone||'').trim();
  const directEmail=String(contact?.email||institution?.email||'').trim();
- const mailBody=String(latestMail?.summary||'').trim();
- const mailBodyAvailable=!!latestMail&&mailBody&&mailBody!==String(latestMail.subject||'').trim()&&!/Contenido del correo no disponible/i.test(mailBody);
- const mailContext=latestMail?'<section class="lead-situation"><header><div><small>QUÉ ESTÁ PASANDO</small><strong>'+esc(latestMail.sender_name||(contact?nameOf(contact):latestMail.from_address)||'Contacto')+' respondió por correo</strong></div><time>'+esc(date(latestMail.received_at))+'</time></header><h3>'+esc(latestMail.subject||'Correo recibido')+'</h3><div class="lead-situation-meta"><span>'+esc(latestMail.classification||'COMMERCIAL')+'</span><span>'+esc(latestMail.priority==='HIGH'?'Prioridad alta':'Requiere revisión')+'</span></div><details class="lead-original-mail" open><summary>Correo original'+(mailBodyAvailable?' · contenido disponible':' · contenido pendiente')+'</summary><div><dl><dt>De</dt><dd>'+esc(latestMail.sender_name||(contact?nameOf(contact):''))+' &lt;'+esc(latestMail.from_address||directEmail||'')+'&gt;</dd><dt>Fecha</dt><dd>'+esc(date(latestMail.received_at))+'</dd><dt>Asunto</dt><dd>'+esc(latestMail.subject||'Sin asunto')+'</dd></dl><article class="lead-original-mail-body">'+(mailBodyAvailable?esc(mailBody):'<strong>Contenido completo pendiente de recuperación.</strong><p>A009 no generará una interpretación específica ni una respuesta basada en un contenido que todavía no está disponible.</p>')+'</article></div></details></section>':'';
- const safeAction=latestMail&&!mailBodyAvailable?'Recuperar y revisar el contenido completo del correo antes de responder.':action;
+ const mailBody=replyContext.mailId===latestMail?.id?replyContext.contextText:'';
+ const mailBodyAvailable=!!latestMail&&!!mailBody&&replyContext.complete;
+ const mailContext=latestMail?'<section class="lead-situation"><header><div><small>QUÉ ESTÁ PASANDO</small><strong>'+esc(latestMail.sender_name||(contact?nameOf(contact):latestMail.from_address)||'Contacto')+' respondió por correo</strong></div><time>'+esc(date(latestMail.received_at))+'</time></header><h3>'+esc(latestMail.subject||'Correo recibido')+'</h3><div class="lead-situation-meta"><span>'+esc(latestMail.classification||'COMMERCIAL')+'</span><span>'+esc(latestMail.priority==='HIGH'?'Prioridad alta':'Requiere revisión')+'</span></div><details class="lead-original-mail" open><summary>Texto de correo disponible'+(mailBodyAvailable?' · contenido disponible':' · contenido pendiente')+'</summary><div><dl><dt>De</dt><dd>'+esc(latestMail.sender_name||(contact?nameOf(contact):''))+' &lt;'+esc(latestMail.from_address||directEmail||'')+'&gt;</dd><dt>Fecha</dt><dd>'+esc(date(latestMail.received_at))+'</dd><dt>Asunto</dt><dd>'+esc(latestMail.subject||'Sin asunto')+'</dd></dl><article class="lead-original-mail-body">'+(mailBodyAvailable?esc(mailBody):'<strong>Contenido completo pendiente de recuperación.</strong><p>Revisa el original antes de responder; el borrador no supone su contenido.</p>')+'</article></div></details></section>':'';
+ const unconfirmedSend=unconfirmedMailForLead(id);
+ const safeAction=unconfirmedSend.length?'Revisar el envío sin confirmación antes de volver a responder.':!responseProgress.responseAccepted&&latestMail&&!mailBodyAvailable?'Recuperar y revisar el contenido completo del correo antes de responder.':action;
  const quickActions='<section class="lead-action-center"><div class="lead-action-primary"><small>ACCIÓN RECOMENDADA</small><strong>'+esc(safeAction)+'</strong><span>'+(nextDate?'Antes de '+esc(date(nextDate)):'Sin fecha comprometida')+'</span></div><div class="lead-action-buttons">'+
-  (directPhone?'<a class="lead-action-button primary" href="'+esc(radarPhoneHref(directPhone))+'">Llamar</a>':'')+
-  (directEmail?'<button type="button" class="lead-action-button" data-smart-mail="'+lead.id+'"'+(latestMail&&!mailBodyAvailable?' disabled title="Primero debe recuperarse el contenido completo del correo"':'')+'>Preparar respuesta</button>':'')+
-  (directPhone?'<a class="lead-action-button" href="'+esc(radarWhatsappHref(directPhone))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
+  (directEmail&&writableFor('activities')?'<button type="button" class="lead-action-button primary" data-smart-mail="'+lead.id+'"'+(unconfirmedSend.length?' disabled title="Revisa el envío sin confirmación antes de responder"':!responseProgress.responseAccepted&&latestMail&&!mailBodyAvailable?' disabled title="Primero debe recuperarse el contenido completo del correo"':'')+'>'+(responseProgress.responseAccepted?'Escribir correo':'Responder')+'</button>':'')+
+  (directPhone?'<a class="lead-action-button" href="'+esc(radarPhoneHref(directPhone))+'">Llamar</a>':'')+
+  '<button type="button" class="lead-action-button" data-case-whatsapp-lead="'+esc(lead.id)+'">WhatsApp</button>'+
   (writableFor('activities')?'<button type="button" class="lead-action-button" data-activity-lead="'+lead.id+'">Registrar resultado</button>':'')+
  '</div></section>';
  const profileDetails='<details class="executive-detail"><summary>Datos del expediente</summary><div class="executive-detail-body"><dl>'+
@@ -2738,11 +2800,13 @@ function openLeadDetails(id){
   (contact?field('Cargo',contact.job_title)+field('Correo',contact.email)+field('Teléfono',contact.phone):'')+
   field('Necesidad',need)+field('Canal de origen',enums.leadSource[lead.source]||lead.source)+field('Próxima acción',lead.next_action)+field('Fecha de seguimiento',date(lead.next_action_date))+
  '</dl></div></details>';
- const outboundMail=(data.commercial_mail_outbox||[]).filter(row=>row.lead_id===id&&row.status==='SENT');
- const conversation=[...relatedMail.map(row=>({direction:'IN',at:row.received_at||row.created_at,subject:row.subject,body:row.summary,actor:row.sender_name||(contact?nameOf(contact):row.from_address)})),...outboundMail.map(row=>({direction:'OUT',at:row.sent_at||row.created_at,subject:row.subject,body:row.body,actor:'Xicronix'}))].sort((a,b)=>String(a.at||'').localeCompare(String(b.at||'')));
- const conversationDetails='<details class="executive-detail" open><summary>Conversación por correo <span>'+conversation.length+'</span></summary><div class="executive-detail-body mail-thread">'+(conversation.length?conversation.map(row=>'<article class="mail-thread-message '+(row.direction==='OUT'?'outbound':'inbound')+'"><header><strong>'+esc(row.direction==='OUT'?'Xicronix → '+(contact?nameOf(contact):'Contacto'):(row.actor||'Contacto')+' → Xicronix')+'</strong><small>'+esc(date(row.at))+'</small></header><h4>'+esc(row.subject||'Sin asunto')+'</h4><p>'+esc(row.body||'Contenido no disponible')+'</p><span>'+esc(row.direction==='OUT'?'ENVIADO':'RECIBIDO')+'</span></article>').join(''):'<p class="muted">Sin correos registrados.</p>')+'</div></details>';
+ const outboundMail=(data.commercial_mail_outbox||[]).filter(row=>row.lead_id===id);
+ const uncertainMail=unconfirmedSend;
+ const uncertaintyNotice=uncertainMail.length?'<section class="notice error" role="alert"><strong>Hay un envío sin confirmación.</strong> Revisa el proveedor antes de volver a enviar. El estado guardado por sí solo no acredita que el correo haya sido aceptado.</section>':'';
+ const conversation=[...relatedMail.map(row=>({direction:'IN',at:row.received_at||row.created_at,subject:row.subject,body:caseReplyContext(lead,{...data,mail:[row]}).contextText,actor:row.sender_name||(contact?nameOf(contact):row.from_address)})),...outboundMail.map(row=>({direction:'OUT',at:row.sent_at||row.created_at,subject:row.subject,body:row.body,actor:'Xicronix',status:caseOutboundStatus(row)?.kind==='sent'?'ACEPTADO POR PROVEEDOR · ENTREGA NO CONFIRMADA':row.status==='FAILED'?'INTENTO FALLIDO':'ENVÍO SIN CONFIRMACIÓN'}))].sort((a,b)=>String(a.at||'').localeCompare(String(b.at||'')));
+ const conversationDetails='<details class="executive-detail"><summary>Conversación por correo <span>'+conversation.length+'</span></summary><div class="executive-detail-body mail-thread">'+(conversation.length?conversation.map(row=>'<article class="mail-thread-message '+(row.direction==='OUT'?'outbound':'inbound')+'"><header><strong>'+esc(row.direction==='OUT'?'Xicronix → '+(contact?nameOf(contact):'Contacto'):(row.actor||'Contacto')+' → Xicronix')+'</strong><small>'+esc(date(row.at))+'</small></header><h4>'+esc(row.subject||'Sin asunto')+'</h4><p>'+esc(row.body||'Contenido no disponible')+'</p><span>'+esc(row.direction==='OUT'?row.status:'RECIBIDO')+'</span></article>').join(''):'<p class="muted">Sin correos registrados.</p>')+'</div></details>';
  const historyDetails='<details class="executive-detail"><summary>Historial CRM <span>'+activities.length+'</span></summary><div class="executive-detail-body">'+
-  (activities.length?activities.map(row=>'<article class="lead-note"><div class="movement-note-head"><h4>'+esc(row.subject||MOVEMENT_ACTIONS[row.action_code]||enums.activityType[row.type]||'Movimiento')+'</h4>'+(row.action_code?'<span class="badge">'+esc(MOVEMENT_ACTIONS[row.action_code]||row.action_code)+'</span>':'')+'</div><small>'+esc(enums.activityType[row.type]||row.type)+' · '+esc(date(row.occurred_at))+'</small><p>'+esc(row.notes||row.need_summary||'Sin notas adicionales')+'</p>'+(row.milestone_after?'<p class="milestone-evidence">Hito acreditado: '+esc(milestoneLabel(row.milestone_after))+' · '+Number(row.maturity_after||0)+'%</p>':'')+'</article>').join(''):'<p class="muted">Sin movimientos registrados.</p>')+
+  (activities.length?activities.map(row=>'<article class="lead-note"><div class="movement-note-head"><h4>'+esc(caseUnconfirmedMailActivity(row)?'Registro de envío sin confirmación':row.subject||MOVEMENT_ACTIONS[row.action_code]||enums.activityType[row.type]||'Movimiento')+'</h4>'+(row.action_code?'<span class="badge">'+esc(MOVEMENT_ACTIONS[row.action_code]||row.action_code)+'</span>':'')+'</div><small>'+esc(enums.activityType[row.type]||row.type)+' · '+esc(date(row.occurred_at))+'</small><p>'+esc(row.notes||row.need_summary||'Sin notas adicionales')+'</p>'+(row.milestone_after?'<p class="milestone-evidence">Hito acreditado: '+esc(milestoneLabel(row.milestone_after))+' · '+Number(row.maturity_after||0)+'%</p>':'')+'</article>').join(''):'<p class="muted">Sin movimientos registrados.</p>')+
  '</div></details>';
  const documentDetails='<details class="executive-detail"><summary>Documentos y material <span>'+documents.length+'</span></summary><div class="executive-detail-body">'+
   (documents.length?documents.map(row=>'<article class="lead-note"><strong>'+esc(row.title)+'</strong><p>'+esc(enums.documentCategory[row.category]||row.category)+' · '+esc(enums.documentStatus[row.status]||row.status)+'</p>'+(currentDocumentVersion(row.id)?'<button type="button" data-open-document="'+row.id+'">Abrir</button>':'')+'</article>').join(''):'<p class="muted">Sin documentos registrados.</p>')+
@@ -2751,14 +2815,17 @@ function openLeadDetails(id){
   (meetings.length?meetings.map(row=>'<article class="lead-note"><strong>'+esc(row.title)+'</strong><p>'+esc(date(row.start_at))+' · '+esc(enums.meetingMode[row.mode]||row.mode)+'</p></article>').join(''):'<p class="muted">Sin reuniones.</p>')+
   '<h4>Tareas</h4>'+(tasks.length?tasks.map(row=>'<article class="lead-note"><strong>'+esc(row.title)+'</strong><p>'+esc(enums.taskStatus[row.status]||row.status)+' · '+esc(date(row.due_at))+'</p></article>').join(''):'<p class="muted">Sin tareas.</p>')+
  '</div></details>';
- const management=writableFor('leads')?'<details class="executive-detail management"><summary>Gestión del expediente</summary><div class="executive-detail-body lead-master-actions"><button type="button" data-edit-lead="'+lead.id+'">Editar prospecto</button><button type="button" data-create-task-lead="'+lead.id+'">Crear tarea</button><button type="button" data-create-meeting-lead="'+lead.id+'">Agendar reunión</button><button type="button" data-create-document-lead="'+lead.id+'">Subir documento</button></div></details>':'';
+ const management=writableFor('leads')?'<details class="executive-detail management"><summary>Seguimiento y cierre</summary><div class="executive-detail-body lead-master-actions"><button type="button" data-edit-lead="'+lead.id+'">Editar prospecto</button><button type="button" data-create-task-lead="'+lead.id+'">Crear tarea</button><button type="button" data-create-meeting-lead="'+lead.id+'">Agendar reunión</button><button type="button" data-create-document-lead="'+lead.id+'">Subir documento</button></div></details>':'';
+ const ownerName=relationName('owner_user_id',lead)||(assignedUserId(lead)===profile?.id?profile.full_name:'')||(assignedUserId(lead)?'Responsable asignado':'Sin responsable asignado');
+ const lastAccepted=responseProgress.accepted;
+ const lastAction=lastAccepted&&(Date.parse(lastAccepted.at)||0)>=(Date.parse(latest?.occurred_at)||0)?'Correo aceptado por el proveedor · '+date(lastAccepted.at):latest?(/ID: no disponible/i.test(latest.evidence_note||'')?'Envío sin confirmación':latest.subject||enums.activityType[latest.type]||'Movimiento registrado')+' · '+date(latest.occurred_at):'Aún no hay acciones registradas';
+ const requestSummary='<section class="case-request-detail"><header><div><small>SOLICITUD</small><h3>'+esc(institution?.name||lead.title||'Caso')+'</h3></div><span class="badge">'+esc(enums.status[lead.status]||lead.status)+'</span></header><p class="case-original-request">'+esc(need)+'</p><small>'+esc(request.source||'Sin fuente disponible')+(request.at?' · '+esc(date(request.at)):'')+'</small><dl class="case-context-grid">'+field('Responsable',ownerName)+field('Última acción',lastAction)+field('Siguiente paso',safeAction)+field('Fecha',nextDate?date(nextDate):'Pendiente de definir')+'</dl></section>';
+ const followupActions=writableFor('leads')?'<section class="case-followup"><p>Enviar un correo no cierra este caso. Registra el resultado y define el próximo seguimiento, o cambia su estado al terminar.</p><button type="button" data-edit-lead="'+lead.id+'">Seguimiento o cierre</button>'+(writableFor('tasks')?'<button type="button" data-create-task-lead="'+lead.id+'">Programar seguimiento</button>':'')+'</section>':'';
  $('leadDetailTitle').textContent=institution?.name||lead.title||'Prospecto';
  const leadSubtitle=$('leadDetailSubtitle');if(leadSubtitle)leadSubtitle.textContent=(contact?nameOf(contact):'Contacto decisor pendiente')+(contact?.job_title?' · '+contact.job_title:'');
  $('leadDetailContent').innerHTML='<section class="lead-master commercial-dossier executive-dossier">'+
-  mailContext+quickActions+
-  '<section class="executive-mini-progress"><div><small>AVANCE</small><strong>'+maturity+'%</strong><span>'+esc(milestoneLabel(lead.commercial_milestone))+'</span></div><div class="dossier-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+maturity+'"><i style="width:'+Math.max(0,Math.min(100,maturity))+'%"></i></div></section>'+
-  '<details class="executive-detail executive-indicators"><summary>Indicadores comerciales</summary><div class="executive-detail-body"><section class="executive-snapshot"><article><small>ESTADO</small><strong>'+health.label+'</strong></article><article><small>URGENCIA</small><strong>'+urgency.label+'</strong></article><article><small>POTENCIAL</small><strong>'+potentialState.label+(potentialState.value!==undefined?' · '+potentialState.value+'%':'')+'</strong></article><article><small>VALOR</small><strong>'+esc(budget)+'</strong></article></section><p class="muted">'+esc(evidence)+'</p></div></details>'+
-  '<section class="executive-next"><div><small>PRÓXIMO PASO</small><strong>'+esc(action)+'</strong><span>'+(nextDate?esc(date(nextDate)):'Sin fecha definida')+'</span></div><div><small>CONTEXTO DE DECISIÓN</small><strong>'+esc(decisionContext)+'</strong></div></section>'+
+  uncertaintyNotice+requestSummary+mailContext+quickActions+followupActions+
+  '<details class="executive-detail executive-indicators"><summary>Indicadores comerciales</summary><div class="executive-detail-body"><p>Avance: '+maturity+'% · '+esc(milestoneLabel(lead.commercial_milestone))+'</p><section class="executive-snapshot"><article><small>ESTADO</small><strong>'+health.label+'</strong></article><article><small>URGENCIA</small><strong>'+urgency.label+'</strong></article><article><small>POTENCIAL</small><strong>'+potentialState.label+(potentialState.value!==undefined?' · '+potentialState.value+'%':'')+'</strong></article><article><small>VALOR</small><strong>'+esc(budget)+'</strong></article></section><p class="muted">'+esc(evidence)+'</p></div></details>'+
   '<section class="executive-folders">'+profileDetails+conversationDetails+historyDetails+documentDetails+planningDetails+management+'</section>'+
  '</section>';
  rememberPage(id);$('leadDetailDialog').showModal();
@@ -2789,7 +2856,29 @@ function aiContextSnapshot(){
 function openAiAssistant(){aiAssistant?.open();$('aiAssistantLauncher')?.setAttribute('aria-expanded','true');}
 function closeAiAssistant(){aiAssistant?.close();$('aiAssistantLauncher')?.setAttribute('aria-expanded','false');}
 
+function prepareCaseWhatsapp(button){
+ if(!profile?.organization_id||!session?.user?.id||loading||busy)return;
+ const actor=session.user.id,org=profile.organization_id,source=dataSource,view=workspace;
+ const task=button.dataset.caseWhatsappTask?scopedRows('tasks').find(row=>String(row.id)===button.dataset.caseWhatsappTask):null;
+ const radar=button.dataset.caseWhatsappRadar?scopedRows('radar').find(row=>String(row.id)===button.dataset.caseWhatsappRadar):null;
+ const leadId=button.dataset.caseWhatsappLead||task?.lead_id||radar?.lead_id;
+ const lead=leadId?scopedRows('leads').find(row=>String(row.id)===String(leadId)):null;
+ if(leadId&&!lead){notice('El expediente ya no está disponible en tu cartera.',true);return;}
+ if(button.dataset.caseWhatsappTask&&!task||button.dataset.caseWhatsappRadar&&!radar)return;
+ const contactId=lead?.contact_id||task?.contact_id;
+ const contact=contactId?scopedRows('contacts').find(row=>row.id===contactId):null;
+ const institutionId=lead?.institution_id||task?.institution_id;
+ const institution=institutionId?scopedRows('institutions').find(row=>row.id===institutionId):null;
+ const safeData={...data,contacts:contact?[contact]:[],institutions:institution?[institution]:[]};
+ installHistoryGuard();
+ openCaseWhatsapp({lead,contact,institution,data:safeData,radar,dataSource:source,isReady:()=>!loading&&!busy,isCurrent:()=>
+  session?.user?.id===actor&&profile?.organization_id===org&&dataSource===source&&workspace===view&&(loading||(
+  (!lead||scopedRows('leads').some(row=>row.id===lead.id))&&(!task||scopedRows('tasks').some(row=>row.id===task.id))&&(!radar||scopedRows('radar').some(row=>row.id===radar.id))))
+ });
+}
+
 function init(){
+ document.addEventListener('click',event=>{const button=event.target.closest?.('[data-case-whatsapp-lead],[data-case-whatsapp-task],[data-case-whatsapp-radar]');if(button&&profile&&session&&!loading&&!busy)prepareCaseWhatsapp(button);});
  window.setTimeout(hideAppSplash,2500);
  installVersionWatcher();
 
@@ -2813,7 +2902,9 @@ function init(){
  if(activityToday)activityToday.onclick=()=>{if(activityDate)activityDate.value=activityDayKey(new Date());renderActivityRail();};
  if(activityDate)activityDate.onchange=renderActivityRail;
  document.addEventListener('click',async event=>{const b=event.target.closest?.('[data-mail-seen]');if(!b||!profile||!session)return;const id=b.dataset.mailSeen;b.disabled=true;const {error}=await sb.from('commercial_mail_inbox').update({seen_at:new Date().toISOString(),seen_by:session.user.id,updated_at:new Date().toISOString()}).eq('id',id).eq('organization_id',profile.organization_id);if(error){b.disabled=false;notice(errorText(error),true);return;}const row=(data.mail||[]).find(x=>String(x.id)===String(id));if(row){row.seen_at=new Date().toISOString();row.seen_by=session.user.id;}renderActivityRail();});
- $('closeLeadDetail').onclick=()=>closeLeadDetails();$('closeAttention').onclick=()=>{if($('attentionDialog').open)$('attentionDialog').close();};$('closeDailyBriefing').onclick=()=>{if($('dailyBriefingDialog').open)$('dailyBriefingDialog').close();};$('closeSmartMail').onclick=()=>{if($('smartMailDialog').open)$('smartMailDialog').close();};
+ $('closeLeadDetail').onclick=()=>closeLeadDetails();$('closeAttention').onclick=()=>{if($('attentionDialog').open)$('attentionDialog').close();};$('closeDailyBriefing').onclick=()=>{if($('dailyBriefingDialog').open)$('dailyBriefingDialog').close();};$('closeSmartMail').onclick=()=>{if(!busy&&$('smartMailDialog').open)$('smartMailDialog').close();};
+ $('smartMailDialog').addEventListener('cancel',event=>{if(busy)event.preventDefault();});
+ $('smartMailDialog').addEventListener('close',rememberSmartMailDraft);
  $('leadDetailDialog').addEventListener('close',()=>{$('leadDetailContent').replaceChildren();rememberPage();});$('attentionDialog').addEventListener('close',()=>{$('attentionContent').replaceChildren();});
  initTheme();
  initSidebar();
@@ -2828,7 +2919,7 @@ function init(){
  $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);
  $('sidebarToggle').onclick=event=>{event.stopPropagation();applySidebar(!$('appView').classList.contains('sidebar-collapsed'),true);};
  document.addEventListener('click',event=>{if(!mobileNavMode())return;const sidebar=$('mainSidebar');if(!sidebar||$('appView').classList.contains('sidebar-collapsed'))return;if(sidebar.contains(event.target)||event.target===$('sidebarToggle'))return;applySidebar(true);});
- document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.directorTarget){openDirectorInsight(b.dataset.directorTarget);return;}if(b.dataset.directorProspect){openDirectorRecord('prospects',b.dataset.directorProspect);return;}if(b.dataset.directorSignal){openDirectorRecord('radar',b.dataset.directorSignal);return;}if(b.dataset.radarPromote){promoteRadarSignal(b.dataset.radarPromote);return;}if(b.id==='refreshIntelligenceBtn'){b.disabled=true;b.classList.add('is-refreshing');refreshLiveIntelligence(true).finally(()=>{const next=$('refreshIntelligenceBtn');if(next){next.disabled=false;next.classList.remove('is-refreshing');}});return;}if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='brandThemeToggle'){applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.sellerFilter){navigate('leads');sellerQuickFilter=b.dataset.sellerFilter;renderRecords();return;}if(b.dataset.prospectKpi){navigate('prospects');prospectDashboardFilter=b.dataset.prospectKpi==='ALL'?'':b.dataset.prospectKpi;$('filter').value='';pageIndex=0;renderRecords();return;}if(b.dataset.dailyLead){if($('dailyBriefingDialog')?.open)$('dailyBriefingDialog').close();navigate('leads');openLeadDetails(b.dataset.dailyLead);return;}
+ document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.caseFilter){caseFilter=b.dataset.caseFilter;renderSellerManagement();return;}if(b.dataset.directorTarget){openDirectorInsight(b.dataset.directorTarget);return;}if(b.dataset.directorProspect){openDirectorRecord('prospects',b.dataset.directorProspect);return;}if(b.dataset.directorSignal){openDirectorRecord('radar',b.dataset.directorSignal);return;}if(b.dataset.radarPromote){promoteRadarSignal(b.dataset.radarPromote);return;}if(b.id==='refreshIntelligenceBtn'){b.disabled=true;b.classList.add('is-refreshing');refreshLiveIntelligence(true).finally(()=>{const next=$('refreshIntelligenceBtn');if(next){next.disabled=false;next.classList.remove('is-refreshing');}});return;}if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='brandThemeToggle'){applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.sellerFilter){navigate('leads');sellerQuickFilter=b.dataset.sellerFilter;renderRecords();return;}if(b.dataset.prospectKpi){navigate('prospects');prospectDashboardFilter=b.dataset.prospectKpi==='ALL'?'':b.dataset.prospectKpi;$('filter').value='';pageIndex=0;renderRecords();return;}if(b.dataset.dailyLead){if($('dailyBriefingDialog')?.open)$('dailyBriefingDialog').close();navigate('leads');openLeadDetails(b.dataset.dailyLead);return;}
 if(b.dataset.dailyPage){if($('dailyBriefingDialog')?.open)$('dailyBriefingDialog').close();navigate(b.dataset.dailyPage);return;}
 if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){if(openEditor('leads',b.dataset.editLead))closeLeadDetails(false);return;}if(b.dataset.editActivity){if(openEditor('activities',b.dataset.editActivity))closeLeadDetails(false);return;}if(b.dataset.activityLead){if(openActivityForLead(b.dataset.activityLead)!==false)closeLeadDetails(false);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.radarLead){openLeadFromRadar(b.dataset.radarLead);return;}if(b.dataset.radarActivity){openActivityForLead(b.dataset.radarActivity);return;}if(b.dataset.editSmartContact!==undefined){const contactId=b.dataset.editSmartContact||'';const institutionId=b.dataset.editSmartInstitution||'';if($('smartMailDialog').open)$('smartMailDialog').close();if(contactId){openEditor('contacts',contactId);}else if(institutionId){openEditor('institutions',institutionId);}return;}if(b.dataset.smartUploadCategory){uploadSmartMaterial(b.dataset.smartUploadLead,b.dataset.smartUploadCategory);return;}if(b.dataset.smartMaterial){toggleSmartMaterial(b.dataset.smartMaterial);return;}if(b.dataset.smartMail){openSmartMailDraft(b.dataset.smartMail);return;}if(b.dataset.copySmartMail){copySmartMailDraft(b.dataset.copySmartMail);return;}if(b.dataset.sendSmartMail){sendSmartMailDirect(b.dataset.sendSmartMail);return;}if(b.dataset.openSmartZoho){openSmartMailInZoho(b.dataset.openSmartZoho);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};

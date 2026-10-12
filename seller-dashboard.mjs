@@ -1,8 +1,8 @@
-import {escapeHTML as esc, money, taskUrgency, sortTasksByUrgency} from './domain.mjs';
-import {MILESTONE_META,milestoneLabel,milestonePercent} from './commercial-core.mjs?v=20260923-v2.40.22';
+import {escapeHTML as esc, normalize, money, taskUrgency, sortTasksByUrgency} from './domain.mjs';
+import {caseRequestContext,caseInboundMail,caseOutboundStatus,caseUnconfirmedMailActivity,caseResponseProgress} from './case-attention.mjs';
+import {caseReplyContext} from './case-reply.mjs';
 
 const closedLead = row => ['DISQUALIFIED','CONVERTED'].includes(row.status);
-const safePct = value => Math.max(0,Math.min(100,Number(value)||0));
 
 function urgencyForLead(lead,tasks,now){
   const own=sortTasksByUrgency(tasks.filter(row=>row.lead_id===lead.id&&!['COMPLETED','CANCELLED'].includes(row.status)),now.getTime());
@@ -21,11 +21,6 @@ function urgencyForLead(lead,tasks,now){
   return {label:'Baja',tone:'calm',rank:1,next:lead.next_action||'Definir siguiente acción',date:lead.next_action_date||null};
 }
 
-function potentialForLead(lead,scores){
-  const score=scores.find(row=>row.lead_id===lead.id);
-  return score?safePct(score.total_score):null;
-}
-
 function compactDate(value){
   if(!value)return 'Sin fecha';
   const d=new Date(value);if(!Number.isFinite(d.getTime()))return 'Sin fecha';
@@ -37,132 +32,6 @@ function compactDateTime(value){
   return d.toLocaleString('es-PE',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
 }
 
-function sellerPhoneHref(value){
-  const digits=String(value||'').replace(/\D/g,'');
-  return digits?'tel:+'+(digits.startsWith('51')?digits:'51'+digits):'';
-}
-function sellerWhatsappHref(value){
-  const digits=String(value||'').replace(/\D/g,'');
-  return digits?'https://wa.me/'+(digits.startsWith('51')?digits:'51'+digits):'';
-}
-function sellerQuickActions(row,{compact=false}={}){
-  const contact=row.contact||null;
-  const institution=row.institution||null;
-  const phone=String(contact?.phone||institution?.phone||'').trim();
-  const email=String(contact?.email||institution?.email||'').trim();
-  return '<div class="seller-direct-actions'+(compact?' compact':'')+'">'+
-    (phone?'<a class="seller-direct-action primary" href="'+esc(sellerPhoneHref(phone))+'">Llamar</a>':'')+
-    (email?'<button type="button" class="seller-direct-action" data-smart-mail="'+esc(row.lead.id)+'">Correo</button>':'')+
-    (phone?'<a class="seller-direct-action" href="'+esc(sellerWhatsappHref(phone))+'" target="_blank" rel="noopener">WhatsApp</a>':'')+
-    '<button type="button" class="seller-direct-action" data-activity-lead="'+esc(row.lead.id)+'">Registrar resultado</button>'+
-  '</div>';
-}
-
-function renderProspectProgress(lead,maturity){
-  const percent=Math.max(0,Math.min(100,Number(maturity)||milestonePercent(lead.commercial_milestone)||0));
-  const currentCode=lead.commercial_milestone||'';
-  const nodes=Object.entries(MILESTONE_META).map(([code,meta],index)=>{
-    const reached=percent>=meta.percent;
-    const current=currentCode===code || (!currentCode && percent===meta.percent);
-    const state=current?'current':reached?'done':'future';
-    return '<div class="prospect-progress-node '+state+'" style="--node-pos:'+meta.percent+'%">'+
-      '<span class="prospect-progress-tick" aria-hidden="true"></span>'+
-      '<div><b>'+meta.percent+'%</b><small>'+esc(meta.label)+'</small></div>'+
-    '</div>';
-  }).join('');
-  return '<section class="prospect-progress" aria-label="Avance comercial '+percent+' por ciento">'+
-    '<div class="prospect-progress-shell">'+
-      '<div class="prospect-progress-head" aria-hidden="true"></div>'+
-      '<div class="prospect-progress-track"><span class="prospect-progress-comet" style="--comet-pos:'+percent+'%" aria-hidden="true"></span>'+nodes+'</div>'+
-    '</div>'+
-  '</section>';
-}
-
-function leadStory(data,lead){
-  const activities=(data.activities||[]).filter(row=>row.lead_id===lead.id).sort((a,b)=>String(b.occurred_at||'').localeCompare(String(a.occurred_at||'')));
-  const latest=activities[0]||null;
-  const needRow=activities.find(row=>row.need_summary);
-  const evidenceRow=activities.find(row=>row.evidence_note);
-  const decisionRow=activities.find(row=>row.decision_timeline||row.budget_signal);
-  const contact=(data.contacts||[]).find(row=>row.id===lead.contact_id);
-  const problem=needRow?.need_summary||latest?.need_summary||'Necesidad aún no precisada en el expediente.';
-  const evidence=evidenceRow?.evidence_note||latest?.evidence_note||'Sin evidencia comercial explícita registrada.';
-  const decision=[decisionRow?.decision_timeline,decisionRow?.budget_signal].filter(Boolean).join(' · ')||'Timing y presupuesto aún no confirmados.';
-  const missing=[];
-  if(!needRow?.need_summary&&!latest?.need_summary)missing.push('precisar la necesidad');
-  if(!evidenceRow?.evidence_note&&!latest?.evidence_note)missing.push('registrar evidencia');
-  if(!contact)missing.push('identificar al contacto');
-  if(!decisionRow?.decision_timeline)missing.push('confirmar timing');
-  if(!decisionRow?.budget_signal&&!(Number(lead.estimated_value)>0))missing.push('confirmar presupuesto');
-  const missingText=missing.length?missing.slice(0,2).join(' y '):'no hay un bloqueo crítico registrado';
-  const situation=latest?
-    'Último movimiento: '+(latest.subject||latest.type||'interacción registrada')+'.':
-    'No existe una interacción reciente registrada.';
-  return {activities,latest,contact,problem,evidence,decision,missingText,situation};
-}
-
-function newestInboundMailForLead(data,lead){
-  return (data.mail||[])
-    .filter(row=>row.lead_id===lead.id&&row.status==='NEW')
-    .sort((a,b)=>String(b.received_at||b.created_at||'').localeCompare(String(a.received_at||a.created_at||'')))[0]||null;
-}
-
-function recommendedMove(row){
-  const contact=row.contact||null, institution=row.institution||null, lead=row.lead;
-  const phone=contact?.phone||institution?.phone||'', email=contact?.email||institution?.email||'';
-  if(row.newMail){
-    return {
-      channel:'Correo',
-      reason:'Acaba de ingresar un correo del prospecto. Una respuesta entrante tiene prioridad temporal sobre el seguimiento planificado.',
-      action:'Leer y responder: '+(row.newMail.subject||'correo recibido')
-    };
-  }
-  const urgent=row.urgency?.label==='Alta';
-  const advanced=row.maturity>=70;
-  const contacted=['CONTACTED','QUALIFIED'].includes(lead.status);
-
-  if(phone && (urgent||advanced||contacted)){
-    return {
-      channel:'Llamada',
-      reason:urgent?'Hay una acción vencida o inmediata; conviene reducir latencia y obtener respuesta directa.':advanced?'La madurez comercial ya es alta; una conversación directa ayuda a destrabar el siguiente hito.':'Ya existe contacto previo; conviene confirmar interés y fijar el siguiente paso.',
-      action:row.urgency?.next||'Llamar y acordar el siguiente paso'
-    };
-  }
-  if(email){
-    return {
-      channel:'Correo',
-      reason:row.evidence&& !row.evidence.startsWith('Sin evidencia')?'Hay evidencia comercial registrada; conviene enviar un mensaje breve y contextualizado con una llamada a la acción concreta.':'Existe correo de contacto, pero falta evidencia suficiente; conviene un primer contacto corto orientado a diagnóstico.',
-      action:row.urgency?.next||'Enviar correo y fijar seguimiento'
-    };
-  }
-  if(phone){
-    return {
-      channel:'Llamada',
-      reason:'Hay teléfono disponible y todavía no existe un canal digital mejor documentado para este caso.',
-      action:row.urgency?.next||'Llamar para identificar necesidad y decisor'
-    };
-  }
-  return {
-    channel:'Investigar',
-    reason:'No hay teléfono ni correo de contacto registrados. Antes de intentar vender, completa el decisor y un canal verificable.',
-    action:'Identificar contacto y canal verificable'
-  };
-}
-
-function prospectRows(data,now){
-  const institutions=data.institutions||[],tasks=data.tasks||[],scores=data.scores||[];
-  return (data.leads||[]).filter(row=>!closedLead(row)).map(lead=>{
-    const urgency=urgencyForLead(lead,tasks,now);
-    const institution=institutions.find(row=>row.id===lead.institution_id);
-    const maturity=safePct(lead.maturity_percent);
-    const potential=potentialForLead(lead,scores);
-    const story=leadStory(data,lead);
-    const newMail=newestInboundMailForLead(data,lead);
-    const base={lead,institution,urgency,maturity,potential,newMail,...story};
-    return {...base,recommended:recommendedMove(base)};
-  }).sort((a,b)=>Number(!!b.newMail)-Number(!!a.newMail)||b.urgency.rank-a.urgency.rank||(b.potential??-1)-(a.potential??-1)||b.maturity-a.maturity);
-}
-
 function prospectDisplayId(lead){return String(lead?.id||'').slice(0,8).toUpperCase();}
 function normalizeProspectIdSearch(value){
   return String(value||'')
@@ -172,20 +41,6 @@ function normalizeProspectIdSearch(value){
     .replace(/O/g,'0')
     .replace(/[^0-9A-F]/g,'');
 }
-function matchesProspectSearch(row,query){
-  const raw=String(query||'').trim();
-  if(!raw)return true;
-  const q=raw.toLowerCase();
-  const name=row.institution?.name||row.lead.title||'';
-  if(name.toLowerCase().includes(q))return true;
-  const qId=normalizeProspectIdSearch(raw);
-  if(!qId)return false;
-  const fullId=normalizeProspectIdSearch(row.lead.id);
-  const shortId=normalizeProspectIdSearch(prospectDisplayId(row.lead));
-  return fullId.includes(qId)||shortId.includes(qId);
-}
-
-
 function sameMonth(value,now){
   const d=new Date(value);return Number.isFinite(d.getTime())&&d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();
 }
@@ -268,59 +123,72 @@ function sellerPerformanceDashboard(data,{now=new Date(),demo=false,failures={}}
   '</div>';
 }
 
-export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={},searchQuery='',showSearch=false}={}){
+function caseListRequest(lead,data){
+ const original=caseRequestContext(lead,data);if(original.text)return original;
+ const reply=caseReplyContext(lead,data);return reply.complete&&reply.contextText?{text:reply.contextText,source:reply.source,at:reply.at}:original;
+}
+function caseRows(data,now,currentUser){
+  return (data.leads||[]).map(lead=>{
+    const institution=(data.institutions||[]).find(row=>row.id===lead.institution_id);
+    const contact=(data.contacts||[]).find(row=>row.id===lead.contact_id);
+    const owner=(data.users||[]).find(row=>row.id===lead.owner_user_id)||(currentUser?.id===lead.owner_user_id?currentUser:null);
+    const activities=(data.activities||[]).filter(row=>row.lead_id===lead.id).sort((a,b)=>(Date.parse(b.occurred_at||b.created_at)||0)-(Date.parse(a.occurred_at||a.created_at)||0));
+    const mail=caseInboundMail(lead,data);
+    const response=caseResponseProgress(lead,data,{now});
+    const newMail=response.pendingMail;
+    const latestActivity=activities[0]||null,latestMail=mail[0]||null;
+    const outgoing=(data.commercial_mail_outbox||[]).filter(row=>row.lead_id===lead.id).map(row=>({row,state:caseOutboundStatus(row)})).filter(item=>item.state).sort((a,b)=>(Date.parse(b.state.at)||0)-(Date.parse(a.state.at)||0));
+    const outbound=outgoing[0]||null,uncertainMail=outgoing.find(item=>item.state.kind==='uncertain')||activities.find(caseUnconfirmedMailActivity)||null;
+    const movements=[
+      latestActivity&&{text:caseUnconfirmedMailActivity(latestActivity)?'Registro de envío sin confirmación':latestActivity.subject||latestActivity.type||'Actividad registrada',at:latestActivity.occurred_at||latestActivity.created_at},
+      latestMail&&{text:'Correo recibido'+(latestMail.subject?': '+latestMail.subject:''),at:latestMail.received_at||latestMail.created_at},
+      outbound&&{text:outbound.state.label+(outbound.row.subject?': '+outbound.row.subject:''),at:outbound.state.at,kind:outbound.state.kind}
+    ].filter(Boolean).sort((a,b)=>(Date.parse(b.at)||0)-(Date.parse(a.at)||0));
+    return {lead,institution,contact,owner,request:caseListRequest(lead,data),urgency:urgencyForLead(lead,data.tasks||[],now),newMail,uncertainMail,response,latest:movements[0]||null};
+  }).sort((a,b)=>Number(closedLead(a.lead))-Number(closedLead(b.lead))||Number(!!b.uncertainMail)-Number(!!a.uncertainMail)||Number(!!b.newMail)-Number(!!a.newMail)||b.urgency.rank-a.urgency.rank||(Date.parse(b.latest?.at||b.lead.created_at)||0)-(Date.parse(a.latest?.at||a.lead.created_at)||0));
+}
+function matchesCaseSearch(row,query){
+  const q=normalize(String(query||'').trim());
+  if(!q)return true;
+  const values=[row.institution?.name,row.lead.title,row.lead.id,row.contact?.first_name,row.contact?.last_name,row.contact?.email,row.owner?.full_name,row.request.text];
+  if(normalize(values.filter(Boolean).join(' ')).includes(q))return true;
+  // Keep short-ID searches, without treating ordinary words as hexadecimal IDs.
+  if(!/^(?:id\s*)?[a-f0-9o-]{4,}$/i.test(String(query).trim()))return false;
+  const id=normalizeProspectIdSearch(query);
+  return !!id&&normalizeProspectIdSearch(row.lead.id).includes(id);
+}
+function caseCard(row,canReply){
+  const {lead,institution,contact,request,urgency}=row;
+  const closed=closedLead(lead),hasEmail=!!String(contact?.email||institution?.email||'').trim(),showReply=canReply&&hasEmail&&!closed&&!row.uncertainMail;
+  const status=closed?(lead.status==='CONVERTED'?'Convertido':'Descartado'):(row.uncertainMail?'Revisar envío':row.latest?.kind==='failed'?'Envío fallido':row.newMail?'Correo nuevo':row.response.responseAccepted?'En seguimiento':urgency.label==='Alta'?'Por atender':'Pendiente');
+  const ownerName=row.owner?.full_name||(lead.owner_user_id?'Responsable asignado':'Sin responsable');
+  const next=row.uncertainMail?'Revisar el envío sin confirmación antes de enviar otro correo.':closed?'Caso cerrado':row.latest?.kind==='failed'?'Revisar el envío fallido y corregirlo antes de volver a enviar.':row.newMail?'Revisar el correo recibido y preparar la respuesta.':row.response.responseAccepted?row.response.nextAction:urgency.next;
+  const nextDate=row.response.responseAccepted?row.response.nextDate:urgency.date;
+  const origin=request.source+(request.at?' · '+compactDate(request.at):'');
+  return '<article class="case-card'+(closed?' is-closed':'')+'" data-case-id="'+esc(lead.id)+'">'+
+    '<header class="case-card-heading"><div><span class="prospect-id">ID '+esc(prospectDisplayId(lead))+'</span><h2>'+esc(institution?.name||lead.title||'Institución sin nombre')+'</h2></div><span class="seller-urgency '+(closed?'calm':row.uncertainMail||row.latest?.kind==='failed'?'danger':row.newMail?'warning':urgency.tone)+'">'+esc(status)+'</span></header>'+
+    '<div class="case-request"><small>Solicitud</small><p>'+esc(request.text||'Solicitud todavía no registrada.')+'</p>'+(origin?'<span class="case-request-source">'+esc(origin)+'</span>':'')+'</div>'+
+    '<dl class="case-meta"><div><dt>Responsable</dt><dd>'+esc(ownerName)+'</dd></div><div><dt>Última acción</dt><dd>'+esc(row.latest?.text||'Sin acción registrada')+(row.latest?.at?'<small>'+esc(compactDateTime(row.latest.at))+'</small>':'')+'</dd></div></dl>'+
+    '<div class="case-next"><small>Siguiente paso</small><strong>'+esc(next)+'</strong>'+(!closed&&!row.uncertainMail&&row.latest?.kind!=='failed'&&nextDate?'<span>'+esc(compactDateTime(nextDate))+'</span>':'')+'</div>'+
+    '<footer class="case-actions">'+(showReply?'<button type="button" class="primary" data-smart-mail="'+esc(lead.id)+'">'+(row.response.responseAccepted?'Escribir correo':'Responder')+'</button>':'')+'<button type="button"'+(!showReply?' class="primary"':'')+' data-lead-detail="'+esc(lead.id)+'">Abrir caso</button></footer>'+
+  '</article>';
+}
+
+export function renderSellerDashboard(data,{now=new Date(),demo=false,failures={},searchQuery='',showSearch=false,caseFilter='pending',currentUser=null,canReply=true}={}){
   if(!showSearch)return sellerPerformanceDashboard(data,{now,demo,failures});
-  const rows=prospectRows(data,now),tasks=data.tasks||[],meetings=data.meetings||[];
-  const incomplete=Object.keys(failures).length>0;
-  const openTasks=tasks.filter(row=>!['COMPLETED','CANCELLED'].includes(row.status));
-  const overdue=openTasks.filter(row=>row.due_at&&Date.parse(row.due_at)<now.getTime()).length;
-  const searchedRows=String(searchQuery||'').trim()?rows.filter(row=>matchesProspectSearch(row,searchQuery)):rows;
-  const selected=searchedRows[0]||null;
-  const nextRows=searchedRows.slice(1,4);
-  const restRows=searchedRows.slice(4);
-
-  const narrative=incomplete?'Hay información pendiente de carga. Actualiza antes de priorizar.':
-    !selected?(String(searchQuery||'').trim()?'No se encontraron prospectos con ese ID o nombre.':'No hay prospectos activos. Registra o asigna el siguiente prospecto.'):
-    selected.newMail?'Correo nuevo: '+(selected.institution?.name||selected.lead.title)+'. '+(selected.newMail.subject||'Requiere respuesta')+'.':
-    selected.urgency.label==='Alta'?'Prioridad: '+(selected.institution?.name||selected.lead.title)+'. '+selected.urgency.next+'.':
-    'La cartera está bajo control. El siguiente movimiento con mayor impacto está en '+(selected.institution?.name||selected.lead.title)+'.';
-
-  const todayAction=selected?'<section class="seller-today-command'+(selected.newMail?' inbound-mail':'')+'"><header><div><small>'+(selected.newMail?'CORREO NUEVO · HACER AHORA':'PRIORIDAD #1 · HACER AHORA')+'</small><h2>'+esc(selected.institution?.name||selected.lead.title)+'</h2><p>'+esc(selected.recommended.action)+'</p></div><span class="seller-channel">'+esc(selected.recommended.channel)+'</span></header>'+sellerQuickActions(selected)+'<div class="seller-today-context"><span><b>Por qué ahora</b>'+esc(selected.recommended.reason)+'</span><span><b>'+(selected.newMail?'Recibido':'Para avanzar')+'</b>'+esc(selected.newMail?compactDateTime(selected.newMail.received_at||selected.newMail.created_at):selected.missingText)+'</span></div><button class="seller-open-detail" data-lead-detail="'+esc(selected.lead.id)+'">Ver expediente completo →</button></section>':'';
-
-  const focus=nextRows.length?'<section class="seller-priority-section"><div class="seller-section-heading"><small>SIGUIENTES 3</small><strong>La cola inmediata después de tu prioridad principal</strong></div><div class="seller-priority-stack">'+nextRows.map((row,index)=>{
-    const lead=row.lead,name=row.institution?.name||lead.title;
-    return '<article class="seller-priority-prospect secondary-focus">'+
-      '<header><div><span class="seller-priority-rank">0'+(index+2)+'</span><div class="prospect-title-line"><h2>'+esc(name)+'</h2><span class="prospect-id">ID '+esc(prospectDisplayId(lead))+'</span></div></div><div class="seller-priority-status"><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></div></header>'+
-      renderProspectProgress(lead,row.maturity)+
-      '<footer class="prospect-action-footer"><div class="prospect-action-flow">'+
-        '<section class="prospect-action-col"><small>ÚLTIMA ACCIÓN</small><strong>'+esc(row.latest?.subject||row.latest?.type||'Sin acción registrada')+'</strong><span>'+esc(compactDateTime(row.latest?.occurred_at))+'</span></section>'+
-        '<span class="prospect-action-divider" aria-hidden="true"></span>'+
-        '<section class="prospect-action-col"><small>SIGUIENTE ACCIÓN</small><strong>'+esc(row.urgency.next||'Por definir')+'</strong><span>'+esc(row.urgency.date?compactDateTime(row.urgency.date):'Por definir')+'</span></section>'+
-      '</div>'+sellerQuickActions(row)+'<button class="seller-open-detail" data-lead-detail="'+esc(lead.id)+'">Ver expediente →</button></footer>'+
-    '</article>';
-  }).join('')+'</div></section>':'';
-
-  const cards=restRows.length?restRows.map(row=>{
-    const name=row.institution?.name||row.lead.title;
-    const potential=row.potential===null?'Potencial pendiente':row.potential+'% potencial';
-    return '<article class="seller-candidate-card operational compact">'+
-      '<header><div><span class="seller-candidate-kicker">PROSPECTO</span><h3>'+esc(name)+'</h3></div><span class="seller-urgency '+row.urgency.tone+'">'+esc(row.urgency.label)+'</span></header>'+
-      '<div class="seller-candidate-meta"><span><b>'+row.maturity+'%</b><small>Madurez</small></span><span><b>'+esc(potential)+'</b><small>Potencial</small></span></div>'+
-      '<p class="seller-candidate-next"><b>Siguiente:</b> '+esc(row.urgency.next)+(row.urgency.date?' · '+esc(compactDate(row.urgency.date)):'')+'</p>'+
-      sellerQuickActions(row,{compact:true})+
-      '<button type="button" class="seller-open-detail" data-lead-detail="'+esc(row.lead.id)+'">Ver expediente →</button>'+
-    '</article>';
-  }).join(''):'';
-
-  const searchBox=showSearch?'<section class="commercial-search"><div class="commercial-search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg><input id="commercialSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Buscar por ID o nombre…" value="'+esc(searchQuery)+'" aria-label="Buscar prospecto por ID o nombre"></div><small>'+searchedRows.length+' resultado'+(searchedRows.length===1?'':'s')+'</small></section>':'';
-
-  const restSection=restRows.length?'<details class="seller-prospects-panel seller-prospects-panel--cards seller-secondary-list"><summary>Resto de mi cartera <span>'+restRows.length+'</span></summary><div class="seller-candidate-list">'+cards+'</div></details>':'';
-
-  return '<div class="seller-story-dashboard">'+
-    '<section class="seller-command-summary"><span>PRIORIDAD DIARIA</span><strong>'+esc(narrative)+'</strong></section>'+
-    searchBox+
-    todayAction+
-    focus+
-    restSection+
-    '</div>';
+  const filter=['pending','all','closed'].includes(caseFilter)?caseFilter:'pending';
+  const all=caseRows(data,now,currentUser);
+  const filtered=all.filter(row=>filter==='all'||(filter==='closed'?closedLead(row.lead):!closedLead(row.lead)));
+  const rows=filtered.filter(row=>matchesCaseSearch(row,searchQuery));
+  const incomplete=Object.keys(failures||{}).length>0;
+  const totals={pending:all.filter(row=>!closedLead(row.lead)).length,all:all.length,closed:all.filter(row=>closedLead(row.lead)).length};
+  const filters=[['pending','Pendientes'],['all','Todos'],['closed','Cerrados']].map(([key,label])=>'<button type="button" data-case-filter="'+key+'" class="case-filter'+(filter===key?' active':'')+'" aria-pressed="'+(filter===key)+'">'+label+' <span>'+totals[key]+'</span></button>').join('');
+  const empty=failures.leads?'No se pudieron cargar los casos. Actualiza para volver a intentarlo.':String(searchQuery||'').trim()?'No hay casos que coincidan con esta búsqueda.':filter==='closed'?'No hay casos cerrados.':filter==='all'?'Todavía no hay casos.':'No hay casos pendientes.';
+  return '<div class="seller-story-dashboard case-workspace">'+
+    '<section class="case-toolbar"><div class="case-filters" role="group" aria-label="Filtrar casos">'+filters+'</div>'+
+    '<div class="commercial-search"><div class="commercial-search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg><input id="commercialSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Buscar colegio, solicitud o ID…" value="'+esc(searchQuery)+'" aria-label="Buscar casos por colegio, solicitud, contacto o ID"></div></div></section>'+
+    (incomplete?'<p class="case-load-warning" role="status">Información parcial: hay datos pendientes de carga. Actualiza antes de decidir.</p>':'')+
+    '<p class="case-count" role="status">'+rows.length+' caso'+(rows.length===1?'':'s')+(demo?' · datos de demostración':'')+'</p>'+
+    (rows.length?'<section class="case-list" aria-label="Lista de casos">'+rows.map(row=>caseCard(row,canReply)).join('')+'</section>':'<div class="panel empty case-empty">'+esc(empty)+'</div>')+
+  '</div>';
 }

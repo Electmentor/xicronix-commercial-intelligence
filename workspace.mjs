@@ -37,6 +37,7 @@ export function scopeWorkspaceData(source, profile, userId, workspace) {
   const leadIds = new Set(result.leads.map(row => row.id));
   const opportunityIds = new Set(result.opportunities.map(row => row.id));
   result.deliverables = (organization.deliverables || []).filter(row => leadIds.has(row.lead_id));
+  result.commercial_mail_outbox = (organization.commercial_mail_outbox || []).filter(row => leadIds.has(row.lead_id));
   result.documents = (organization.documents || []).filter(row => leadIds.has(row.lead_id));
   result.document_versions = (organization.document_versions || []).filter(row => leadIds.has(row.lead_id));
   result.activities = (organization.activities || []).filter(row =>

@@ -4927,3 +4927,50 @@ html{scroll-padding-top:calc(var(--app-header-height,110px) + 12px)}
 .mail-thread-message p{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.45;margin:0}
 .mail-thread-message>span{display:inline-block;margin-top:9px;font-size:.66rem;font-weight:900;letter-spacing:.08em;color:var(--muted)}
 @media(max-width:700px){#leadDetailDialog .mail-thread-message header{display:grid;grid-template-columns:1fr}.mail-thread-message{width:100%;max-width:100%;box-sizing:border-box}}
+
+/* Case attention reuses the existing lead workspace and dialogs. */
+.case-workspace{max-width:1200px;margin:0 auto;width:100%}
+.case-toolbar{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.case-filters{display:flex;gap:6px;flex-wrap:wrap}
+.case-filter{min-height:44px;padding:10px 14px;border:1px solid var(--line,#cbd5e1);border-radius:10px;background:var(--surface,#fff);color:inherit}
+.case-filter.active{background:#174c78;color:#fff;border-color:#174c78}
+.case-filter span{margin-left:5px;font-size:.85em;opacity:.85}
+.case-toolbar .commercial-search{margin:0;flex:1;min-width:230px;max-width:450px}
+.case-toolbar .commercial-search input{min-height:44px;width:100%}
+.case-count{font-size:13px;color:var(--muted,#526277);margin:14px 0}
+.case-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.case-card{padding:20px;border:1px solid var(--line,#d9e1eb);border-radius:16px;background:var(--surface,#fff);color:var(--text,#172b46);min-width:0;display:flex;flex-direction:column;gap:16px}
+.case-card-heading,.case-request-detail>header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.case-card-heading h2{font-size:19px;line-height:1.3;margin:5px 0 0}
+.case-card-heading .seller-urgency{flex-shrink:0}
+.case-request>small,.case-next>small,.case-request-detail header small{display:block;text-transform:uppercase;letter-spacing:.07em;font-size:11px;color:var(--muted,#526277);margin-bottom:6px}
+.case-request p{white-space:pre-wrap;margin:0;line-height:1.55;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.case-request-source{display:block;font-size:11px;margin-top:6px;color:var(--muted,#526277)}
+.case-meta,.case-context-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0}
+.case-meta dt,.case-context-grid dt{font-size:11px;color:var(--muted,#526277);margin-bottom:4px}
+.case-meta dd,.case-context-grid dd{margin:0;font-size:13px;line-height:1.45;overflow-wrap:anywhere}
+.case-meta dd small{display:block;color:var(--muted,#526277);margin-top:3px}
+.case-next{padding:12px;border-radius:10px;background:var(--subtle,#f3f6fa);line-height:1.45;margin-top:auto}
+.case-next strong{display:block;font-size:14px;font-weight:600}
+.case-next span{display:block;font-size:12px;color:var(--muted,#526277);margin-top:4px}
+.case-actions{display:flex;gap:10px;flex-wrap:wrap}
+.case-actions button{min-height:44px;flex:1}
+.case-request-detail{border:1px solid var(--line,#d9e1eb);border-radius:14px;padding:20px;background:var(--surface,#fff)}
+.case-request-detail h3{margin:0;font-size:19px}
+.case-original-request{white-space:pre-wrap;overflow-wrap:anywhere;font-size:16px;line-height:1.6;margin:16px 0}
+.case-context-grid{margin-top:20px;padding-top:16px;border-top:1px solid var(--line,#d9e1eb)}
+.case-context-grid .lead-detail-row{display:block;border:0;padding:0}
+.case-followup{display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line,#d9e1eb);padding:12px 0}
+.case-followup p{flex:1 1 100%;font-size:13px;color:var(--muted,#526277);margin:0 0 4px;line-height:1.5}
+.case-followup button{min-height:44px}
+.smart-mail-context{font-size:13px;line-height:1.5;color:var(--muted,#526277)}
+#smartMailFeedback{margin:12px 0;white-space:normal}
+.case-send-result{margin:0 0 16px}
+html[data-theme="night"] .case-card,html[data-theme="night"] .case-request-detail,html[data-theme="night"] .case-filter{background:#101d30;color:#eef5ff;border-color:#34465c}
+html[data-theme="night"] .case-filter.active{background:#28618e;border-color:#548bb5}
+html[data-theme="night"] .case-next{background:#192a40}
+html[data-theme="night"] .case-count,html[data-theme="night"] .case-request>small,html[data-theme="night"] .case-request-source,html[data-theme="night"] .case-next>small,html[data-theme="night"] .case-next span,html[data-theme="night"] .case-meta dt,html[data-theme="night"] .case-context-grid dt,html[data-theme="night"] .case-meta dd small,html[data-theme="night"] .case-followup p,html[data-theme="night"] .smart-mail-context{color:#b9cadd}
+@media(max-width:760px){.case-list{grid-template-columns:1fr}.case-toolbar{align-items:stretch;gap:10px}.case-toolbar .commercial-search{max-width:none;flex-basis:100%;min-width:0}.case-card{padding:16px;gap:14px}.case-card-heading h2{font-size:18px}.case-card-heading{flex-wrap:wrap}.case-request-detail{padding:16px}.case-context-grid{grid-template-columns:1fr}.case-original-request{font-size:15px}.case-followup button{flex:1}#smartMailDialog .smart-mail-actions{position:sticky;bottom:0;background:var(--surface,#fff);padding:12px 0;z-index:1}html[data-theme="night"] #smartMailDialog .smart-mail-actions{background:#101d30}}
+
+.smart-mail-original{white-space:pre-wrap;overflow-wrap:anywhere;max-height:14rem;overflow:auto;line-height:1.5;padding:12px;border:1px solid var(--line,#d9e1eb);border-radius:10px}
+.smart-mail-context summary{cursor:pointer;min-height:32px;font-weight:600}
