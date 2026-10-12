@@ -56,21 +56,23 @@ function mailContent(mail, data) {
 }
 
 /** Latest inbound is always the reply context, even when the original web request remains on the case. */
-export function caseReplyContext(lead, data = {}) {
+export function caseReplyContext(lead, data = {}, {mailId = null} = {}) {
   const mails = caseInboundMail(lead, data);
+  if (mailId && !mails.some(row => row.id === mailId)) return {text:'',contextText:'',source:'Correo recibido',at:null,mailId,complete:false,dateReliable:false,chronologyReliable:false,linked:false,selectionMissing:true};
   if (!mails.length) {
     const request = caseRequestContext(lead, data);
     return {...request, contextText:request.text, mailId:null, bodySource:request.source ? 'case_request' : '', complete:false, dateReliable:false, chronologyReliable:true};
   }
   // A row without an actual receipt date cannot safely be ranked below dated mail.
   const undated = mails.find(row => !dateEvidence(row.received_at));
-  const mail = undated || [...mails].sort((a,b)=>dateEvidence(b.received_at).ms-dateEvidence(a.received_at).ms)[0];
+  const mail = mailId ? mails.find(row => row.id === mailId) : undated || [...mails].sort((a,b)=>dateEvidence(b.received_at).ms-dateEvidence(a.received_at).ms)[0];
   const content = mailContent(mail, data);
   const forwarded = mail.provider === 'RESEND_FORWARD' || /^(?:fwd?|rv|reenv):/i.test(clean(mail.subject)) ||
     /(?:^|\n)(?:From|De|Date|Fecha):\s*\S/i.test(content.text) || /mensaje (?:original|reenviado)|forwarded message/i.test(content.text);
   return {...content, contextText:content.text, source:'Correo recibido', at:mail.received_at || null,
     mailId:mail.id || null, dateReliable:!undated && !forwarded, chronologyReliable:!undated,
-    forwarded, subject:clean(mail.subject)};
+    forwarded, subject:clean(mail.subject), fromAddress:clean(mail.from_address), senderName:clean(mail.sender_name),
+    linked:mail.lead_id === lead.id, messageId:clean(mail.source_payload?.message_id || mail.source_payload?.messageId)};
 }
 
 function internalCoordination(text) {
@@ -100,18 +102,22 @@ function relativeEvent(text, received) {
 }
 
 /** All bodies require review; needsHumanAnswer identifies incomplete manual drafts. */
-export function buildCaseReply(lead, data = {}, {now = new Date()} = {}) {
-  const context = caseReplyContext(lead, data);
+export function buildCaseReply(lead, data = {}, {now = new Date(), mailId = null} = {}) {
+  const context = caseReplyContext(lead, data, {mailId});
   const contact = (data.contacts || []).find(row => row.id === lead?.contact_id);
-  const name = clean(contact?.first_name).replace(/[\r\n<>]/g,' ').slice(0,80).trim();
+  const candidateName = context.mailId ? context.senderName || (clean(contact?.email).toLowerCase() === clean(context.fromAddress).toLowerCase() ? contact?.first_name : '') : contact?.first_name;
+  const safeName = clean(candidateName).replace(/[\r\n<>]/g,' ').slice(0,80).trim();
+  const name = /@/.test(safeName) || /^(?:info|support|soporte|admin|administracion|sales|ventas|contacto?|no[ -]?reply)(?:\b|$)/i.test(plain(safeName)) ? '' : safeName;
   const greeting = name ? `Hola ${name},` : 'Hola,';
   const compose = paragraphs => [greeting, ...paragraphs, 'Saludos,\nEquipo Xicronix'].join('\n\n');
   const result = {...context, body:'', reason:'', reasonCode:'', needsHumanAnswer:true, reviewRequired:true, eventDate:null, eventState:'unknown'};
   const manual = (reasonCode, reason, opening = 'Gracias por escribirnos a Xicronix.') =>
     ({...result, body:compose([opening,PLACEHOLDER]),reasonCode,reason:'Borrador incompleto: '+reason});
-  if (!context.text) return manual('CONTENT_UNAVAILABLE', 'falta el contenido acreditado del último mensaje. Recupera y revisa el correo antes de responder.');
+  const blocked = (reasonCode, reason) => ({...result,body:'',sendBlocked:true,reasonCode,reason:'Envío bloqueado: '+reason});
+  if (context.selectionMissing || context.mailId && !context.linked) return blocked('ASSOCIATION_UNVERIFIED','el correo no está vinculado de forma explícita a este caso. Revisa su asociación antes de responder.');
+  if (!context.text) return blocked('CONTENT_UNAVAILABLE', 'falta el contenido acreditado del mensaje. Recupera y revisa el correo antes de responder.');
   if (!context.mailId && context.source !== 'Correo recibido') return manual('MANUAL_REQUEST', 'revisa la solicitud y completa una respuesta concreta.');
-  if (!context.complete) return manual('CONTENT_INCOMPLETE', 'el correo disponible es un extracto o puede estar cortado. Revisa el original antes de responder.');
+  if (!context.complete) return blocked('CONTENT_INCOMPLETE', 'el correo disponible es un extracto o puede estar cortado. Recupera el contenido completo antes de responder.');
   const intent = internalCoordination(context.text);
   const current = dateEvidence(now), received = dateEvidence(context.at);
   if (!context.dateReliable || !current || !received || received.ms > current.ms) {

@@ -10,14 +10,14 @@ const source=readFileSync(new URL('../app.js',import.meta.url),'utf8');
 const detail=source.slice(source.indexOf('function openLeadDetails('),source.indexOf('\n\n\nlet aiAssistant',source.indexOf('function openLeadDetails(')));
 const unconfirmed=source.slice(source.indexOf('function unconfirmedMailForLead('),source.indexOf('function openSmartMailDraft('));
 const id='lead-a';
-function render({outbox=[],extraActivity=[],readonly=false,mail=[],tasks=[],meetings=[],next_action='Revisar inventario interno',next_action_date=null}={}){
+function render({contactEmail='ana@example.invalid',selectedMailId=null,outbox=[],extraActivity=[],readonly=false,mail=[],tasks=[],meetings=[],next_action='Revisar inventario interno',next_action_date=null}={}){
  const profile={id:'user-a',full_name:'Asesora sintética'};
  const lead={id,owner_user_id:profile.id,status:'NEW',institution_id:'school-a',contact_id:'contact-a',source:'WEBSITE',title:'Caso laboratorio',next_action,next_action_date,maturity_percent:15};
- const data={leads:[lead],contacts:[{id:'contact-a',first_name:'Ana',last_name:'Sintética',email:'ana@example.invalid'}],institutions:[{id:'school-a',name:'Colegio sintético'}],activities:[{id:'web-a',lead_id:id,type:'WEB_FORM',subject:'Solicitud recibida',notes:'Requerimiento original: Laboratorio de física escolar, 30 m²\n<em>texto no confiable</em>\nContexto adicional: INSTRUCCION_INTERNA',occurred_at:'2026-10-01'},...extraActivity],commercial_mail_outbox:outbox,mail,tasks,meetings,documents:[],users:[]};
+ const data={leads:[lead],contacts:[{id:'contact-a',first_name:'Ana',last_name:'Sintética',email:contactEmail}],institutions:[{id:'school-a',name:'Colegio sintético'}],activities:[{id:'web-a',lead_id:id,type:'WEB_FORM',subject:'Solicitud recibida',notes:'Requerimiento original: Laboratorio de física escolar, 30 m²\n<em>texto no confiable</em>\nContexto adicional: INSTRUCCION_INTERNA',occurred_at:'2026-10-01'},...extraActivity],commercial_mail_outbox:outbox,mail,tasks,meetings,documents:[],users:[]};
  const before=JSON.stringify(data);
  const nodes={leadDetailTitle:{},leadDetailSubtitle:{},leadDetailContent:{},leadDetailDialog:{showModal(){this.open=true;}}};
  const context=vm.createContext({data,profile,loading:false,busy:false,$:key=>nodes[key],scopedRows:table=>data[table]||[],esc:escapeHTML,caseRequestContext,caseInboundMail,caseUnconfirmedMailActivity,caseResponseProgress,caseOutboundStatus,caseReplyContext,sortTasksByUrgency,money,commercialUrgency:()=>({label:'Pendiente'}),commercialPotential:()=>({label:'Sin evaluar'}),commercialHealth:()=>({label:'En curso'}),nextCommercialAction:l=>l.next_action,date:v=>v||'Sin fecha',enums:{status:{NEW:'Nuevo'},activityType:{WEB_FORM:'Formulario web',EMAIL:'Correo'},leadSource:{WEBSITE:'Web'},taskStatus:{},meetingMode:{},documentCategory:{},documentStatus:{}},nameOf:r=>[r.first_name,r.last_name].filter(Boolean).join(' '),writableFor:()=>!readonly,relationName:()=>'',assignedUserId:r=>r.owner_user_id,radarPhoneHref:()=>'',radarWhatsappHref:()=>'',MOVEMENT_ACTIONS:{},milestoneLabel:()=>'',currentDocumentVersion:()=>null,rememberPage:()=>{}});
- vm.runInContext(unconfirmed+'\n'+detail+'\nopenLeadDetails("'+id+'");',context);
+ vm.runInContext(unconfirmed+'\n'+detail+'\nopenLeadDetails("'+id+'",'+JSON.stringify(selectedMailId)+');',context);
  assert.equal(JSON.stringify(data),before,'render must not mutate records');
  return {html:nodes.leadDetailContent.innerHTML,nodes};
 }
@@ -84,4 +84,12 @@ test('placeholder provider IDs cannot present an accepted send or suppress detai
 test('missing source receipt date remains response work despite an import timestamp',()=>{
  const {html}=render({mail:[{...received,received_at:null,created_at:'2026-10-09T10:00:00Z'}],outbox:[sent]});
  assert.doesNotMatch(nextStep(html),/Esperar respuesta o programar seguimiento/);assert.match(html,/>Responder<\/button>/);
+});
+test('detail offers reply to evidenced inbound sender even without stored contact email',()=>{
+ const {html}=render({contactEmail:'',mail:[{...received,from_address:'sender@example.invalid'}]});assert.match(html,/data-smart-mail="lead-a"/);assert.match(html,/sender@example.invalid/);
+});
+test('detail uses one selected inbox for context and passes that ID to reply',()=>{
+ const other={...received,id:'newer',subject:'OTRO_TICKET',body_text:'Texto de otro ticket',received_at:'2026-10-11T11:00:00Z'};
+ const {html}=render({mail:[received,other],selectedMailId:'received'});assert.match(html,/data-smart-mail-inbox="received"/);
+ const situation=html.match(/<section class="lead-situation">([\s\S]*?)<\/section>/)?.[1];assert.match(situation,/Consulta reciente/);assert.doesNotMatch(situation,/OTRO_TICKET|Texto de otro ticket/);
 });

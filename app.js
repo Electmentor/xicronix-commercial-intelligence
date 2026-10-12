@@ -646,7 +646,7 @@ function renderActivityRail(){
    const unseen=isPending&&!row.seen_at;
    const cls=(isPending?'pending':row.status==='REVIEWED'?'progress':'done')+(unseen?' unseen-alert':'');
    const sender=row.sender_name||row.from_address||'Remitente';
-   const actions=isPending?'<div class="activity-card-actions">'+(row.lead_id?'<button type="button" class="primary" data-mail-lead="'+esc(row.lead_id)+'">Ver y responder</button>':'')+(unseen?'<button type="button" class="mail-seen-btn" data-mail-seen="'+esc(row.id)+'" title="Marcar como visto">👁 Visto</button>':'<small class="mail-seen-mark">👁 Visto</small>')+'<button type="button" data-mail-reviewed="'+esc(row.id)+'">En atención</button></div>':'';
+   const actions=isPending?'<div class="activity-card-actions">'+(row.lead_id?'<button type="button" class="primary" data-mail-lead="'+esc(row.lead_id)+'" data-mail-inbox="'+esc(row.id)+'">Ver y responder</button>':'')+(unseen?'<button type="button" class="mail-seen-btn" data-mail-seen="'+esc(row.id)+'" title="Marcar como visto">👁 Visto</button>':'<small class="mail-seen-mark">👁 Visto</small>')+'<button type="button" data-mail-reviewed="'+esc(row.id)+'">En atención</button></div>':'';
    return '<article class="activity-card '+cls+'"><header><h3>'+esc(sender)+'</h3><time>'+esc(time)+'</time></header><small>'+esc(row.subject||'(Sin asunto)')+'</small><p>'+esc(row.summary||'Nuevo correo recibido. Abre el expediente para revisar el mensaje y preparar la respuesta.')+'</p>'+actions+'</article>';
  };
  content.innerHTML=(pending.length?'<div class="activity-section-label">PENDIENTES · NO DESAPARECEN POR FECHA</div>'+pending.map(row=>card(row,true)).join(''):'')+
@@ -1444,43 +1444,45 @@ function leadZohoHref(lead,contact,institution){
  if(direct)return zohoMailMessageHref(direct);
  return zohoMailComposeHref({contact_email:email,institution_name:institution?.name||lead?.title||'Prospecto'});
 }
-function smartMailDraftForLead(lead){
+function smartMailDraftForLead(lead,mailId=null){
  const contact=(data.contacts||[]).find(row=>row.id===lead?.contact_id);
  const institution=(data.institutions||[]).find(row=>row.id===lead?.institution_id);
  const activities=(data.activities||[]).filter(row=>row.lead_id===lead?.id).sort((a,b)=>String(b.occurred_at||'').localeCompare(String(a.occurred_at||'')));
  const latest=activities[0]||null;
- const email=String(contact?.email||institution?.email||'').trim();
- const firstName=String(contact?.first_name||'').trim();
- const name=firstName||'';
  const institutionName=institution?.name||lead?.title||'su institución';
  const relatedMail=caseInboundMail(lead,data);
- const inbound=relatedMail[0]||null;
- const reply=buildCaseReply(lead,data);
+ const reply=buildCaseReply(lead,data,{mailId});
+ const inbound=relatedMail.find(row=>row.id===reply.mailId)||null;
+ const email=String(inbound?reply.fromAddress:contact?.email||institution?.email||'').trim();
  const subject=inbound?.subject?('Re: '+String(inbound.subject).replace(/^Re:\s*/i,'')):'Xicronix | '+institutionName;
+ const threadVerified=!inbound||/^<[^\s<>\r\n]+@[^\s<>\r\n]+>$/.test(reply.messageId||'')&&(reply.messageId||'').length<=250;
+ const blockedReason=reply.sendBlocked?reply.reason:inbound&&!threadVerified?'Envío bloqueado: falta la cabecera original que identifica este hilo. Recupera el mensaje original antes de responder.':inbound&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?'Envío bloqueado: falta el remitente acreditado del mensaje.':'';
+ const sourceKey=JSON.stringify([lead.id,inbound?.id||null,email.toLowerCase(),subject,reply.contextText||'',reply.at||null,reply.complete===true,reply.linked,reply.messageId||'',blockedReason]);
+ const sourceSnapshot=inbound?JSON.stringify({id:inbound.id,lead_id:lead.id,from_address:email.toLowerCase(),subject:reply.subject,received_at:Number.isFinite(Date.parse(reply.at))?new Date(reply.at).toISOString():null,message_id:reply.messageId,content:reply.contextText}):null;
  const recommendation='Selecciona solo los archivos que acompañan esta respuesta: hasta 10 adjuntos y 20 MiB en total.';
  const recommendedCategories=Object.keys(enums.documentCategory);
- const body=reply.body;
+ const body=blockedReason?'':reply.body;
  const docs=(data.documents||[]).filter(row=>row.lead_id===lead?.id&&['CURRENT','SENT','SIGNED'].includes(row.status)).sort((a,b)=>String(b.updated_at||'').localeCompare(String(a.updated_at||'')));
  const suggestedDocs=docs.filter(row=>recommendedCategories.includes(row.category));
- const thread=relatedMail.find(row=>zohoMailMessageHref(row))||null;
- return {lead,contact,institution,email,subject,body,reply,recommendation,recommendedCategories,docs,suggestedDocs,thread,latest};
+ const thread=inbound&&zohoMailMessageHref(inbound)?inbound:null;
+ return {lead,contact,institution,email,subject,body,reply,recommendation,recommendedCategories,docs,suggestedDocs,thread,latest,inbound,sourceKey,sourceSnapshot,blockedReason};
 }
 function unconfirmedMailForLead(leadId){
  return [...(data.commercial_mail_outbox||[]).filter(row=>row.lead_id===leadId&&caseOutboundStatus(row)?.kind==='uncertain'),...(data.activities||[]).filter(row=>row.lead_id===leadId&&caseUnconfirmedMailActivity(row))];
 }
-function openSmartMailDraft(leadId){
+function openSmartMailDraft(leadId,mailId=null){
  const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
  if(unconfirmedMailForLead(leadId).length){openLeadDetails(leadId);return;}
- const draft=smartMailDraftForLead(lead);
+ const draft=smartMailDraftForLead(lead,mailId);
  if(!writableFor('activities')){notice('Tu cuenta solo puede consultar este caso.',true);return;}
- if(!draft.email){notice('Este caso todavía no tiene un correo registrado.',true);return;}
+ if(!draft.email&&!draft.inbound&&!draft.reply.mailId){notice('Este caso todavía no tiene un correo registrado.',true);return;}
  const folderLabels=(draft.recommendedCategories||[]).map(key=>enums.documentCategory[key]||key);
  const matching=draft.docs||[];
  const materialButtons=matching.length
   ?matching.map(row=>'<button type="button" class="smart-material-option" data-smart-material="'+esc(row.id)+'"><span>Adjuntar · '+esc(row.title||'Documento')+'</span><small>'+esc(enums.documentCategory[row.category]||row.category||'Documento')+'</small></button>').join('')
   :['INSTITUTIONAL_BROCHURES'].map(key=>'<button type="button" class="smart-material-option upload" data-smart-upload-category="'+esc(key)+'" data-smart-upload-lead="'+esc(lead.id)+'"><span>Subir material</span><small>'+esc(enums.documentCategory[key]||key)+'</small></button>').join('');
- smartMailState={leadId:String(lead.id),pending:false};
- $('smartMailTitle').textContent='Responder · '+(draft.institution?.name||draft.lead.title||'Prospecto');
+ smartMailState={leadId:String(lead.id),requestedMailId:mailId,replyToInboxId:draft.inbound?.id||null,sourceKey:draft.sourceKey,draftKey:JSON.stringify([leadId,draft.sourceKey]),blocked:!!draft.blockedReason,pending:false};
+ $('smartMailTitle').textContent=draft.inbound?'Responder al mensaje · '+(draft.inbound.subject||'(Sin asunto)'):'Responder · '+(draft.institution?.name||draft.lead.title||'Caso');
  $('smartMailContent').innerHTML=
   '<section class="smart-mail-context"><p>Revisa el mensaje antes de enviar. Este borrador usa reglas locales, sin una consulta nueva a IA.</p><p>'+esc(draft.reply.reason)+'</p>'+(draft.reply.contextText?'<details open><summary>'+esc(draft.reply.source||'Contexto')+(draft.reply.at?' · '+esc(date(draft.reply.at)):'')+'</summary><p class="smart-mail-original">'+esc(draft.reply.contextText)+'</p></details>':'')+'</section>'+
   '<div id="smartMailFeedback" class="notice" role="status" aria-live="polite" hidden></div>'+
@@ -1488,16 +1490,18 @@ function openSmartMailDraft(leadId){
     '<label><span>Para</span><input id="smartMailTo" type="email" maxlength="254" value="'+esc(draft.email)+'" autocomplete="off"></label>'+
     '<label><span>Asunto</span><input id="smartMailSubject" type="text" maxlength="200" value="'+esc(draft.subject)+'" autocomplete="off"></label>'+
   '</section>'+
-  '<section class="smart-mail-body"><header><div><small>BORRADOR PARA REVISAR</small><h3>Mensaje</h3></div><span class="smart-mail-status">'+(draft.thread?'Continuación de conversación':'Nuevo correo')+'</span></header><textarea id="smartMailBody" rows="14" maxlength="20000" aria-label="Mensaje de respuesta">'+esc(draft.body)+'</textarea></section>'+
+  '<section class="smart-mail-body"><header><div><small>BORRADOR PARA REVISAR</small><h3>Mensaje</h3></div><span class="smart-mail-status">'+(draft.inbound?'Mensaje seleccionado':'Nuevo correo')+'</span></header><textarea id="smartMailBody" rows="14" maxlength="20000" aria-label="Mensaje de respuesta">'+esc(draft.body)+'</textarea></section>'+
   '<section class="smart-mail-assets"><header><div><small>REPOSITORIO COMERCIAL</small><h3>Adjuntos del caso</h3></div><span id="smartMaterialCount">0 adjuntos</span></header><div id="smartAttachmentTray" class="smart-attachment-tray" hidden></div><div class="smart-material-grid">'+materialButtons+'</div><p>'+esc(draft.recommendation)+'</p></section>'+
-  '<footer class="smart-mail-actions"><button type="button" class="primary" data-send-smart-mail="'+esc(lead.id)+'">'+(draft.thread?'Enviar respuesta':'Enviar correo')+'</button><small>Se enviará desde info@xicronix.com. El envío no cierra el caso ni confirma entrega al destinatario.</small></footer>';
- const saved=smartMailDrafts.get(String(leadId));
- if(saved){$('smartMailTo').value=saved.to;$('smartMailSubject').value=saved.subject;$('smartMailBody').value=saved.body;for(const id of saved.selected)toggleSmartMaterial(id);}
+  '<footer class="smart-mail-actions"><button id="smartMailSend" type="button" class="primary" data-send-smart-mail="'+esc(lead.id)+'"'+(draft.blockedReason?' disabled':'')+'>'+ (draft.inbound?'Enviar respuesta':'Enviar correo')+'</button><small>Se enviará desde info@xicronix.com. El envío no cierra el caso ni confirma entrega al destinatario.</small></footer>';
+ const saved=smartMailDrafts.get(smartMailState.draftKey);
+ if(saved&&!draft.blockedReason){$('smartMailTo').value=saved.to;$('smartMailSubject').value=saved.subject;$('smartMailBody').value=saved.body;for(const id of saved.selected)toggleSmartMaterial(id);}
+ setSmartMailBusy(false);
+ if(draft.blockedReason)smartMailFeedback(draft.blockedReason,true);
  $('smartMailDialog').showModal();
 }
 function rememberSmartMailDraft(){
- if(!smartMailState?.leadId)return;
- smartMailDrafts.set(smartMailState.leadId,{to:$('smartMailTo')?.value||'',subject:$('smartMailSubject')?.value||'',body:$('smartMailBody')?.value||'',selected:Array.from($('smartMailContent')?.querySelectorAll('.smart-material-option.selected')||[]).map(node=>node.dataset.smartMaterial).filter(Boolean)});
+ if(!smartMailState?.leadId||smartMailState.sent)return;
+ smartMailDrafts.set(smartMailState.draftKey,{to:$('smartMailTo')?.value||'',subject:$('smartMailSubject')?.value||'',body:$('smartMailBody')?.value||'',selected:Array.from($('smartMailContent')?.querySelectorAll('.smart-material-option.selected')||[]).map(node=>node.dataset.smartMaterial).filter(Boolean)});
 }
 function toggleSmartMaterial(id){
  if(busy)return;
@@ -1519,7 +1523,8 @@ function uploadSmartMaterial(leadId,category){
  const subject=$('smartMailSubject')?.value||'';
  const body=$('smartMailBody')?.value||'';
  const selected=Array.from(document.querySelectorAll('.smart-material-option.selected')).map(node=>node.dataset.smartMaterial).filter(Boolean);
- smartMailUploadState={leadId,category:category||'INSTITUTIONAL_BROCHURES',to,subject,body,selected};
+ rememberSmartMailDraft();
+ smartMailUploadState={leadId,requestedMailId:smartMailState?.requestedMailId||null,sourceKey:smartMailState?.sourceKey,category:category||'INSTITUTIONAL_BROCHURES',to,subject,body,selected};
  const input=document.createElement('input');
  input.type='file';
  input.accept='.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv,.png,.jpg,.jpeg,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -1572,8 +1577,9 @@ async function uploadSmartMaterialFile(lead,file,category){
    const state=smartMailUploadState;
    smartMailUploadState=null;
    if(state){
-     openSmartMailDraft(state.leadId);
+     openSmartMailDraft(state.leadId,state.requestedMailId);
      requestAnimationFrame(()=>{
+       if(smartMailState?.sourceKey!==state.sourceKey||smartMailState?.blocked){smartMailFeedback('El contexto del caso cambió durante la carga. Revisa el mensaje antes de restaurar el borrador.',true);return;}
        if($('smartMailTo'))$('smartMailTo').value=state.to;
        if($('smartMailSubject'))$('smartMailSubject').value=state.subject;
        if($('smartMailBody'))$('smartMailBody').value=state.body;
@@ -1621,6 +1627,7 @@ function smartMailFeedback(message,error=false){
 function setSmartMailBusy(pending){
  if(smartMailState)smartMailState.pending=pending;
  $('smartMailContent')?.querySelectorAll('input,textarea,button').forEach(node=>{node.disabled=pending;});
+ if($('smartMailSend'))$('smartMailSend').disabled=pending||!!smartMailState?.blocked;
  if($('closeSmartMail'))$('closeSmartMail').disabled=pending;
 }
 async function smartMailAttempt(payload){
@@ -1639,8 +1646,16 @@ async function smartMailAttempt(payload){
 async function sendSmartMailDirect(leadId){
  const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead||busy||loading||!writableFor('activities'))return;
  if(dataSource!=='live'){smartMailFeedback('La demostración no envía correos.');return;}
+ const current=smartMailDraftForLead(lead,smartMailState?.requestedMailId||null);
+ if(!smartMailState||smartMailState.leadId!==String(leadId)||smartMailState.sourceKey!==current.sourceKey||current.blockedReason){
+  if(smartMailState)smartMailState.blocked=true;
+  setSmartMailBusy(false);smartMailFeedback(current.blockedReason||'El mensaje o su asociación cambió. Cierra este borrador y revisa el caso antes de responder.',true);return;
+ }
+ const sourceKey=smartMailState.sourceKey,requestedMailId=smartMailState.requestedMailId,replyToInboxId=smartMailState.replyToInboxId;
+ const assertReviewedSource=()=>{if(smartMailState?.leadId!==String(leadId)||smartMailState.sourceKey!==sourceKey||smartMailDraftForLead(lead,requestedMailId).sourceKey!==sourceKey)throw new Error('REPLY_CONTEXT_CHANGED');};
  const to=$('smartMailTo')?.value?.trim()||'',subject=$('smartMailSubject')?.value?.trim()||'',body=$('smartMailBody')?.value?.trim()||'';
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)||!subject||!body){smartMailFeedback('Revisa destinatario, asunto y mensaje antes de enviar.',true);return;}
+ if(replyToInboxId&&to.toLowerCase()!==current.email.toLowerCase()){smartMailFeedback('El destinatario no coincide con el remitente del mensaje seleccionado. Revisa el caso antes de responder.',true);return;}
  if(body.includes('[Escribe aquí tu respuesta')){smartMailFeedback('Sustituye la indicación entre corchetes por tu respuesta antes de enviar.',true);$('smartMailBody')?.focus();return;}
  const document_ids=Array.from($('smartMailContent').querySelectorAll('.smart-material-option.selected')).map(node=>node.dataset.smartMaterial).filter(Boolean).sort();
  if(document_ids.length>10){smartMailFeedback('Selecciona como máximo 10 adjuntos, con un total de hasta 20 MiB.',true);return;}
@@ -1653,19 +1668,24 @@ async function sendSmartMailDirect(leadId){
  try{
   // Older endpoints reject this read-only payload, so they cannot silently omit attachments.
   const capabilities=await sb.functions.invoke('commercial-mail-send-v3',{body:{action:'capabilities'}});
-  if(capabilities.error||capabilities.data?.contract_version!==3||capabilities.data?.attachments!==true||capabilities.data?.idempotency!==true)throw new Error('MAIL_CHANNEL_NOT_READY');
+  if(capabilities.error||capabilities.data?.contract_version!==3||capabilities.data?.attachments!==true||capabilities.data?.idempotency!==true||capabilities.data?.reply_binding!==true)throw new Error('MAIL_CHANNEL_NOT_READY');
   if(actor!==session?.user?.id||org!==profile?.organization_id)throw new Error('SESSION_CHANGED');
-  const payload={lead_id:leadId,to,subject,body,document_ids};
+  assertReviewedSource();
+  const sourceBytes=replyToInboxId?new TextEncoder().encode(current.sourceSnapshot):null;
+  const reply_source_hash=sourceBytes?Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',sourceBytes)),byte=>byte.toString(16).padStart(2,'0')).join(''):null;
+  assertReviewedSource();
+  const payload={lead_id:leadId,to,subject,body,document_ids,reply_to_inbox_id:replyToInboxId,reply_source_hash};
   tracking=await smartMailAttempt(payload);
   if(actor!==session?.user?.id||org!==profile?.organization_id)throw new Error('SESSION_CHANGED');
+  assertReviewedSource();
   tracking.save('SENDING');providerStarted=true;smartMailFeedback('Enviando…');
   const response=await sb.functions.invoke('commercial-mail-send-v3',{body:{...payload,idempotency_key:tracking.attempt.idempotency_key}});
   let result=response.data;
   if(response.error?.context?.json){try{result=await response.error.context.json();}catch(_error){}}
   if(actor!==session?.user?.id||org!==profile?.organization_id)return;
-  if(!response.error&&result?.ok&&result?.status==='SENT'&&typeof result.provider_message_id==='string'&&result.provider_message_id&&result.delivery_status==='UNCONFIRMED'){
+  if(!response.error&&result?.ok&&result?.status==='SENT'&&typeof result.provider_message_id==='string'&&result.provider_message_id&&result.delivery_status==='UNCONFIRMED'&&result.reply_to_inbox_id===replyToInboxId){
    providerConfirmed=true;tracking.save('SENT',result);
-   $('smartMailDialog').close();smartMailDrafts.delete(String(leadId));busy=false;
+   smartMailState.sent=true;smartMailDrafts.delete(smartMailState.draftKey);$('smartMailDialog').close();busy=false;
    await reload();openLeadDetails(leadId);
    const resultNode=document.createElement('section');resultNode.className='notice case-send-result';resultNode.setAttribute('role','status');
    resultNode.textContent='Correo aceptado por el proveedor y registrado. Entrega al destinatario pendiente de confirmación. El caso sigue abierto: programa el seguimiento o registra su resultado.';
@@ -1675,13 +1695,14 @@ async function sendSmartMailDirect(leadId){
   const review=result?.requires_review||['SENDING','UNKNOWN','SENT'].includes(result?.status)||!result?.error;
   if(review||!result||response.error&&!result?.error){tracking.save('UNKNOWN',result||{});const accepted=result?.provider_status==='ACCEPTED'&&result?.provider_message_id;smartMailFeedback((accepted?'El proveedor aceptó el correo, pero falta confirmar su registro. No lo reenvíes.':'No se pudo confirmar el resultado. No repitas el envío: revisa el expediente y el proveedor antes de continuar.')+(result?.outbox_id?' Referencia de revisión: '+result.outbox_id:''),true);return;}
   tracking.save(result.retry_allowed===false?'UNKNOWN':result.status==='FAILED'?'FAILED':'READY');
-  const messages={invalid_attachments:'Revisa los adjuntos: solo se admiten archivos vigentes y autorizados de este caso.',attachment_too_large:'Los adjuntos superan el tamaño permitido.',unsupported_attachment_type:'El tipo de uno de los adjuntos no está permitido.',forbidden:'Tu cuenta no tiene permiso para enviar desde este caso.',provider_rejected:'El proveedor rechazó el correo. Revisa el destinatario y los adjuntos.',invalid_payload:'Revisa destinatario, asunto, mensaje y adjuntos.'};
+  const messages={reply_context_required:'El caso tiene correos pendientes de vincular a esta respuesta. No se envió ningún correo.',reply_context_not_accessible:'El mensaje seleccionado ya no está disponible en este caso. No se envió ningún correo.',reply_context_changed:'El mensaje original cambió desde que lo revisaste. No se envió: vuelve a revisar el contexto.',reply_content_unavailable:'Falta el contenido acreditado del mensaje original. No se envió ningún correo.',reply_content_incomplete:'El mensaje original está incompleto. No se envió ningún correo.',reply_thread_unavailable:'Falta la cabecera original del hilo. No se envió ningún correo.',reply_recipient_mismatch:'El destinatario no coincide con el remitente del mensaje seleccionado. No se envió ningún correo.',reply_sender_unavailable:'No hay un remitente acreditado para esta respuesta. No se envió ningún correo.',invalid_reply_context:'La referencia del mensaje no es válida. Revisa el caso; no se envió ningún correo.',invalid_attachments:'Revisa los adjuntos: solo se admiten archivos vigentes y autorizados de este caso.',attachment_too_large:'Los adjuntos superan el tamaño permitido.',unsupported_attachment_type:'El tipo de uno de los adjuntos no está permitido.',forbidden:'Tu cuenta no tiene permiso para enviar desde este caso.',provider_rejected:'El proveedor rechazó el correo. Revisa el destinatario y los adjuntos.',invalid_payload:'Revisa destinatario, asunto, mensaje y adjuntos.'};
   const attachmentError=/attachment|document_ids/.test(result.error||'');
   smartMailFeedback(messages[result.error]||(attachmentError?'No se envió el correo. Revisa que los adjuntos estén vigentes, sean de este caso y sumen como máximo 20 MiB.':result.status==='FAILED'?'El proveedor no aceptó este intento. Revisa el mensaje antes de iniciar otro envío.':'El envío no fue confirmado. Revisa el expediente antes de volver a intentarlo.'),true);
  }catch(error){
   if(actor!==session?.user?.id||org!==profile?.organization_id)return;
   if(providerConfirmed){smartMailFeedback('El proveedor aceptó el correo y quedó registrado, pero no pudimos actualizar la vista. No lo reenvíes; actualiza el expediente.',false);notice('Correo aceptado y registrado. Actualiza el expediente; no lo reenvíes.',false);}
   else if(providerStarted){try{tracking?.save('UNKNOWN');}catch(_storage){}smartMailFeedback('No se pudo confirmar el envío. Conservamos este intento para evitar duplicados. No repitas el correo hasta revisar su estado.',true);}
+  else if(error.message==='REPLY_CONTEXT_CHANGED'){if(smartMailState)smartMailState.blocked=true;smartMailFeedback('El mensaje o su asociación cambió mientras se preparaba el envío. No se envió: revisa el caso.',true);}
   else if(error.message==='MAIL_CHANNEL_NOT_READY')smartMailFeedback('El canal de envío seguro aún no está habilitado. No se envió ningún correo; tu borrador se conserva.',true);
   else if(error.message==='ALREADY_SENT')smartMailFeedback('Este mensaje ya fue enviado. Revisa el expediente antes de redactar otro.',true);
   else if(error.message==='PREVIOUS_SEND_UNCONFIRMED')smartMailFeedback('Hay un envío anterior sin confirmar para este caso. Revisa su estado antes de enviar otro mensaje.',true);
@@ -1690,15 +1711,23 @@ async function sendSmartMailDirect(leadId){
 }
 async function openSmartMailInZoho(leadId){
  const lead=scopedRows('leads').find(row=>row.id===leadId);if(!lead)return;
- const draft=smartMailDraftForLead(lead);
- const body=$('smartMailBody')?.value||draft.body;
- const to=$('smartMailTo')?.value?.trim()||draft.email;
- const subject=$('smartMailSubject')?.value?.trim()||draft.subject;
+ const draft=smartMailDraftForLead(lead,smartMailState?.requestedMailId||null);
+ if(!smartMailState||smartMailState.sourceKey!==draft.sourceKey||draft.blockedReason){smartMailFeedback(draft.blockedReason||'El contexto cambió. Revisa el caso antes de preparar la respuesta.',true);return;}
+ const body=$('smartMailBody')?.value??draft.body;
+ if(!body.trim()||body.includes('[Escribe aquí tu respuesta')){smartMailFeedback('Completa y revisa la respuesta antes de prepararla en Zoho.',true);return;}
+ const to=$('smartMailTo')?.value?.trim()??draft.email;
+ const subject=$('smartMailSubject')?.value?.trim()??draft.subject;
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)||!subject){smartMailFeedback('Revisa destinatario y asunto antes de preparar la respuesta.',true);return;}
+ if(draft.inbound&&to.toLowerCase()!==draft.email.toLowerCase()){smartMailFeedback('El destinatario no coincide con el mensaje seleccionado.',true);return;}
  const selected=Array.from(document.querySelectorAll('.smart-material-option.selected')).map(button=>button.dataset.smartMaterial).filter(Boolean);
  const selectedDocs=(data.documents||[]).filter(row=>selected.includes(String(row.id)));
  const packageText=['Para: '+to,'Asunto: '+subject,'',body,selectedDocs.length?'\nMaterial seleccionado:\n'+selectedDocs.map(row=>'- '+(row.title||'Documento')).join('\n'):''].join('\n');
+ const actor=session?.user?.id,org=profile?.organization_id,sourceKey=draft.sourceKey;
+ const sameReview=()=>actor===session?.user?.id&&org===profile?.organization_id&&smartMailState?.sourceKey===sourceKey&&smartMailDraftForLead(lead,smartMailState?.requestedMailId||null).sourceKey===sourceKey;
  try{await navigator.clipboard.writeText(packageText);}catch(_error){}
+ if(!sameReview())return;
  await rememberSmartMailHandoff(lead,draft,to,subject,body,selectedDocs);
+ if(!sameReview())return;
  const href=draft.thread?zohoMailMessageHref(draft.thread):zohoMailComposeHref({contact_email:to,institution_name:draft.institution?.name||lead.title});
  window.open(href,'_blank','noopener');
  notice(selectedDocs.length?'Zoho abierto. Hay '+selectedDocs.length+' material(es) seleccionado(s) en Xicronix para este envío.':'Zoho abierto para revisar y enviar.',false,7000);
@@ -2747,14 +2776,15 @@ function closeLeadDetails(updateRoute=true){
  $('leadDetailContent').replaceChildren();
  if(updateRoute)rememberPage();
 }
-function openLeadDetails(id){
+function openLeadDetails(id,mailId=null){
  if(loading||busy||!profile)return;
  const lead=scopedRows('leads').find(row=>row.id===id);if(!lead)return;
  const contact=(data.contacts||[]).find(row=>row.id===lead.contact_id);
  const institution=(data.institutions||[]).find(row=>row.id===lead.institution_id);
  const activities=(data.activities||[]).filter(row=>row.lead_id===id).sort((a,b)=>String(b.occurred_at||'').localeCompare(String(a.occurred_at||'')));
  const relatedMail=caseInboundMail(lead,data);
- const latestMail=relatedMail[0]||null;
+ const replyContext=caseReplyContext(lead,data,{mailId});
+ const latestMail=relatedMail.find(row=>row.id===replyContext.mailId)||null;
  const tasks=sortTasksByUrgency((data.tasks||[]).filter(row=>row.lead_id===id),Date.now());
  const meetings=(data.meetings||[]).filter(row=>row.lead_id===id).sort((a,b)=>String(a.start_at||'').localeCompare(String(b.start_at||'')));
  const documents=(data.documents||[]).filter(row=>row.lead_id===id).sort((a,b)=>String(b.updated_at||'').localeCompare(String(a.updated_at||'')));
@@ -2774,7 +2804,6 @@ function openLeadDetails(id){
  const nextDate=responseProgress.responseAccepted?responseProgress.nextDate:[nextTask?.due_at,nextMeeting?.start_at,lead.next_action_date].filter(Boolean).sort((a,b)=>Date.parse(a)-Date.parse(b))[0]||null;
  const maturity=Math.max(0,Math.min(100,Number(lead.maturity_percent)||0));
  const originalRequest=caseRequestContext(lead,data);
- const replyContext=caseReplyContext(lead,data);
  const request=originalRequest.text?originalRequest:replyContext.complete&&replyContext.contextText?{text:replyContext.contextText,source:replyContext.source,at:replyContext.at}:originalRequest;
  const need=request.text||'Solicitud sin detalle registrado.';
  const evidence=activities.find(row=>row.evidence_note)?.evidence_note||'Sin evidencia comercial explícita registrada.';
@@ -2783,14 +2812,14 @@ function openLeadDetails(id){
  const budget=Number(lead.estimated_value)>0?money(lead.estimated_value):'Sin definir';
  const field=(label,value)=>'<div class="lead-detail-row"><dt>'+esc(label)+'</dt><dd>'+esc(value||'Sin registrar')+'</dd></div>';
  const directPhone=String(contact?.phone||institution?.phone||'').trim();
- const directEmail=String(contact?.email||institution?.email||'').trim();
+ const directEmail=String(replyContext.fromAddress||contact?.email||institution?.email||'').trim();
  const mailBody=replyContext.mailId===latestMail?.id?replyContext.contextText:'';
  const mailBodyAvailable=!!latestMail&&!!mailBody&&replyContext.complete;
- const mailContext=latestMail?'<section class="lead-situation"><header><div><small>QUÉ ESTÁ PASANDO</small><strong>'+esc(latestMail.sender_name||(contact?nameOf(contact):latestMail.from_address)||'Contacto')+' respondió por correo</strong></div><time>'+esc(date(latestMail.received_at))+'</time></header><h3>'+esc(latestMail.subject||'Correo recibido')+'</h3><div class="lead-situation-meta"><span>'+esc(latestMail.classification||'COMMERCIAL')+'</span><span>'+esc(latestMail.priority==='HIGH'?'Prioridad alta':'Requiere revisión')+'</span></div><details class="lead-original-mail" open><summary>Texto de correo disponible'+(mailBodyAvailable?' · contenido disponible':' · contenido pendiente')+'</summary><div><dl><dt>De</dt><dd>'+esc(latestMail.sender_name||(contact?nameOf(contact):''))+' &lt;'+esc(latestMail.from_address||directEmail||'')+'&gt;</dd><dt>Fecha</dt><dd>'+esc(date(latestMail.received_at))+'</dd><dt>Asunto</dt><dd>'+esc(latestMail.subject||'Sin asunto')+'</dd></dl><article class="lead-original-mail-body">'+(mailBodyAvailable?esc(mailBody):'<strong>Contenido completo pendiente de recuperación.</strong><p>Revisa el original antes de responder; el borrador no supone su contenido.</p>')+'</article></div></details></section>':'';
+ const mailContext=latestMail?'<section class="lead-situation"><header><div><small>QUÉ ESTÁ PASANDO</small><strong>'+esc(latestMail.sender_name||(contact?nameOf(contact):latestMail.from_address)||'Contacto')+' respondió por correo</strong></div><time>'+esc(date(latestMail.received_at))+'</time></header><h3>'+esc(latestMail.subject||'Correo recibido')+'</h3><div class="lead-situation-meta"><span>'+esc(latestMail.classification||'COMMERCIAL')+'</span><span>'+esc(latestMail.priority==='HIGH'?'Prioridad alta':'Requiere revisión')+'</span></div><details class="lead-original-mail" open><summary>Texto de correo disponible'+(mailBodyAvailable?' · contenido disponible':' · contenido pendiente')+'</summary><div><dl><dt>De</dt><dd>'+esc(latestMail.sender_name||(contact?nameOf(contact):''))+' &lt;'+esc(latestMail.from_address||'Remitente no acreditado')+'&gt;</dd><dt>Fecha</dt><dd>'+esc(date(latestMail.received_at))+'</dd><dt>Asunto</dt><dd>'+esc(latestMail.subject||'Sin asunto')+'</dd></dl><article class="lead-original-mail-body">'+(mailBodyAvailable?esc(mailBody):'<strong>Contenido completo pendiente de recuperación.</strong><p>Revisa el original antes de responder; el borrador no supone su contenido.</p>')+'</article></div></details></section>':'';
  const unconfirmedSend=unconfirmedMailForLead(id);
  const safeAction=unconfirmedSend.length?'Revisar el envío sin confirmación antes de volver a responder.':!responseProgress.responseAccepted&&latestMail&&!mailBodyAvailable?'Recuperar y revisar el contenido completo del correo antes de responder.':action;
  const quickActions='<section class="lead-action-center"><div class="lead-action-primary"><small>ACCIÓN RECOMENDADA</small><strong>'+esc(safeAction)+'</strong><span>'+(nextDate?'Antes de '+esc(date(nextDate)):'Sin fecha comprometida')+'</span></div><div class="lead-action-buttons">'+
-  (directEmail&&writableFor('activities')?'<button type="button" class="lead-action-button primary" data-smart-mail="'+lead.id+'"'+(unconfirmedSend.length?' disabled title="Revisa el envío sin confirmación antes de responder"':!responseProgress.responseAccepted&&latestMail&&!mailBodyAvailable?' disabled title="Primero debe recuperarse el contenido completo del correo"':'')+'>'+(responseProgress.responseAccepted?'Escribir correo':'Responder')+'</button>':'')+
+  (directEmail&&writableFor('activities')?'<button type="button" class="lead-action-button primary" data-smart-mail="'+lead.id+'"'+(mailId?' data-smart-mail-inbox="'+esc(mailId)+'"':'')+(unconfirmedSend.length?' disabled title="Revisa el envío sin confirmación antes de responder"':!responseProgress.responseAccepted&&latestMail&&!mailBodyAvailable?' disabled title="Primero debe recuperarse el contenido completo del correo"':'')+'>'+(responseProgress.responseAccepted?'Escribir correo':'Responder')+'</button>':'')+
   (directPhone?'<a class="lead-action-button" href="'+esc(radarPhoneHref(directPhone))+'">Llamar</a>':'')+
   '<button type="button" class="lead-action-button" data-case-whatsapp-lead="'+esc(lead.id)+'">WhatsApp</button>'+
   (writableFor('activities')?'<button type="button" class="lead-action-button" data-activity-lead="'+lead.id+'">Registrar resultado</button>':'')+
@@ -2921,7 +2950,7 @@ function init(){
  document.addEventListener('click',event=>{if(!mobileNavMode())return;const sidebar=$('mainSidebar');if(!sidebar||$('appView').classList.contains('sidebar-collapsed'))return;if(sidebar.contains(event.target)||event.target===$('sidebarToggle'))return;applySidebar(true);});
  document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(b.dataset.caseFilter){caseFilter=b.dataset.caseFilter;renderSellerManagement();return;}if(b.dataset.directorTarget){openDirectorInsight(b.dataset.directorTarget);return;}if(b.dataset.directorProspect){openDirectorRecord('prospects',b.dataset.directorProspect);return;}if(b.dataset.directorSignal){openDirectorRecord('radar',b.dataset.directorSignal);return;}if(b.dataset.radarPromote){promoteRadarSignal(b.dataset.radarPromote);return;}if(b.id==='refreshIntelligenceBtn'){b.disabled=true;b.classList.add('is-refreshing');refreshLiveIntelligence(true).finally(()=>{const next=$('refreshIntelligenceBtn');if(next){next.disabled=false;next.classList.remove('is-refreshing');}});return;}if(b.dataset.analyticsPeriod){setAnalyticsPeriod(b.dataset.analyticsPeriod);return;}if(b.dataset.analyticsExport!==undefined){exportAnalytics();return;}if(b.id==='brandThemeToggle'){applyTheme(document.documentElement.dataset.theme==='night'?'day':'night',true);return;}if(b.id==='ceoMethodBtn'){$('methodDialog').showModal();return;}if(b.dataset.ceoView){openExecutiveView(b.dataset.ceoView);return;}if(b.dataset.ceoSeller){openExecutiveView('won',b.dataset.ceoSeller);return;}if(b.dataset.passwordToggle){togglePassword(b);return;}if(b.dataset.sellerFilter){navigate('leads');sellerQuickFilter=b.dataset.sellerFilter;renderRecords();return;}if(b.dataset.prospectKpi){navigate('prospects');prospectDashboardFilter=b.dataset.prospectKpi==='ALL'?'':b.dataset.prospectKpi;$('filter').value='';pageIndex=0;renderRecords();return;}if(b.dataset.dailyLead){if($('dailyBriefingDialog')?.open)$('dailyBriefingDialog').close();navigate('leads');openLeadDetails(b.dataset.dailyLead);return;}
 if(b.dataset.dailyPage){if($('dailyBriefingDialog')?.open)$('dailyBriefingDialog').close();navigate(b.dataset.dailyPage);return;}
-if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){if(openEditor('leads',b.dataset.editLead))closeLeadDetails(false);return;}if(b.dataset.editActivity){if(openEditor('activities',b.dataset.editActivity))closeLeadDetails(false);return;}if(b.dataset.activityLead){if(openActivityForLead(b.dataset.activityLead)!==false)closeLeadDetails(false);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.radarLead){openLeadFromRadar(b.dataset.radarLead);return;}if(b.dataset.radarActivity){openActivityForLead(b.dataset.radarActivity);return;}if(b.dataset.editSmartContact!==undefined){const contactId=b.dataset.editSmartContact||'';const institutionId=b.dataset.editSmartInstitution||'';if($('smartMailDialog').open)$('smartMailDialog').close();if(contactId){openEditor('contacts',contactId);}else if(institutionId){openEditor('institutions',institutionId);}return;}if(b.dataset.smartUploadCategory){uploadSmartMaterial(b.dataset.smartUploadLead,b.dataset.smartUploadCategory);return;}if(b.dataset.smartMaterial){toggleSmartMaterial(b.dataset.smartMaterial);return;}if(b.dataset.smartMail){openSmartMailDraft(b.dataset.smartMail);return;}if(b.dataset.copySmartMail){copySmartMailDraft(b.dataset.copySmartMail);return;}if(b.dataset.sendSmartMail){sendSmartMailDirect(b.dataset.sendSmartMail);return;}if(b.dataset.openSmartZoho){openSmartMailInZoho(b.dataset.openSmartZoho);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
+if(b.dataset.page)navigate(b.dataset.page);if(b.dataset.attentionOpen){if($('attentionDialog').open)$('attentionDialog').close();openLeadDetails(b.dataset.attentionOpen);return;}if(b.dataset.openDocumentVersion){openDocumentVersion(b.dataset.openDocumentVersion);return;}if(b.dataset.openDocument){openDocumentFile(b.dataset.openDocument);return;}if(b.dataset.createDocumentLead){openDocumentForLead(b.dataset.createDocumentLead);return;}if(b.dataset.createDeliverableLead){openDeliverableForLead(b.dataset.createDeliverableLead);return;}if(b.dataset.createMeetingLead){openMeetingForLead(b.dataset.createMeetingLead);return;}if(b.dataset.leadDetail){openLeadDetails(b.dataset.leadDetail);return;}if(b.dataset.editLead){if(openEditor('leads',b.dataset.editLead))closeLeadDetails(false);return;}if(b.dataset.editActivity){if(openEditor('activities',b.dataset.editActivity))closeLeadDetails(false);return;}if(b.dataset.activityLead){if(openActivityForLead(b.dataset.activityLead)!==false)closeLeadDetails(false);return;}if(b.dataset.createTaskLead){openTaskForLead(b.dataset.createTaskLead);return;}if(b.dataset.taskLead){openLeadDetails(b.dataset.taskLead);return;}if(b.dataset.taskResponse){openActivityForLead(b.dataset.taskResponse);return;}if(b.dataset.taskModule){const row=scopedRows('tasks').find(item=>item.id===b.dataset.taskModule);if(row)openTaskModule(row);return;}if(b.dataset.taskComplete){completeTaskQuick(b.dataset.taskComplete);return;}if(b.dataset.radarLead){openLeadFromRadar(b.dataset.radarLead);return;}if(b.dataset.radarActivity){openActivityForLead(b.dataset.radarActivity);return;}if(b.dataset.editSmartContact!==undefined){const contactId=b.dataset.editSmartContact||'';const institutionId=b.dataset.editSmartInstitution||'';if($('smartMailDialog').open)$('smartMailDialog').close();if(contactId){openEditor('contacts',contactId);}else if(institutionId){openEditor('institutions',institutionId);}return;}if(b.dataset.smartUploadCategory){uploadSmartMaterial(b.dataset.smartUploadLead,b.dataset.smartUploadCategory);return;}if(b.dataset.smartMaterial){toggleSmartMaterial(b.dataset.smartMaterial);return;}if(b.dataset.smartMail){openSmartMailDraft(b.dataset.smartMail,b.dataset.smartMailInbox||null);return;}if(b.dataset.copySmartMail){copySmartMailDraft(b.dataset.copySmartMail);return;}if(b.dataset.sendSmartMail){sendSmartMailDirect(b.dataset.sendSmartMail);return;}if(b.dataset.openSmartZoho){openSmartMailInZoho(b.dataset.openSmartZoho);return;}if(b.dataset.copyZohoWebhook!==undefined){copyZohoWebhookUrl();return;}if(b.dataset.mailLead){openLeadDetails(b.dataset.mailLead,b.dataset.mailInbox||null);return;}if(b.dataset.mailReviewed){markMailReviewed(b.dataset.mailReviewed);return;}if(b.dataset.edit)openEditor(b.dataset.table,b.dataset.edit);if(b.dataset.delete)removeRecord(b.dataset.table,b.dataset.delete);if(b.dataset.mode)setMode(b.dataset.mode);});
  $('forgotBtn').onclick=()=>setMode('reset');$('backLogin').onclick=async()=>{if(recovery){await sb.auth.signOut();clearSession();setRecovery(false);}setMode('login');};
  $('radarStateForm').onsubmit=saveRadarLifecycle;
  $('radarStateClose').onclick=()=>{if(!busy){radarActionContext=null;$('radarStateDialog').close();}};

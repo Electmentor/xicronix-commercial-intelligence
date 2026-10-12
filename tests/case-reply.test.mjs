@@ -5,7 +5,7 @@ import {buildCaseReply,caseReplyContext} from '../case-reply.mjs';
 const lead={id:'case',contact_id:'contact',institution_id:'school',commercial_maturity_pct:85,next_action:'Iniciar diagnóstico y solicitar otra reunión'};
 const now='2026-10-11T12:00:00Z';
 const message='Estimado equipo Xicronix: Muchas gracias por su comprensión y por mantenerse atentos a nuestra coordinación. Lamentamos haber dilatado un poco este proceso debido a las coordinaciones internas que hemos venido realizando. Les comento que el día miércoles me han otorgado un espacio de 15 minutos para exponer la necesidad identificada y presentar la propuesta. De acuerdo con lo que se determine en dicha reunión, podremos coordinar posteriormente una nueva reunión con ustedes y definir los siguientes pasos. Agradezco mucho su paciencia y comprensión durante este proceso, seguimos en contacto. Muchas gracias por su disposición y por mantenerse atentos. Atentamente, Mg. Persona Sintética Colegio Fixture';
-const mail={id:'inbound',lead_id:'case',subject:'Coordinación de propuesta',body_text:message,received_at:'2026-09-28T11:24:00-05:00'};
+const mail={id:'inbound',lead_id:'case',from_address:'alex@example.invalid',subject:'Coordinación de propuesta',body_text:message,received_at:'2026-09-28T11:24:00-05:00'};
 const fixture=(extra={})=>({contacts:[{id:'contact',first_name:'Alex',email:'alex@example.invalid'}],institutions:[{id:'school',name:'Colegio de prueba'}],mail:[{...mail}],activities:[{type:'WEB_FORM',lead_id:'case',notes:'Requerimiento original: Necesitamos implementar un laboratorio.',occurred_at:'2026-09-20T12:00:00Z'}],...extra});
 const draft=(data=fixture(),options={now})=>buildCaseReply(lead,data,options);
 
@@ -107,6 +107,20 @@ test('helpers are pure and drafts have a neutral greeting, no literal recipient 
   const data=fixture();const before=JSON.stringify(data);const reply=draft(data);
   assert.equal(JSON.stringify(data),before);assert.match(reply.body,/^Hola Alex,/);assert.doesNotMatch(reply.body,/alex@example|Colegio de prueba|commercial_maturity/);assert.equal(reply.reviewRequired,true);
 });
-test('web-only and empty cases remain explicitly incomplete',()=>{
-  for(const data of [fixture({mail:[]}),fixture({mail:[],activities:[]})]){const reply=draft(data);assert.equal(reply.needsHumanAnswer,true);assert.match(reply.body,/\[Escribe aquí tu respuesta y el siguiente paso acordado\.\]/);}
+test('web request permits human drafting while empty context never supplies a generic message',()=>{
+  const web=draft(fixture({mail:[]}));assert.equal(web.needsHumanAnswer,true);assert.match(web.body,/\[Escribe aquí tu respuesta y el siguiente paso acordado\.\]/);
+  const empty=draft(fixture({mail:[],activities:[]}));assert.equal(empty.needsHumanAnswer,true);assert.equal(empty.body,'');assert.equal(empty.sendBlocked,true);
+});
+
+test('role mailbox and email address are never used as a personal greeting',()=>{
+ for(const sender_name of ['info','Support','soporte cuentas','info@service.invalid']){
+  const reply=draft(fixture({mail:[{...mail,from_address:'info@service.invalid',sender_name}]}));assert.match(reply.body,/^Hola,/);assert.doesNotMatch(reply.body,/Hola (info|Support|soporte)/i);
+ }
+});
+test('explicit source ID selects the same message and rejects absent or unlinked sources',()=>{
+ const data=fixture({mail:[mail,{...mail,id:'second',subject:'Otra conversación',received_at:now,body_text:'Texto nuevo'}]});
+ assert.equal(buildCaseReply(lead,data,{now,mailId:mail.id}).contextText,message);
+ for(const mailId of ['absent','unlinked']){
+  const reply=buildCaseReply(lead,{...data,mail:[...data.mail,{...mail,id:'unlinked',lead_id:null,contact_id:lead.contact_id}]},{now,mailId});assert.equal(reply.sendBlocked,true);assert.equal(reply.body,'');assert.equal(reply.reasonCode,'ASSOCIATION_UNVERIFIED');
+ }
 });
