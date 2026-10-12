@@ -1,6 +1,6 @@
 # Mis casos · Dirección — lista única de aceptación
 
-Estado: EN IMPLEMENTACIÓN. No terminado ni autorizado para producción.
+Estado: EN VERIFICACIÓN PARA APLICAR AL CRM. El usuario autorizó expresamente aplicarlo en el propio CRM; no se declara terminación de la matriz.
 Base inspeccionada: cf15d952e520780b71396904e125c50ea93c5d57, main y producción coincidentes.
 Rama de trabajo: work/mis-casos-direccion-20261012. La copia local procede de archivos GitHub del SHA exacto; no es una clonación del historial completo.
 
@@ -54,7 +54,7 @@ Cada fila solo será APROBADA cuando cumpla usuario autorizado, rechazo de usuar
 
 ## Despliegue, impacto y reversión
 
-No hay despliegue verificado de este cambio ni enlace operativo nuevo. No se solicita producción hasta cerrar la matriz remota.
+Aplicación al CRM autorizada por el usuario. Preview 517d4428 compilado READY: dpl_4Pp4CPdUnjFmqPwQ82Q5Df7waArh. Protección de Vercel conservada; la conexión devolvió 403 al intentar acceso autenticado. Se añadió un trabajo independiente de pruebas de Dirección en GitHub con Chromium y fixtures aisladas, sin quitar las pruebas heredadas, y verificación de los archivos reales publicados al actualizar main.
 Impacto acotado: pestaña Mis casos en Dirección, servicio de decisiones y selección DEV del cliente en la rama exacta de prueba. El resto de módulos se reutiliza.
 Respaldo productivo observado: dpl_HQhReg966bYFu3bayGAni31dXJd1, commit cf15d952, producción READY.
-Reversión de código: volver al commit base o retirar solo los archivos y conexiones de Dirección. Reversión operativa DEV: retirar acceso a la RPC, conservar tablas e historia; no borrar casos. Producción necesitará autorización agrupada que incluya SQL exacto, código, evidencia remota, respaldo, reversión y coste observado. No se contrató ni amplió ningún servicio.
+Reversión de código: volver al commit base o retirar solo los archivos y conexiones de Dirección. Reversión operativa DEV: retirar acceso a la RPC, conservar tablas e historia; no borrar casos. La instrucción posterior «aplica en el propio CRM» autoriza esta aplicación. Respaldo y reversión se conservan; no se activan reglas económicas sin definición empresarial. No se contrató ni amplió ningún servicio.

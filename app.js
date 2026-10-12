@@ -16,7 +16,7 @@ import {MILESTONE_META,MOVEMENT_ACTIONS,ACTION_MILESTONE,milestoneLabel,mileston
 import {renderSellerDashboard} from './seller-dashboard.mjs?v=20261011-cases';
 import {caseRequestContext,caseInboundMail,caseUnconfirmedMailActivity,caseResponseProgress,caseOutboundStatus} from './case-attention.mjs';
 import {buildCaseReply,caseReplyContext} from './case-reply.mjs';
-import {renderDirectionCases,renderDirectionDetail,createDirectionController} from './case-direction.mjs';
+import {renderDirectionCases,renderDirectionDetail,createDirectionController,caseError} from './case-direction.mjs';
 import {crmClientConfig} from './crm-environment.mjs';
 
 const $ = id => document.getElementById(id);
@@ -379,6 +379,7 @@ const notice=(message,error=false,timeout=0)=>{
 };
 function errorText(error){
  const code=error?.code;
+ if(String(error?.message||'').startsWith('CASE_'))return caseError(error);
  if(code==='invalid_credentials')return 'Correo o contraseña incorrectos.';
  if(['otp_expired','invalid_token','bad_jwt'].includes(code))return 'El enlace de recuperación venció o ya fue utilizado. Solicita uno nuevo y ábrelo una sola vez.';
  if(code==='email_not_confirmed')return 'Confirma tu correo antes de ingresar.';
@@ -2867,7 +2868,7 @@ function openLeadDetails(id,mailId=null){
  const lastAccepted=responseProgress.accepted;
  const lastAction=lastAccepted&&(Date.parse(lastAccepted.at)||0)>=(Date.parse(latest?.occurred_at)||0)?'Correo aceptado por el proveedor · '+date(lastAccepted.at):latest?(/ID: no disponible/i.test(latest.evidence_note||'')?'Envío sin confirmación':latest.subject||enums.activityType[latest.type]||'Movimiento registrado')+' · '+date(latest.occurred_at):'Aún no hay acciones registradas';
  const requestSummary='<section class="case-request-detail"><header><div><small>SOLICITUD</small><h3>'+esc(institution?.name||lead.title||'Caso')+'</h3></div><span class="badge">'+esc(enums.status[lead.status]||lead.status)+'</span></header><p class="case-original-request">'+esc(need)+'</p><small>'+esc(request.source||'Sin fuente disponible')+(request.at?' · '+esc(date(request.at)):'')+'</small><dl class="case-context-grid">'+field('Responsable',ownerName)+field('Última acción',lastAction)+field('Siguiente paso',safeAction)+field('Fecha',nextDate?date(nextDate):'Pendiente de definir')+'</dl></section>';
- const followupActions=writableFor('leads')?'<section class="case-followup"><p>Enviar un correo no cierra este caso. Registra el resultado y define el próximo seguimiento, o cambia su estado al terminar.</p><button type="button" data-edit-lead="'+lead.id+'">Seguimiento o cierre</button>'+(writableFor('tasks')?'<button type="button" data-create-task-lead="'+lead.id+'">Programar seguimiento</button>':'')+'</section>':'';
+ const followupActions=writableFor('leads')&&!(canViewDashboard()&&dataSource!=='demo')?'<section class="case-followup"><p>Enviar un correo no cierra este caso. Registra el resultado y define el próximo seguimiento, o cambia su estado al terminar.</p><button type="button" data-edit-lead="'+lead.id+'">Seguimiento o cierre</button>'+(writableFor('tasks')?'<button type="button" data-create-task-lead="'+lead.id+'">Programar seguimiento</button>':'')+'</section>':'';
  $('leadDetailTitle').textContent=institution?.name||lead.title||'Prospecto';
  const leadSubtitle=$('leadDetailSubtitle');if(leadSubtitle)leadSubtitle.textContent=(contact?nameOf(contact):'Contacto decisor pendiente')+(contact?.job_title?' · '+contact.job_title:'');
  $('leadDetailContent').innerHTML='<section class="lead-master commercial-dossier executive-dossier">'+

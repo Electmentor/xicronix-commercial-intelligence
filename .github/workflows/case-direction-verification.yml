@@ -1,0 +1,38 @@
+name: Case direction verification
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, work/mis-casos-direccion-20261012]
+permissions:
+  contents: read
+jobs:
+  direction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: node --test tests/case-direction.test.mjs tests/case-detail-runtime.test.mjs tests/case-whatsapp-integration.test.mjs
+      - run: python -m pip install playwright==1.57.0 && python -m playwright install --with-deps chromium
+      - run: python tests/case-direction-browser.py
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: case-direction-evidence
+          path: review-artifacts/case-direction/
+  production-assets:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: python tests/case-direction-production.py

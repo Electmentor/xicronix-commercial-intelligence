@@ -7,6 +7,7 @@ export async function crmClientConfig(hostname,{fetcher=fetch}={}){
  if(['localhost','127.0.0.1'].includes(hostname))return DEV_CRM;
  const r=await fetcher('/api/case-direction-environment',{cache:'no-store'});
  if(!r.ok)throw new Error('El entorno de pruebas no está configurado. Acceso detenido para evitar mezclar DEV y producción.');
- const config=await r.json();if(config.environment!=='dev'||config.url!==DEV_CRM.url||config.key!==DEV_CRM.key||config.storageKey!==DEV_CRM.storageKey)throw new Error('Configuración DEV no verificada.');
+ const config=await r.json();const expected=config.environment==='dev'?DEV_CRM:config.environment==='production'?PROD_CRM:null;
+ if(!expected||config.url!==expected.url||config.key!==expected.key||config.storageKey!==expected.storageKey)throw new Error('Configuración DEV no verificada.');
  return config;
 }

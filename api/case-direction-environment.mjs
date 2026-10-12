@@ -1,5 +1,8 @@
-import {DEV_CRM,DIRECTION_DEV_BRANCH} from '../crm-environment.mjs';
-export function environmentConfig(env){return env.VERCEL_ENV==='preview'&&env.VERCEL_GIT_COMMIT_REF===DIRECTION_DEV_BRANCH?DEV_CRM:null;}
+import {DEV_CRM,PROD_CRM,DIRECTION_DEV_BRANCH} from '../crm-environment.mjs';
+export function environmentConfig(env){
+ if(env.VERCEL_ENV==='production'&&env.VERCEL_GIT_COMMIT_REF==='main')return PROD_CRM;
+ return env.VERCEL_ENV==='preview'&&env.VERCEL_GIT_COMMIT_REF===DIRECTION_DEV_BRANCH?DEV_CRM:null;
+}
 export default function handler(req,res){
  res.setHeader('Cache-Control','no-store');
  const config=environmentConfig(process.env);

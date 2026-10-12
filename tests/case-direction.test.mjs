@@ -45,5 +45,6 @@ test('production and DEV use separate API endpoints and session storage',async()
  assert.deepEqual(await crmClientConfig('xicronix-commercial-intelligence.vercel.app'),PROD_CRM);assert.deepEqual(await crmClientConfig('localhost'),DEV_CRM);assert.notEqual(DEV_CRM.url,PROD_CRM.url);assert.notEqual(DEV_CRM.storageKey,PROD_CRM.storageKey);
  assert.deepEqual(environmentConfig({VERCEL_ENV:'preview',VERCEL_GIT_COMMIT_REF:DIRECTION_DEV_BRANCH}),DEV_CRM);assert.equal(environmentConfig({VERCEL_ENV:'production',VERCEL_GIT_COMMIT_REF:DIRECTION_DEV_BRANCH}),null);assert.equal(environmentConfig({VERCEL_ENV:'preview',VERCEL_GIT_COMMIT_REF:'main'}),null);
  await assert.rejects(crmClientConfig('unknown-preview.vercel.app',{fetcher:async()=>({ok:false})}),/evitar mezclar/);
- await assert.rejects(crmClientConfig('unknown-preview.vercel.app',{fetcher:async()=>({ok:true,json:async()=>PROD_CRM})}),/no verificada/);
+ assert.deepEqual(environmentConfig({VERCEL_ENV:'production',VERCEL_GIT_COMMIT_REF:'main'}),PROD_CRM);
+ await assert.rejects(crmClientConfig('unknown-preview.vercel.app',{fetcher:async()=>({ok:true,json:async()=>({...DEV_CRM,url:PROD_CRM.url})})}),/no verificada/);
 });

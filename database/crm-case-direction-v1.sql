@@ -57,10 +57,27 @@ alter table public.crm_case_decisions enable row level security;
 alter table public.crm_case_approval_rules enable row level security;
 revoke all on public.crm_case_direction,public.crm_case_requests,public.crm_case_decisions,public.crm_case_approval_rules from public,anon,authenticated;
 grant select on public.crm_case_direction,public.crm_case_requests,public.crm_case_decisions,public.crm_case_approval_rules to authenticated;
-create policy case_direction_read on public.crm_case_direction for select to authenticated using(private.is_org_member(organization_id));
+create policy case_direction_read on public.crm_case_direction for select to authenticated using(exists(select 1 from public.profiles p where p.id=(select auth.uid()) and p.organization_id=crm_case_direction.organization_id));
 create policy case_request_read on public.crm_case_requests for select to authenticated using(private.is_org_admin(organization_id));
 create policy case_decision_read on public.crm_case_decisions for select to authenticated using(private.is_org_admin(organization_id));
 create policy case_rule_read on public.crm_case_approval_rules for select to authenticated using(private.is_org_admin(organization_id));
+
+-- Serialize linked work with closure, including tasks created through existing editors.
+-- This prevents a concurrently inserted task from being committed into a closed request.
+create function private.crm_case_work_guard() returns trigger language plpgsql security definer set search_path='' as $$
+declare lifecycle text; pending boolean;
+begin
+ if new.lead_id is null then return new; end if;
+ perform 1 from public.leads where id=new.lead_id and organization_id=new.organization_id for update;
+ select d.lifecycle into lifecycle from public.crm_case_direction d where d.lead_id=new.lead_id and d.organization_id=new.organization_id;
+ pending=case when tg_table_name='tasks' then new.status not in ('COMPLETED','CANCELLED') when tg_table_name='meetings' then new.status not in ('COMPLETED','CANCELLED') else new.status='PENDING' end;
+ if lifecycle in ('CLOSED','RESOLVED','DISCARDED') and pending then raise exception 'CASE_REOPEN_REQUIRED'; end if;
+ return new;
+end $$;
+revoke all on function private.crm_case_work_guard() from public,anon,authenticated;
+create trigger crm_case_task_guard before insert or update of lead_id,status on public.tasks for each row execute function private.crm_case_work_guard();
+create trigger crm_case_meeting_guard before insert or update of lead_id,status on public.meetings for each row execute function private.crm_case_work_guard();
+create trigger crm_case_deliverable_guard before insert or update of lead_id,status on public.deliverables for each row execute function private.crm_case_work_guard();
 
 -- Private privileged writer follows the repository's quote RPC pattern. It never trusts
 -- client role, organization, actor, price or margin. Public wrapper is SECURITY INVOKER.
@@ -211,6 +228,8 @@ begin
   if p_action in ('ATTEND','RESOLVE','CLOSE','REOPEN') then s.result=p_payload->>'result';s.evidence=p_payload->>'evidence'; end if;
  end if;
 
+ -- Set lifecycle inside this transaction before creating work during a reopening.
+ update public.crm_case_direction set lifecycle=s.lifecycle where lead_id=l.id;
  if work is not null then
   if owner_id is null or due is null then raise exception 'CASE_WORK_REQUIRED'; end if;
   work_key=coalesce(work_key,'followup');
