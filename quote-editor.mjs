@@ -5,15 +5,15 @@ const money=n=>n==null?'—':new Intl.NumberFormat('es-PE',{style:'currency',cur
 const fields=[['exchange_rate','Tipo de cambio · S/ por USD'],['freight_usd','Flete total · USD'],['insurance_usd','Seguro total · USD'],['duty_pct','Ad valorem · %'],['local_cost_pen','Gastos locales y servicios sin IGV recuperable · S/'],['contingency_pct','Contingencia · %'],['igv_pct','IGV · %'],['perception_pct','Percepción importación · %'],['margin_pct','Margen bruto objetivo · %'],['minimum_margin_pct','Margen mínimo · %'],['discount_pct','Descuento global · %'],['advance_pct','Anticipo cliente · %'],['supplier_advance_pct','Anticipo proveedor · %']];
 let active=null;
 export function closeQuoteEditor(){if(active){active.close();active=null;}}
-export async function openQuoteEditor({sb,profile,data,quoteId=null,onSaved,workspace='seller'}){
+export async function openQuoteEditor({sb,profile,data,quoteId=null,onSaved,workspace='seller',revisionToView=null}){
  closeQuoteEditor();
  const q=(data.quotes||[]).find(q=>q.id===quoteId);
  const isDirector=profile.role==='ADMIN'&&workspace==='admin';
- const canEdit=['ADMIN','MANAGER','SALES'].includes(profile.role);
+ const canEdit=revisionToView===null&&['ADMIN','MANAGER','SALES'].includes(profile.role);
  let costProfiles=data.cost_profiles||[];
  if(!isDirector&&canEdit){const result=await sb.rpc('xicronix_sales_data');if(result.error)throw Error(result.error.message);costProfiles=result.data.cost_profiles||[];data={...data,catalog_products:result.data.catalog_products||[]};}
  const dialog=document.createElement('dialog');dialog.className='xq-dialog';document.body.append(dialog);
- let inputs=isDirector?{...QUOTE_DEFAULTS}:{scope:'',terms:'',discount_pct:0,advance_pct:0},items=[],revision=q?.revision||0,quote=q||{title:'Cotización Xicronix',is_test:false,opportunity_id:''},savedVersion=null,dirty=false,saving=false,timer,sequence=0,requestId=null;
+ let inputs=isDirector?{...QUOTE_DEFAULTS}:{scope:'',terms:'',discount_pct:0,advance_pct:0},items=[],revision=revisionToView??q?.revision??0,quote=q||{title:'Cotización Xicronix',is_test:false,opportunity_id:''},savedVersion=null,dirty=false,saving=false,timer,sequence=0,requestId=null;
  active={close(){clearTimeout(timer);sequence++;dialog.close();dialog.remove();}};
  const close=()=>closeQuoteEditor();
  dialog.innerHTML='<p>Cargando cotizador…</p>';dialog.showModal();
@@ -54,3 +54,4 @@ export async function openQuoteEditor({sb,profile,data,quoteId=null,onSaved,work
  async function exportVersion(v){try{const doc=await rpc('xicronix_customer_document',{p_quote_id:quoteId,p_revision:v});const html=renderCustomerDocument(doc);const url=URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'}));const win=window.open(url,'_blank');if(win){message('Documento oficial abierto. Usa el botón Imprimir / Guardar PDF del documento.');}else{const a=document.createElement('a');a.href=url;a.download=`${doc.quote_number}-v${v}.html`;document.body.append(a);a.click();a.remove();message('El navegador bloqueó la vista. Se descargó el documento imprimible.');}setTimeout(()=>URL.revokeObjectURL(url),300000);}catch(e){message(e.message,true);}}
  render();
 }
+

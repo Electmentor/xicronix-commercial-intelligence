@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const app=readFileSync(new URL('../app.js',import.meta.url),'utf8');
-const start=app.indexOf('function prepareCaseWhatsapp('),end=app.indexOf('\nfunction init()',start);
+const start=app.indexOf('function prepareCaseWhatsapp('),end=app.indexOf('\nasync function init()',start);
 function harness(){const calls=[],notices=[];const data={leads:[{id:'l',contact_id:'c',institution_id:'i'}],contacts:[{id:'c',phone:'995586874'}],institutions:[{id:'i'}],tasks:[{id:'t',lead_id:'l'}],radar:[{id:'r',lead_id:'l',contact_whatsapp:'999999999'}],activities:[],mail:[],commercial_mail_outbox:[{lead_id:'l',status:'SENT'}]};const ctx={profile:{id:'user',organization_id:'org'},session:{user:{id:'user'}},loading:false,busy:false,dataSource:'live',workspace:'seller',loadVersion:1,data,installHistoryGuard(){},scopedRows:key=>data[key]||[],openCaseWhatsapp:x=>calls.push(x),notice:(...args)=>notices.push(args)};vm.createContext(ctx);vm.runInContext(app.slice(start,end),ctx);return {ctx,calls,notices,data};}
 test('four UI entry points use composer buttons rather than direct WhatsApp navigation',()=>{assert.equal((app.match(/>WhatsApp<\/button>/g)||[]).length,4);assert.equal((app.match(/>WhatsApp<\/a>/g)||[]).length,0);});
 for(const dataset of [{caseWhatsappLead:'l'},{caseWhatsappTask:'t'},{caseWhatsappRadar:'r'}])test('entry resolves scoped case and retains outbound continuity '+JSON.stringify(dataset),()=>{const h=harness();h.ctx.prepareCaseWhatsapp({dataset});assert.equal(h.calls[0].lead.id,'l');assert.equal(h.calls[0].contact.phone,'995586874');assert.equal(h.calls[0].data.commercial_mail_outbox.length,1);});
@@ -60,3 +60,4 @@ test('reauthentication rearms a consumed entry without registering a second list
  assert.equal(h.listeners.filter(event=>event==='popstate').length,1);assert.equal(h.node('caseWhatsappDialog').open,true);
  h.back();assert.equal(h.exited,false);assert.equal(h.node('caseWhatsappDialog').open,false);assert.equal(h.node('leadDetailDialog').open,true);
 });
+

@@ -1,4 +1,5 @@
 import {buildCaseReply,caseReplyContext} from '../case-reply.mjs';
+import {renderDirectionDetail} from '../case-direction.mjs';
 // Executes the real detail-rendering function, without browser, network or database.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,6 +18,7 @@ function render({contactEmail='ana@example.invalid',selectedMailId=null,outbox=[
  const before=JSON.stringify(data);
  const nodes={leadDetailTitle:{},leadDetailSubtitle:{},leadDetailContent:{},leadDetailDialog:{showModal(){this.open=true;}}};
  const context=vm.createContext({data,profile,loading:false,busy:false,$:key=>nodes[key],scopedRows:table=>data[table]||[],esc:escapeHTML,caseRequestContext,caseInboundMail,caseUnconfirmedMailActivity,caseResponseProgress,caseOutboundStatus,caseReplyContext,sortTasksByUrgency,money,commercialUrgency:()=>({label:'Pendiente'}),commercialPotential:()=>({label:'Sin evaluar'}),commercialHealth:()=>({label:'En curso'}),nextCommercialAction:l=>l.next_action,date:v=>v||'Sin fecha',enums:{status:{NEW:'Nuevo'},activityType:{WEB_FORM:'Formulario web',EMAIL:'Correo'},leadSource:{WEBSITE:'Web'},taskStatus:{},meetingMode:{},documentCategory:{},documentStatus:{}},nameOf:r=>[r.first_name,r.last_name].filter(Boolean).join(' '),writableFor:()=>!readonly,relationName:()=>'',assignedUserId:r=>r.owner_user_id,radarPhoneHref:()=>'',radarWhatsappHref:()=>'',MOVEMENT_ACTIONS:{},milestoneLabel:()=>'',currentDocumentVersion:()=>null,rememberPage:()=>{}});
+ Object.assign(context,{canViewDashboard:()=>false,dataSource:'live',directionData:{},directionUnavailable:false,renderDirectionDetail});
  vm.runInContext(unconfirmed+'\n'+detail+'\nopenLeadDetails("'+id+'",'+JSON.stringify(selectedMailId)+');',context);
  assert.equal(JSON.stringify(data),before,'render must not mutate records');
  return {html:nodes.leadDetailContent.innerHTML,nodes};
@@ -93,3 +95,4 @@ test('detail uses one selected inbox for context and passes that ID to reply',()
  const {html}=render({mail:[received,other],selectedMailId:'received'});assert.match(html,/data-smart-mail-inbox="received"/);
  const situation=html.match(/<section class="lead-situation">([\s\S]*?)<\/section>/)?.[1];assert.match(situation,/Consulta reciente/);assert.doesNotMatch(situation,/OTRO_TICKET|Texto de otro ticket/);
 });
+
