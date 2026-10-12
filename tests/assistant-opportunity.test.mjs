@@ -65,3 +65,60 @@ test('API active mode is authenticated, returns scope label and deterministic me
  let calls=0;const handler=createHandler({authenticate:async()=>auth,prepareOpportunity:async()=>loaded(context()),generate:async()=>{calls++;}});
  const r=await handler(new Request('https://test',{method:'POST',body:JSON.stringify({message:'¿Qué falta?',context:{page:'opportunities'}})}));const body=await r.json();assert.equal(body.activeOpportunity,o.id);assert.equal(calls,0);assert.equal(body.metrics.provider_tokens,0);assert.equal(body.context,undefined);
 });
+
+
+test('NBA v2 prioritizes overdue critical task over meeting and strategic gaps',()=>{
+ const c=context();
+ c.tasks=[{id:'t-critical',title:'Responder propuesta',status:'PENDING',priority:'CRITICAL',due_at:'2026-09-26',assigned_to:'user'}];
+ c.meetings=[{id:'m',title:'Reunión mañana',status:'SCHEDULED',start_at:'2026-09-28'}];
+ c.contacts=[];
+ const n=nextBestAction(c,now);
+ assert.equal(n.source,'Tareas');
+ assert.match(n.text,/Responder propuesta/);
+ assert.ok(n.factors.includes('vencida'));
+});
+
+test('NBA v2 raises missing decision maker in proposal and negotiation without inventing one',()=>{
+ const c=context();c.opportunity.stage='NEGOTIATION';c.tasks=[];c.meetings=[];c.contacts=[{first_name:'Karen',job_title:'Directora',decision_level:'UNKNOWN'}];
+ c.activities=[{id:'a',subject:'Seguimiento',occurred_at:'2026-09-27T18:00:00Z',budget_signal:'CONFIRMED'}];
+ const n=nextBestAction(c,now);
+ assert.equal(n.source,'Contactos');
+ assert.match(n.text,/Validar quién decide/);
+ assert.ok(n.factors.includes('decisor no identificado'));
+});
+
+test('NBA v2 treats budget as evidence gap and never derives it from opportunity value',()=>{
+ const c=context();c.opportunity.stage='PROPOSAL';c.opportunity.value=900000;c.tasks=[];c.meetings=[];c.contacts=[{first_name:'Ana',decision_level:'DECISION_MAKER'}];c.activities=[{id:'a',subject:'Contacto',occurred_at:'2026-09-27T18:00:00Z'}];
+ const n=nextBestAction(c,now);
+ assert.equal(n.source,'Historial');
+ assert.match(n.text,/situación presupuestaria/);
+ assert.doesNotMatch(n.why,/900000|aprobado/);
+});
+
+test('NBA v2 uses recent recorded objection without claiming it is resolved',()=>{
+ const c=context();c.opportunity.stage='NEGOTIATION';c.tasks=[];c.meetings=[];c.contacts=[{first_name:'Ana',decision_level:'DECISION_MAKER'}];
+ c.activities=[{id:'b',subject:'Presupuesto confirmado',budget_signal:'CONFIRMED',occurred_at:'2026-09-26T10:00:00Z'},{id:'o',subject:'Objeción por plazo',notes:'Solicita entrega más rápida',occurred_at:'2026-09-27T10:00:00Z'}];
+ const n=nextBestAction(c,now);
+ assert.equal(n.source,'Historial');
+ assert.match(n.text,/objeción registrada/i);
+ assert.match(n.why,/no consta/i);
+});
+
+test('NBA v2 flags stale history conservatively and does not order contact',()=>{
+ const c=context();c.opportunity.stage='PROPOSAL';c.tasks=[];c.meetings=[];c.contacts=[{first_name:'Ana',decision_level:'DECISION_MAKER'}];
+ c.activities=[{id:'b',subject:'Presupuesto',budget_signal:'CONFIRMED',occurred_at:'2026-09-01T10:00:00Z'}];
+ const n=nextBestAction(c,now);
+ assert.equal(n.source,'Historial');
+ assert.match(n.text,/Revisar si corresponde un seguimiento/);
+ assert.doesNotMatch(n.text,/Contactar|Llamar|Enviar/);
+});
+
+test('NBA v2 uses expected close only as urgency context, never a win probability',()=>{
+ const c=context();c.opportunity.stage='NEGOTIATION';c.opportunity.expected_close_date='2026-09-30';c.tasks=[];c.meetings=[];
+ c.contacts=[{first_name:'Ana',decision_level:'DECISION_MAKER'}];c.activities=[{id:'b',subject:'Presupuesto',budget_signal:'CONFIRMED',occurred_at:'2026-09-27T18:00:00Z'}];
+ const n=nextBestAction(c,now);
+ assert.equal(n.source,'Oportunidades');
+ assert.match(n.text,/plan de cierre/);
+ assert.match(n.why,/no implica probabilidad de cierre/);
+ assert.doesNotMatch(JSON.stringify(n),/probabilidad.*\d+%/i);
+});

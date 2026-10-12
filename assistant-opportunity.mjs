@@ -78,16 +78,78 @@ export async function loadOpportunity(payload,auth,authorization,{fetcher=fetch,
 
 export function nextBestAction(context,now=Date.now()){
  const o=context.opportunity;
- const tasks=(context.tasks||[]).filter(r=>!closed.has(r.status)).sort((a,b)=>(dateValue(a.due_at)??Infinity)-(dateValue(b.due_at)??Infinity)||a.id.localeCompare(b.id));
- const overdue=tasks.find(r=>dateValue(r.due_at)!==null&&dateValue(r.due_at)<now);
- const meeting=(context.meetings||[]).filter(r=>!closed.has(r.status)&&dateValue(r.start_at)>=now).sort((a,b)=>dateValue(a.start_at)-dateValue(b.start_at))[0];
+ const stageWeight={DETECTED:0,CONTACT_PENDING:1,CONTACTED:2,QUALIFIED:3,OPPORTUNITY:4,PROPOSAL:5,NEGOTIATION:6}[o.stage]??0;
+ const priorityWeight={CRITICAL:4,HIGH:3,MEDIUM:2,LOW:1};
+ const candidates=[];
+ const add=(candidate)=>candidates.push({...candidate,score:Number(candidate.score)||0,factors:(candidate.factors||[]).filter(Boolean)});
+ const daysAgo=value=>{const t=dateValue(value);return t===null?null:Math.max(0,(now-t)/86400000);};
+ const daysUntil=value=>{const t=dateValue(value);return t===null?null:(t-now)/86400000;};
+
+ if(closed.has(o.stage))return {text:'Revisar el resultado registrado antes de plantear nuevas acciones.',why:'La oportunidad figura cerrada.',source:'Oportunidades',owner:o.owner_user_id,date:null,score:100,factors:['etapa cerrada']};
+
+ for(const task of (context.tasks||[]).filter(r=>!closed.has(r.status))){
+  const due=dateValue(task.due_at),delta=due===null?null:(due-now)/86400000;
+  const p=priorityWeight[task.priority]||0;
+  let score=28+p*8+stageWeight;
+  if(delta!==null&&delta<0)score+=52+Math.min(18,Math.abs(delta)*2);
+  else if(delta!==null&&delta<=1)score+=38;
+  else if(delta!==null&&delta<=3)score+=24;
+  else if(delta!==null&&delta<=7)score+=10;
+  add({text:'Revisar la tarea «'+label(task)+'».',why:delta!==null&&delta<0?'Su fecha límite registrada ya pasó.':delta!==null&&delta<=3?'Su fecha límite está próxima.':'Es una tarea abierta vinculada a la oportunidad.',source:'Tareas',owner:task.assigned_to,date:task.due_at,score,factors:[task.priority?'prioridad '+task.priority:null,delta!==null&&delta<0?'vencida':delta!==null&&delta<=3?'vence pronto':null]});
+ }
+
+ for(const meeting of (context.meetings||[]).filter(r=>!closed.has(r.status)&&dateValue(r.start_at)!==null&&dateValue(r.start_at)>=now)){
+  const delta=(dateValue(meeting.start_at)-now)/86400000;
+  let score=34+stageWeight*2;
+  if(delta<=1)score+=52;
+  else if(delta<=3)score+=38;
+  else if(delta<=7)score+=20;
+  add({text:'Preparar la reunión «'+label(meeting)+'».',why:'Existe una reunión pendiente registrada'+(delta<=3?' en las próximas 72 horas.':'.'),source:'Agenda',owner:meeting.owner_user_id,date:meeting.start_at,score,factors:[delta<=1?'reunión en 24 h':delta<=3?'reunión en 72 h':'reunión programada']});
+ }
+
+ const history=[...(context.activities||[])].sort((a,b)=>(dateValue(b.occurred_at)||0)-(dateValue(a.occurred_at)||0));
+ const latest=history[0],latestAge=latest?daysAgo(latest.occurred_at):null;
  const decision=(context.contacts||[]).find(c=>['DECISION_MAKER','FINAL_APPROVER'].includes(c.decision_level));
- if(closed.has(o.stage))return {text:'Revisar el resultado registrado antes de plantear nuevas acciones.',why:'La oportunidad figura cerrada.',source:'Oportunidades',owner:o.owner_user_id,date:null};
- if(overdue)return {text:'Revisar la tarea «'+label(overdue)+'».',why:'Su fecha límite registrada ya pasó.',source:'Tareas',owner:overdue.assigned_to,date:overdue.due_at};
- if(meeting)return {text:'Preparar la reunión «'+label(meeting)+'».',why:'Existe una reunión pendiente registrada.',source:'Agenda',owner:meeting.owner_user_id,date:meeting.start_at};
- if(tasks[0])return {text:'Revisar la tarea «'+label(tasks[0])+'».',why:'Es la tarea abierta con fecha más próxima entre las consultadas.',source:'Tareas',owner:tasks[0].assigned_to,date:tasks[0].due_at};
- if(o.next_action)return {text:'Preparar la próxima acción registrada: '+safe(o.next_action),why:'Es el siguiente paso registrado en la oportunidad.',source:'Oportunidades',owner:o.owner_user_id,date:o.next_action_date};
- return {text:decision?'Definir y registrar el siguiente paso comercial.':'Validar quién decide y registrarlo en Contactos.',why:decision?'No hay próxima acción registrada.':'No consta un contacto clasificado como decisor en los datos consultados.',source:decision?'Oportunidades':'Contactos',owner:o.owner_user_id,date:null};
+ const budgetEvidence=history.find(r=>r.budget_signal);
+ const objection=history.find(r=>/objeci[oó]n/i.test(r.subject||''));
+ const objectionAge=objection?daysAgo(objection.occurred_at):null;
+
+ if(objection&&objectionAge!==null&&objectionAge<=30&&!history.some(r=>dateValue(r.occurred_at)>dateValue(objection.occurred_at)&&['CONDITIONS_AGREED','FORMAL_COMMITMENT','PURCHASE_ORDER_RECEIVED','CONTRACT_SIGNED','SALE_WON'].includes(r.action_code))){
+  add({text:'Revisar la objeción registrada «'+label(objection)+'» antes del siguiente contacto.',why:'Existe una objeción reciente registrada y no consta después de ella un hito que acredite acuerdo o cierre.',source:'Historial',owner:o.owner_user_id,date:objection.occurred_at,score:48+stageWeight*5+(objectionAge<=7?16:0),factors:['objeción registrada',objectionAge<=7?'reciente':null]});
+ }
+
+ if(!decision){
+  add({text:'Validar quién decide y registrarlo en Contactos.',why:'No consta un contacto clasificado como decisor o aprobador final.',source:'Contactos',owner:o.owner_user_id,date:null,score:(o.stage==='NEGOTIATION'?82:o.stage==='PROPOSAL'?72:38)+stageWeight,factors:['decisor no identificado',stageWeight>=5?'etapa avanzada':null]});
+ }
+
+ if(!budgetEvidence&&stageWeight>=4){
+  add({text:'Validar y registrar la situación presupuestaria antes de comprometer condiciones.',why:'No hay evidencia presupuestaria registrada en el historial consultado.',source:'Historial',owner:o.owner_user_id,date:null,score:(o.stage==='NEGOTIATION'?68:o.stage==='PROPOSAL'?60:44)+stageWeight,factors:['presupuesto sin evidencia',stageWeight>=5?'etapa avanzada':null]});
+ }
+
+ if(o.next_action){
+  const delta=daysUntil(o.next_action_date);
+  let score=42+stageWeight*3;
+  if(delta!==null&&delta<0)score+=38;
+  else if(delta!==null&&delta<=1)score+=28;
+  else if(delta!==null&&delta<=3)score+=18;
+  add({text:'Preparar la próxima acción registrada: '+safe(o.next_action),why:delta!==null&&delta<0?'La fecha registrada para esta acción ya pasó.':'Es el siguiente paso registrado en la oportunidad.',source:'Oportunidades',owner:o.owner_user_id,date:o.next_action_date,score,factors:['próxima acción registrada',delta!==null&&delta<0?'seguimiento vencido':delta!==null&&delta<=3?'seguimiento próximo':null]});
+ }
+
+ const closeDelta=daysUntil(o.expected_close_date);
+ if(closeDelta!==null&&stageWeight>=4&&(closeDelta<0||closeDelta<=14)){
+  add({text:'Revisar el plan de cierre y confirmar que el siguiente paso siga vigente.',why:closeDelta<0?'La fecha de cierre prevista registrada ya pasó.':'La fecha de cierre prevista está próxima; esto no implica probabilidad de cierre.',source:'Oportunidades',owner:o.owner_user_id,date:o.expected_close_date,score:(closeDelta<0?70:closeDelta<=7?56:44)+stageWeight*2,factors:[closeDelta<0?'cierre previsto vencido':'cierre previsto próximo']});
+ }
+
+ const staleThreshold=o.stage==='NEGOTIATION'?7:o.stage==='PROPOSAL'?10:stageWeight>=3?14:21;
+ if(latestAge===null||latestAge>=staleThreshold){
+  add({text:latest?'Revisar si corresponde un seguimiento por tiempo desde el último movimiento.':'Registrar el primer movimiento comercial verificable de esta oportunidad.',why:latest?'El último movimiento registrado tiene '+Math.floor(latestAge)+' días. No se presume que el cliente requiera contacto.':'No hay movimientos comerciales registrados para esta oportunidad.',source:'Historial',owner:o.owner_user_id,date:latest?.occurred_at||null,score:36+stageWeight*3+(latestAge!==null?Math.min(20,Math.floor(latestAge/staleThreshold)*5):12),factors:[latest?'historial sin movimiento reciente':'sin historial']});
+ }
+
+ if(!candidates.length)add({text:'Definir y registrar el siguiente paso comercial.',why:'No hay una próxima acción priorizable con los datos consultados.',source:'Oportunidades',owner:o.owner_user_id,date:null,score:20,factors:['siguiente paso no registrado']});
+
+ candidates.sort((a,b)=>b.score-a.score||(dateValue(a.date)??Infinity)-(dateValue(b.date)??Infinity)||a.text.localeCompare(b.text));
+ const best=candidates[0];
+ return {...best,alternatives:candidates.slice(1,4).map(({text,why,source,date,score,factors})=>({text,why,source,date,score,factors}))};
 }
 
 export function opportunityReply(loaded,message,auth){
