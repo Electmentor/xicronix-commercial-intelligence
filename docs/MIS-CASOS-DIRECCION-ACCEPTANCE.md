@@ -1,6 +1,6 @@
 # Mis casos · Dirección — lista única de aceptación
 
-Estado: EN VERIFICACIÓN PARA APLICAR AL CRM. El usuario autorizó expresamente aplicarlo en el propio CRM; no se declara terminación de la matriz.
+Estado: APLICADO EN EL CRM DE PRODUCCIÓN. El usuario autorizó expresamente aplicarlo en el propio CRM. La publicación está verificada; la aceptación completa de las diez decisiones permanece PENDIENTE.
 Base inspeccionada: cf15d952e520780b71396904e125c50ea93c5d57, main y producción coincidentes.
 Rama de trabajo: work/mis-casos-direccion-20261012. La copia local procede de archivos GitHub del SHA exacto; no es una clonación del historial completo.
 
@@ -20,22 +20,33 @@ Cada fila solo será APROBADA cuando cumpla usuario autorizado, rechazo de usuar
 
 | Decisión | Código | SQL remoto DEV | Navegador y sesión real DEV | Producción | Estado de aceptación |
 |---|---|---|---|---|---|
-| 1 Priorizar con motivo e historia | Implementado | Comprobaciones SQL parciales PASS¹ | Pendiente | No publicado | PENDIENTE |
-| 2 Asignar o reasignar a responsable válido | Implementado | Comprobaciones SQL parciales PASS¹ | Pendiente | No publicado | PENDIENTE |
-| 3 Aprobar/rechazar versión de propuesta | Implementado | Pendiente; cotizador ausente en DEV | Pendiente | No publicado | PENDIENTE |
-| 4 Autorizar excepción y límites | Implementado | Comprobaciones SQL parciales PASS¹; reglas reales no confirmadas | Pendiente | No publicado | PENDIENTE |
-| 5 Autorizar recursos sin compra/pago | Implementado | Comprobaciones SQL parciales PASS¹; reglas reales no confirmadas | Pendiente | No publicado | PENDIENTE |
-| 6 Confirmar/modificar compromiso | Implementado | Comprobaciones SQL parciales PASS¹ | Pendiente | No publicado | PENDIENTE |
-| 7 Decidir bloqueo y verificar resolución | Implementado | Comprobaciones SQL parciales PASS¹ | Pendiente | No publicado | PENDIENTE |
-| 8 Tratar escalación y vincular reclamo existente | Implementado | Pendiente; reclamos ausente en DEV | Pendiente | No publicado | PENDIENTE |
-| 9 Continuar/pausar/descartar con motivo | Implementado | Comprobaciones SQL parciales PASS¹ | Pendiente | No publicado | PENDIENTE |
-| 10 Cerrar excepcionalmente o reabrir | Implementado | Comprobaciones SQL parciales PASS¹ | Pendiente | No publicado | PENDIENTE |
+| 1 Priorizar con motivo e historia | Implementado | Comprobaciones SQL parciales PASS¹ | Pendiente | Publicado; E2E real pendiente | PENDIENTE |
+| 2 Asignar o reasignar a responsable válido | Implementado | Comprobaciones SQL parciales PASS¹ | Pendiente | Publicado; E2E real pendiente | PENDIENTE |
+| 3 Aprobar/rechazar versión de propuesta | Implementado | Pendiente; cotizador ausente en DEV | Pendiente | Publicado; E2E real pendiente | PENDIENTE |
+| 4 Autorizar excepción y límites | Implementado | Comprobaciones SQL parciales PASS¹; reglas reales no confirmadas | Pendiente | Publicado; E2E real pendiente | PENDIENTE |
+| 5 Autorizar recursos sin compra/pago | Implementado | Comprobaciones SQL parciales PASS¹; reglas reales no confirmadas | Pendiente | Publicado; E2E real pendiente | PENDIENTE |
+| 6 Confirmar/modificar compromiso | Implementado | Comprobaciones SQL parciales PASS¹ | Pendiente | Publicado; E2E real pendiente | PENDIENTE |
+| 7 Decidir bloqueo y verificar resolución | Implementado | Comprobaciones SQL parciales PASS¹ | Pendiente | Publicado; E2E real pendiente | PENDIENTE |
+| 8 Tratar escalación y vincular reclamo existente | Implementado | Pendiente; reclamos ausente en DEV | Pendiente | Publicado; E2E real pendiente | PENDIENTE |
+| 9 Continuar/pausar/descartar con motivo | Implementado | Comprobaciones SQL parciales PASS¹ | Pendiente | Publicado; E2E real pendiente | PENDIENTE |
+| 10 Cerrar excepcionalmente o reabrir | Implementado | Comprobaciones SQL parciales PASS¹ | Pendiente | Publicado; E2E real pendiente | PENDIENTE |
 
 ¹ tests/case-direction-dev.sql: ejecución remota real en DEV con usuarios, organización, casos y reglas sintéticos dentro de una transacción revertida. Decisiones 1,2,4,5,6,7,8,9,10: autorizado/VIEWER, reintento exacto, revisión obsoleta, historia atómica, tareas sin duplicados, cierre bloqueado con pendientes, reapertura y rechazo de escritura directa. No demuestra recarga del navegador, Auth real, persistencia entre sesiones ni contención entre conexiones. La matriz permanece PENDIENTE.
 
+## Publicación verificada · 2026-10-13
+
+- Aplicación: https://xicronix-commercial-intelligence.vercel.app/#page=leads — seleccionar Vista dirección y Datos reales.
+- Commit de aplicación verificado: 21bd65fe16cf70581cc1182ef815f6e57949eaa8.
+- Vercel producción READY: dpl_cmKhwu3DG4AHVAfbqZAcdUbA3rjJ, asociado a ese commit y al dominio público.
+- Esquema aplicado en Supabase producción qzfprdhmcaucqcdqgqiz: crm_case_direction_v1. Las cuatro tablas tienen RLS; INSERT/UPDATE/DELETE directos de authenticated rechazados por privilegios. No se sembraron casos ni reglas sintéticas en producción.
+- Prueba remota: https://github.com/Electmentor/xicronix-commercial-intelligence/actions/runs/38335568523 — ambos trabajos SUCCESS: Chromium móvil/escritorio de la app real con SDK sintético y comprobación de hashes de los cinco archivos realmente servidos por el dominio público. La verificación productiva es de solo lectura y no equivale a operar casos reales autenticados.
+- Capturas desktop.png/mobile.png y resultados: https://github.com/Electmentor/xicronix-commercial-intelligence/actions/runs/38335417747/artifacts/11784401696 — artefacto case-direction-evidence, exclusivamente sintético.
+- Reglas económicas productivas siguen sin activar: falta confirmación empresarial; no se inventaron importes ni márgenes autorizados. Propuesta y reclamo nativos no fueron operados en producción.
+- El esquema añade bloqueo de tareas/reuniones/entregables sobre solicitudes cerradas/resueltas/descartadas; el bloqueo de fila se comparte con el cierre. No se borran datos para revertir.
+
 ## Evidencia disponible
 
-- Supabase DEV exacto: rmximatxuaczhpqbcuho, ACTIVE_HEALTHY observado. Producción: qzfprdhmcaucqcdqgqiz, no se ejecutaron escrituras.
+- Supabase DEV exacto: rmximatxuaczhpqbcuho, ACTIVE_HEALTHY observado. Producción: qzfprdhmcaucqcdqgqiz; se aplicó únicamente el esquema autorizado, sin casos sintéticos, datos históricos ni reglas económicas.
 - Migraciones aplicadas únicamente en DEV: crm_case_direction_v1 y crm_case_direction_followup_guard_v1. El segundo ajuste evita duplicar tareas: el trigger existente private.cx_activity_followup_v1 crea tareas al recibir next_action/next_action_date en actividades; la decisión registra trabajo en la tarea canónica y deja vacíos esos campos de actividad.
 - Pruebas locales nuevas: tests/case-direction.test.mjs (9 comprobaciones de filtros, estados, incompletos, búsqueda, bloqueo, versión, HTML no confiable, mensajes e aislamiento DEV/PROD), aprobadas.
 - SQL de reproducción: database/crm-case-direction-v1.sql. RLS activo en las cuatro tablas nuevas. Escritura directa de cliente revocada; wrapper invoker y escritor privado con comprobación de auth.uid()/profiles reales, sin user_metadata ni privilegios derivados de Vista dirección.
@@ -47,7 +58,7 @@ Cada fila solo será APROBADA cuando cumpla usuario autorizado, rechazo de usuar
 
 ## Pendientes y responsables
 
-- Agente: ejecutar pruebas transaccionales SQL, completar errores y conflicto de todas las decisiones; obtener preview revisable; repetir regresiones y registrar evidencia.
+- Agente: completar propuesta y reclamo nativos, pruebas con sesiones reales, persistencia entre sesiones y contención simultánea para cerrar la matriz. Publicación, SQL parcial, UI sintética y archivos productivos ya verificados.
 - Entorno/administración de acceso: habilitar ejecución de Chromium y acceso al preview de este proyecto sin retirar protección; permitir sesiones DEV de prueba por un mecanismo seguro. No entregar claves por chat ni ampliar roles reales.
 - Dirección: confirmar reglas empresariales de importe/moneda, margen mínimo, descuento y plazo de pago. La capacidad permanece bloqueada mientras falten; no se pide autorización de despliegue aún.
 - Cotizador y reclamos ausentes en DEV: verificar la integración con fixtures compatibles sin instalar otro CRM ni copiar datos reales; distinguirlo de una prueba del módulo real.
